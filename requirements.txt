@@ -1,0 +1,27 @@
+# ML Training Program Dependencies
+# Python 3.10 compatible versions
+
+# Core ML frameworks
+torch==2.1.2
+triton==2.1.0
+
+# Numerical computing
+numpy==1.26.3
+
+# Visualization
+matplotlib==3.8.2
+
+# Testing
+pytest==7.4.4
+pytest-timeout==2.2.0
+
+# Progress bars
+tqdm==4.66.1
+
+# Jupyter support (optional)
+ipykernel==6.28.0
+jupyter==1.0.0
+
+# Code quality (optional)
+black==23.12.1
+isort==5.13.2
