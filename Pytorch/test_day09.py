@@ -1,217 +1,131 @@
 """Test Suite for Day 9: Data Loading"""
 
 import torch
+import pytest
 from torch.utils.data import DataLoader
-from typing import Tuple
-
 try:
     from day09 import (SimpleDataset, TransformDataset, custom_collate,
                        SequenceDataset, BalancedSampler, demonstrate_dataloader)
     IMPORT_SUCCESS = True
+    IMPORT_ERROR = None
 except ImportError as e:
     IMPORT_SUCCESS = False
     IMPORT_ERROR = str(e)
 
-
-def test_simple_dataset() -> Tuple[bool, str]:
-    try:
-        torch.manual_seed(42)
-        X = torch.randn(100, 10)
-        y = torch.randint(0, 3, (100,))
-        dataset = SimpleDataset(X, y)
-        
-        if len(dataset) == 0:
-            return False, "Not implemented"
-        
-        if len(dataset) != 100:
-            return False, f"Length: got {len(dataset)}, expected 100"
-        
-        # Test multiple indices and verify VALUES
-        for idx in [0, 50, 99]:
-            sample_x, sample_y = dataset[idx]
-            if sample_x is None:
-                return False, f"__getitem__[{idx}] returned None"
-            
-            if sample_x.shape != torch.Size([10]):
-                return False, f"Sample shape: got {sample_x.shape}, expected (10,)"
-            
-            # Verify the returned values match the original data
-            if not torch.equal(sample_x, X[idx]):
-                return False, f"X[{idx}] doesn't match original: got {sample_x[:3]}, expected {X[idx][:3]}"
-            if sample_y != y[idx]:
-                return False, f"y[{idx}] doesn't match: got {sample_y}, expected {y[idx]}"
-        
-        return True, "OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_transform_dataset() -> Tuple[bool, str]:
-    try:
-        X = torch.randn(100, 10)
-        y = torch.randint(0, 3, (100,))
-        
-        # Transform: add 1 to all values
-        transform = lambda x: x + 1
-        dataset = TransformDataset(X, y, transform=transform)
-        
-        sample_x, _ = dataset[0]
-        if sample_x is None:
-            return False, "Not implemented"
-        
-        # Check transform was applied
-        expected = X[0] + 1
-        if not torch.allclose(sample_x, expected):
-            return False, "Transform not applied"
-        
-        return True, "OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_custom_collate() -> Tuple[bool, str]:
-    try:
-        torch.manual_seed(42)
-        # Create batch with known values
-        x0, y0 = torch.randn(10), torch.tensor(0)
-        x1, y1 = torch.randn(10), torch.tensor(1)
-        x2, y2 = torch.randn(10), torch.tensor(2)
-        batch = [(x0, y0), (x1, y1), (x2, y2)]
-        
-        x_batch, y_batch = custom_collate(batch)
-        
-        if x_batch is None:
-            return False, "Not implemented"
-        
-        if x_batch.shape != torch.Size([3, 10]):
-            return False, f"X shape: got {x_batch.shape}, expected (3, 10)"
-        
-        if y_batch.shape != torch.Size([3]):
-            return False, f"Y shape: got {y_batch.shape}, expected (3,)"
-        
-        # Verify VALUES are correctly stacked
-        if not torch.equal(x_batch[0], x0):
-            return False, f"x_batch[0] doesn't match original"
-        if not torch.equal(x_batch[1], x1):
-            return False, f"x_batch[1] doesn't match original"
-        if not torch.equal(x_batch[2], x2):
-            return False, f"x_batch[2] doesn't match original"
-        
-        expected_y = torch.tensor([0, 1, 2])
-        if not torch.equal(y_batch, expected_y):
-            return False, f"y_batch: got {y_batch}, expected {expected_y}"
-        
-        return True, "OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_sequence_dataset() -> Tuple[bool, str]:
-    try:
-        data = torch.arange(20).float()
-        seq_length = 5
-        dataset = SequenceDataset(data, seq_length)
-        
-        if len(dataset) == 0:
-            return False, "Not implemented"
-        
-        # Should have 20 - 5 = 15 sequences
-        if len(dataset) != 15:
-            return False, f"Length: {len(dataset)}"
-        
-        x, y = dataset[0]
-        if x is None:
-            return False, "__getitem__ not implemented"
-        
-        # x should be [0, 1, 2, 3, 4]
-        # y should be [1, 2, 3, 4, 5]
-        expected_x = torch.arange(5).float()
-        expected_y = torch.arange(1, 6).float()
-        
-        if not torch.allclose(x, expected_x):
-            return False, f"x: {x}"
-        if not torch.allclose(y, expected_y):
-            return False, f"y: {y}"
-        
-        return True, "OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_balanced_sampler() -> Tuple[bool, str]:
-    try:
-        # Imbalanced labels: 90 class 0, 10 class 1
-        labels = torch.cat([torch.zeros(90), torch.ones(10)]).long()
-        sampler = BalancedSampler(labels, batch_size=16)
-        
-        indices = list(sampler)
-        
-        if len(indices) == 0:
-            return False, "Not implemented"
-        
-        # Should have roughly equal samples from each class
-        sampled_labels = labels[indices]
-        class_0_count = (sampled_labels == 0).sum().item()
-        class_1_count = (sampled_labels == 1).sum().item()
-        
-        # Should be roughly balanced (within 2x)
-        ratio = max(class_0_count, class_1_count) / min(class_0_count, class_1_count)
-        if ratio > 2:
-            return False, f"Not balanced: {class_0_count} vs {class_1_count}"
-        
-        return True, f"OK ({class_0_count}:{class_1_count})"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_dataloader_integration() -> Tuple[bool, str]:
-    try:
-        X = torch.randn(100, 10)
-        y = torch.randint(0, 3, (100,))
-        dataset = SimpleDataset(X, y)
-        
-        if len(dataset) == 0:
-            return False, "Dataset not implemented"
-        
-        loader = DataLoader(dataset, batch_size=16, shuffle=True)
-        
-        batch_count = 0
-        for batch_x, batch_y in loader:
-            batch_count += 1
-            if batch_x.shape[0] > 16:
-                return False, f"Batch too large: {batch_x.shape}"
-        
-        if batch_count == 0:
-            return False, "No batches"
-        
-        return True, f"OK ({batch_count} batches)"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("simple_dataset", test_simple_dataset),
-        ("transform_dataset", test_transform_dataset),
-        ("custom_collate", test_custom_collate),
-        ("sequence_dataset", test_sequence_dataset),
-        ("balanced_sampler", test_balanced_sampler),
-        ("dataloader_integration", test_dataloader_integration),
-    ]
-    
-    print(f"\n{'='*50}\nDay 9: Data Loading - Tests\n{'='*50}")
-    
+def test_simple_dataset():
     if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        return
+        pytest.fail(f"Import error: {IMPORT_ERROR}")
     
-    passed = 0
-    for name, fn in tests:
-        p, m = fn()
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
-    print(f"\nSummary: {passed}/{len(tests)}")
+    torch.manual_seed(42)
+    X = torch.randn(100, 10)
+    y = torch.randint(0, 3, (100,))
+    dataset = SimpleDataset(X, y)
+    
+    assert len(dataset) != 0, "Not implemented"
+    assert len(dataset) == 100, f"Length: got {len(dataset)}, expected 100"
+    
+    for idx in [0, 50, 99]:
+        sample_x, sample_y = dataset[idx]
+        assert sample_x is not None, f"__getitem__[{idx}] returned None"
+        assert sample_x.shape == torch.Size([10]), f"Sample shape: got {sample_x.shape}, expected (10,)"
+        assert torch.equal(sample_x, X[idx]), f"X[{idx}] doesn't match original: got {sample_x[:3]}, expected {X[idx][:3]}"
+        assert sample_y == y[idx], f"y[{idx}] doesn't match: got {sample_y}, expected {y[idx]}"
 
+def test_transform_dataset():
+    if not IMPORT_SUCCESS:
+        pytest.fail(f"Import error: {IMPORT_ERROR}")
+    
+    X = torch.randn(100, 10)
+    y = torch.randint(0, 3, (100,))
+    
+    transform = lambda x: x + 1
+    dataset = TransformDataset(X, y, transform=transform)
+    
+    sample_x, _ = dataset[0]
+    assert sample_x is not None, "Not implemented"
+    
+    expected = X[0] + 1
+    assert torch.allclose(sample_x, expected), "Transform not applied"
+
+def test_custom_collate():
+    if not IMPORT_SUCCESS:
+        pytest.fail(f"Import error: {IMPORT_ERROR}")
+    
+    torch.manual_seed(42)
+    x0, y0 = torch.randn(10), torch.tensor(0)
+    x1, y1 = torch.randn(10), torch.tensor(1)
+    x2, y2 = torch.randn(10), torch.tensor(2)
+    batch = [(x0, y0), (x1, y1), (x2, y2)]
+    
+    x_batch, y_batch = custom_collate(batch)
+    
+    assert x_batch is not None, "Not implemented"
+    assert x_batch.shape == torch.Size([3, 10]), f"X shape: got {x_batch.shape}, expected (3, 10)"
+    assert y_batch.shape == torch.Size([3]), f"Y shape: got {y_batch.shape}, expected (3,)"
+    
+    assert torch.equal(x_batch[0], x0), "x_batch[0] doesn't match original"
+    assert torch.equal(x_batch[1], x1), "x_batch[1] doesn't match original"
+    assert torch.equal(x_batch[2], x2), "x_batch[2] doesn't match original"
+    
+    expected_y = torch.tensor([0, 1, 2])
+    assert torch.equal(y_batch, expected_y), f"y_batch: got {y_batch}, expected {expected_y}"
+
+def test_sequence_dataset():
+    if not IMPORT_SUCCESS:
+        pytest.fail(f"Import error: {IMPORT_ERROR}")
+    
+    data = torch.arange(20).float()
+    seq_length = 5
+    dataset = SequenceDataset(data, seq_length)
+    
+    assert len(dataset) != 0, "Not implemented"
+    assert len(dataset) == 15, f"Length: {len(dataset)}"
+    
+    x, y = dataset[0]
+    assert x is not None, "__getitem__ not implemented"
+    
+    expected_x = torch.arange(5).float()
+    expected_y = torch.arange(1, 6).float()
+    
+    assert torch.allclose(x, expected_x), f"x: {x}"
+    assert torch.allclose(y, expected_y), f"y: {y}"
+
+def test_balanced_sampler():
+    if not IMPORT_SUCCESS:
+        pytest.fail(f"Import error: {IMPORT_ERROR}")
+    
+    labels = torch.cat([torch.zeros(90), torch.ones(10)]).long()
+    sampler = BalancedSampler(labels, batch_size=16)
+    
+    indices = list(sampler)
+    
+    assert len(indices) != 0, "Not implemented"
+    
+    sampled_labels = labels[indices]
+    class_0_count = (sampled_labels == 0).sum().item()
+    class_1_count = (sampled_labels == 1).sum().item()
+    
+    ratio = max(class_0_count, class_1_count) / min(class_0_count, class_1_count)
+    assert ratio <= 2, f"Not balanced: {class_0_count} vs {class_1_count}"
+
+def test_dataloader_integration():
+    if not IMPORT_SUCCESS:
+        pytest.fail(f"Import error: {IMPORT_ERROR}")
+    
+    X = torch.randn(100, 10)
+    y = torch.randint(0, 3, (100,))
+    dataset = SimpleDataset(X, y)
+    
+    assert len(dataset) != 0, "Dataset not implemented"
+    
+    loader = DataLoader(dataset, batch_size=16, shuffle=True)
+    
+    batch_count = 0
+    for batch_x, batch_y in loader:
+        batch_count += 1
+        assert batch_x.shape[0] <= 16, f"Batch too large: {batch_x.shape}"
+    
+    assert batch_count != 0, "No batches"
 
 if __name__ == "__main__":
-    run_all_tests()
+    pytest.main([__file__, "-v"])
