@@ -55,38 +55,31 @@ def add_one_kernel(
     Add 1 to every element in the input array.
     
     Each program instance processes BLOCK_SIZE elements.
+    
+    Steps:
+    1. Get program ID (which block are we?)
+    2. Calculate starting index for this block
+    3. Generate offsets [0, 1, 2, ..., BLOCK_SIZE-1]
+    4. Create mask for bounds checking
+    5. Load data from input
+    6. Add 1 to loaded values
+    7. Store result
     """
-    # TODO: Get the program ID (which block are we?)
-    # HINT: Use tl.program_id(axis=0)
-    pid = None  # Replace with correct code
+    # API hints:
+    # - tl.program_id(axis) -> get block index on given axis
+    # - tl.arange(start, end) -> create range [start, end)
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory with bounds check
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory with bounds check
     
-    # TODO: Calculate the starting index for this block
-    # HINT: block_start = pid * BLOCK_SIZE
-    block_start = None  # Replace with correct code
-    
-    # TODO: Generate offsets for this block [0, 1, 2, ..., BLOCK_SIZE-1]
-    # HINT: Use tl.arange(0, BLOCK_SIZE)
-    offsets = None  # Replace with correct code
-    
-    # TODO: Create a mask for bounds checking (important for last block!)
-    # HINT: mask = (block_start + offsets) < n_elements
-    mask = None  # Replace with correct code
-    
-    # TODO: Load data from input pointer
-    # HINT: Use tl.load(x_ptr + block_start + offsets, mask=mask)
-    x = None  # Replace with correct code
-    
-    # TODO: Add 1 to the loaded values
-    output = None  # Replace with correct code
-    
-    # TODO: Store the result
-    # HINT: Use tl.store(out_ptr + block_start + offsets, output, mask=mask)
-    pass  # Replace with correct code
+    # TODO: Implement the kernel
+    pass
 
 
 def add_one(x: torch.Tensor) -> torch.Tensor:
     """
     Wrapper function to launch the kernel.
+    
+    Launch the add_one_kernel with proper grid configuration.
     """
     # Ensure input is on GPU
     assert x.is_cuda, "Input must be on GPU"
@@ -103,9 +96,11 @@ def add_one(x: torch.Tensor) -> torch.Tensor:
     # Calculate grid size (number of blocks needed)
     grid = (triton.cdiv(n_elements, BLOCK_SIZE),)
     
+    # API hints:
+    # - kernel_name[grid](arg1, arg2, ...) -> launch kernel with grid configuration
+    
     # TODO: Launch the kernel
-    # HINT: add_one_kernel[grid](x, output, n_elements, BLOCK_SIZE)
-    pass  # Replace with correct code
+    pass
     
     return output
 
@@ -126,13 +121,15 @@ def print_ids_kernel(
     
     In practice, printing from GPU kernels isn't straightforward,
     but this exercise helps you understand the concept.
-    """
-    # TODO: Get program ID
-    pid = None  # Replace with correct code
     
-    # TODO: Calculate start and end indices this program handles
-    start_idx = None  # Replace with correct code
-    end_idx = None    # Replace with correct code (min of start + BLOCK_SIZE, n_elements)
+    Compute the start and end indices this program handles.
+    """
+    # API hints:
+    # - tl.program_id(axis) -> get block index on given axis
+    # - tl.minimum(a, b) -> element-wise minimum
+    
+    # TODO: Get program ID, calculate start_idx and end_idx
+    pass
 
 
 # ============================================================================
@@ -149,16 +146,16 @@ def square_kernel(
 ):
     """
     Square every element: out[i] = x[i] * x[i]
+    
+    Follow the same pattern as add_one_kernel.
     """
+    # API hints:
+    # - tl.program_id(axis) -> get block index on given axis
+    # - tl.arange(start, end) -> create range [start, end)
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
+    
     # TODO: Implement the kernel
-    # Follow the same pattern as add_one_kernel:
-    # 1. Get program ID
-    # 2. Calculate block start
-    # 3. Generate offsets
-    # 4. Create mask
-    # 5. Load data
-    # 6. Compute (square the values)
-    # 7. Store result
     pass
 
 
@@ -169,9 +166,12 @@ def square(x: torch.Tensor) -> torch.Tensor:
     n_elements = x.numel()
     BLOCK_SIZE = 1024
     
+    # API hints:
+    # - triton.cdiv(n, d) -> ceiling division
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Calculate grid and launch kernel
-    grid = None  # Replace with correct code
-    # Launch kernel here
+    pass
     
     return output
 

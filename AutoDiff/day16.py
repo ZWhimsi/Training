@@ -167,13 +167,14 @@ class Tensor:
         
         out = Tensor(result, (self,), 'T')
         
+        # API hints:
+        # - np.transpose(arr) -> reverse all axes
+        # - np.transpose(arr, axes) -> permute with specific order
+        # - Inverse permutation undoes the transpose
+        # - np.argsort(axes) -> compute inverse permutation
+        
         # TODO: Implement backward pass
         def _backward():
-            # HINT: Transpose gradient back using inverse axes
-            # if axes is None:
-            #     self.grad += np.transpose(out.grad)
-            # else:
-            #     self.grad += np.transpose(out.grad, inv_axes)
             pass  # Replace
         
         out._backward = _backward
@@ -203,17 +204,18 @@ class Tensor:
         if isinstance(other, (int, float)):
             raise ValueError("matmul requires tensor operand")
         
+        # API hints:
+        # - np.matmul(A, B) -> matrix multiplication
+        # - Tensor(result, children, op) -> create output
+        # - dL/dA = dL/dC @ B.T (gradient w.r.t. first operand)
+        # - dL/dB = A.T @ dL/dC (gradient w.r.t. second operand)
+        # - np.swapaxes(arr, -1, -2) -> transpose last two axes
+        
         # TODO: Implement forward pass
-        # HINT: result = np.matmul(self.data, other.data)
-        out = None  # Replace: Tensor(result, (self, other), '@')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # For 2D: dL/dA = dL/dC @ B.T, dL/dB = A.T @ dL/dC
-            # For batched: use np.matmul which broadcasts correctly
-            # HINT:
-            # self.grad += np.matmul(out.grad, np.swapaxes(other.data, -1, -2))
-            # other.grad += np.matmul(np.swapaxes(self.data, -1, -2), out.grad)
             pass  # Replace
         
         out._backward = _backward
@@ -248,23 +250,22 @@ class Tensor:
         is_column = vec.data.ndim == 2 and vec.data.shape[1] == 1
         vec_flat = vec.data.flatten() if is_column else vec.data
         
+        # API hints:
+        # - np.dot(matrix, vector) -> matrix-vector product
+        # - np.outer(a, b) -> outer product (m,) x (n,) -> (m, n)
+        # - dL/dA = outer(dL/dy, x) -> (m,n) gradient for matrix
+        # - dL/dx = A.T @ dL/dy -> (n,) gradient for vector
+        # - arr.reshape(shape) -> reshape result
+        
         # TODO: Implement forward pass
-        # HINT: result = np.dot(self.data, vec_flat)
         result = None  # Replace
         if is_column:
             result = result.reshape(-1, 1) if result is not None else None
         
-        out = None  # Replace: Tensor(result, (self, vec), 'matvec')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # dL/dA = outer(dL/dy, x)
-            # dL/dx = A.T @ dL/dy
-            # HINT:
-            # grad_out = out.grad.flatten() if is_column else out.grad
-            # self.grad += np.outer(grad_out, vec_flat)
-            # grad_vec = np.dot(self.data.T, grad_out)
-            # vec.grad += grad_vec.reshape(vec.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -292,16 +293,17 @@ class Tensor:
         assert self.data.ndim == 3 and other.data.ndim == 3, \
             "bmm requires 3D tensors"
         
+        # API hints:
+        # - np.matmul handles batch dimensions automatically
+        # - Same gradient formulas as 2D matmul
+        # - dL/dA = dL/dC @ B.T, dL/dB = A.T @ dL/dC
+        # - np.swapaxes(arr, -1, -2) -> transpose last two axes
+        
         # TODO: Implement forward pass (same as matmul for 3D)
-        # HINT: result = np.matmul(self.data, other.data)
-        out = None  # Replace: Tensor(result, (self, other), 'bmm')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Same as matmul gradients, works element-wise over batch
-            # HINT:
-            # self.grad += np.matmul(out.grad, np.swapaxes(other.data, -1, -2))
-            # other.grad += np.matmul(np.swapaxes(self.data, -1, -2), out.grad)
             pass  # Replace
         
         out._backward = _backward
@@ -343,9 +345,12 @@ class Linear:
         Returns:
             Output tensor of shape (batch, out_features)
         """
+        # API hints:
+        # - x @ self.weight or x.matmul(self.weight) -> matrix multiply
+        # - out + self.bias -> add bias (broadcasts over batch)
+        # - Check if self.bias is not None before adding
+        
         # TODO: Implement forward pass
-        # HINT: out = x @ self.weight (or x.matmul(self.weight))
-        # HINT: if self.bias is not None: out = out + self.bias
         return None  # Replace
     
     def parameters(self):

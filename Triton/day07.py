@@ -9,12 +9,6 @@ Learning objectives:
 - Optimize memory access patterns
 - Compare coalesced vs non-coalesced access
 - Profile memory bandwidth
-
-Hints:
-- Coalesced access: consecutive threads access consecutive memory
-- Row-major layout: adjacent columns are adjacent in memory
-- Use contiguous() to ensure proper memory layout
-- Poor access patterns can 10x slow down your kernel!
 """
 
 import torch
@@ -39,25 +33,13 @@ def row_access_kernel(
     Access matrix row by row (good memory access pattern).
     Each program handles one row.
     """
-    row_idx = tl.program_id(0)
+    # API hints:
+    # - tl.program_id(0) -> row index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load row (coalesced)
+    # - tl.store(ptr + offsets, value, mask=mask) -> store row
     
-    if row_idx >= M:
-        return
-    
-    col_offs = tl.arange(0, BLOCK_N)
-    mask = col_offs < N
-    
-    # TODO: Calculate row pointer (coalesced access)
-    row_ptr = None  # Replace: x_ptr + row_idx * stride_m
-    
-    # TODO: Load row (adjacent elements in memory)
-    row = None  # Replace
-    
-    # Process (e.g., double the values)
-    out_row = row * 2.0
-    
-    # TODO: Store
-    out_row_ptr = None  # Replace
+    # TODO: Implement row access kernel
     pass
 
 
@@ -70,7 +52,11 @@ def row_access(x: torch.Tensor) -> torch.Tensor:
     BLOCK_N = triton.next_power_of_2(N)
     grid = (M,)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -91,25 +77,14 @@ def col_access_kernel(
     Access matrix column by column (poor memory access pattern).
     This is for educational purposes - shows what NOT to do for performance.
     """
-    col_idx = tl.program_id(0)
+    # API hints:
+    # - tl.program_id(0) -> column index
+    # - tl.arange(start, end) -> create range
+    # - offsets * stride_m + col_idx -> strided indices (non-coalesced)
+    # - tl.load(ptr + indices, mask=mask) -> load column
+    # - tl.store(ptr + indices, value, mask=mask) -> store column
     
-    if col_idx >= N:
-        return
-    
-    row_offs = tl.arange(0, BLOCK_M)
-    mask = row_offs < M
-    
-    # TODO: Calculate indices (strided access - not coalesced!)
-    # Each load jumps by stride_m in memory
-    indices = None  # Replace: row_offs * stride_m + col_idx
-    
-    # TODO: Load column (non-adjacent elements)
-    col = None  # Replace
-    
-    # Process
-    out_col = col * 2.0
-    
-    # TODO: Store (also strided)
+    # TODO: Implement column access kernel
     pass
 
 
@@ -122,7 +97,11 @@ def col_access(x: torch.Tensor) -> torch.Tensor:
     BLOCK_M = triton.next_power_of_2(M)
     grid = (N,)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -143,24 +122,15 @@ def tiled_access_kernel(
     """
     Tiled access pattern - good balance of coalescing and parallelism.
     """
-    pid_m = tl.program_id(0)
-    pid_n = tl.program_id(1)
+    # API hints:
+    # - tl.program_id(0), tl.program_id(1) -> 2D block indices
+    # - tl.arange(start, end) -> create range
+    # - offs[:, None] * stride + offs[None, :] -> 2D indices
+    # - mask[:, None] & mask[None, :] -> 2D mask
+    # - tl.load(ptr + indices, mask=mask) -> load tile
+    # - tl.store(ptr + indices, value, mask=mask) -> store tile
     
-    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
-    offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
-    
-    mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
-    
-    # TODO: Calculate 2D indices
-    indices = None  # Replace: offs_m[:, None] * stride_m + offs_n[None, :]
-    
-    # TODO: Load tile
-    tile = None  # Replace
-    
-    # Process
-    out_tile = tile * 2.0
-    
-    # TODO: Store tile
+    # TODO: Implement tiled access kernel
     pass
 
 
@@ -173,7 +143,11 @@ def tiled_access(x: torch.Tensor) -> torch.Tensor:
     BLOCK_M, BLOCK_N = 32, 32
     grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -193,19 +167,13 @@ def vectorized_kernel(
     Use vectorized loads for better memory throughput.
     Triton automatically vectorizes when possible.
     """
-    pid = tl.program_id(0)
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load (auto-vectorized if aligned)
+    # - tl.store(ptr + offsets, value, mask=mask) -> store
     
-    # Use larger offsets for vectorization
-    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
-    
-    # TODO: Load (Triton will vectorize automatically if aligned)
-    x = None  # Replace
-    
-    # Process
-    out = x * 2.0
-    
-    # TODO: Store
+    # TODO: Implement vectorized kernel
     pass
 
 
@@ -219,7 +187,11 @@ def vectorized_op(x: torch.Tensor) -> torch.Tensor:
     BLOCK_SIZE = 1024
     grid = (triton.cdiv(n, BLOCK_SIZE),)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 

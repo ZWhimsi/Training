@@ -87,9 +87,10 @@ class RMSNorm(nn.Module):
         self.eps = eps
         
         # TODO: Create learnable scale parameter
-        # HINT:
-        #   self.weight = nn.Parameter(torch.ones(dim))
-        self.weight = None  # Replace
+        # API hints:
+        # - nn.Parameter(torch.ones(dim)) -> learnable parameter initialized to 1s
+        
+        self.weight = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -100,16 +101,13 @@ class RMSNorm(nn.Module):
         
         Returns:
             Normalized tensor of same shape
-        
-        TODO: Implement RMSNorm
-        HINT:
-            # Compute RMS
-            rms = torch.sqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
-            
-            # Normalize and scale
-            return x / rms * self.weight
         """
-        return x  # Replace
+        # API hints:
+        # - x.pow(2).mean(dim=-1, keepdim=True) -> mean of squared values
+        # - torch.sqrt(tensor + eps) -> square root with stability
+        # - x / rms * self.weight -> normalize and scale
+        
+        return None
 
 
 # ============================================================================
@@ -136,11 +134,12 @@ class KVDownProjection(nn.Module):
         self.d_latent = d_latent
         
         # TODO: Create down projection and normalization
-        # HINT:
-        #   self.down_proj = nn.Linear(d_model, d_latent, bias=False)
-        #   self.norm = RMSNorm(d_latent, eps)
-        self.down_proj = None  # Replace
-        self.norm = None       # Replace
+        # API hints:
+        # - nn.Linear(d_model, d_latent, bias=False) -> down projection
+        # - RMSNorm(d_latent, eps) -> normalization layer
+        
+        self.down_proj = None
+        self.norm = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -151,14 +150,12 @@ class KVDownProjection(nn.Module):
         
         Returns:
             Compressed, normalized latent (batch, seq_len, d_latent)
-        
-        TODO: Apply down projection with normalization
-        HINT:
-            c = self.down_proj(x)
-            c = self.norm(c)
-            return c
         """
-        return x  # Replace
+        # API hints:
+        # - self.down_proj(x) -> apply projection
+        # - self.norm(c) -> apply RMSNorm
+        
+        return None
 
 
 # ============================================================================
@@ -176,24 +173,14 @@ def precompute_freqs_cis(dim: int, max_seq_len: int, theta: float = 10000.0) -> 
     
     Returns:
         Complex frequencies tensor (max_seq_len, dim // 2)
-    
-    TODO: Compute frequencies
-    HINT:
-        # Frequency for each dimension pair
-        freqs = 1.0 / (theta ** (torch.arange(0, dim, 2).float() / dim))
-        
-        # Position indices
-        t = torch.arange(max_seq_len)
-        
-        # Outer product: (seq_len, dim//2)
-        freqs = torch.outer(t, freqs)
-        
-        # Convert to complex form: e^(i * theta) = cos(theta) + i*sin(theta)
-        freqs_cis = torch.polar(torch.ones_like(freqs), freqs)
-        
-        return freqs_cis
     """
-    return torch.zeros(max_seq_len, dim // 2, dtype=torch.cfloat)  # Replace
+    # API hints:
+    # - freqs = 1.0 / (theta ** (torch.arange(0, dim, 2).float() / dim))
+    # - torch.arange(max_seq_len) -> position indices
+    # - torch.outer(t, freqs) -> outer product (seq_len, dim//2)
+    # - torch.polar(magnitude, angle) -> complex from polar form
+    
+    return None
 
 
 def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
@@ -206,34 +193,17 @@ def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
     
     Returns:
         Tensor with rotary embeddings applied
-    
-    TODO: Apply rotary embeddings
-    HINT:
-        # Reshape x to complex: treat pairs of values as real/imag
-        # x shape: (..., dim) -> (..., dim//2) as complex
-        x_shape = x.shape
-        x = x.view(*x_shape[:-1], -1, 2)  # (..., dim//2, 2)
-        x_complex = torch.view_as_complex(x.float())  # (..., dim//2)
-        
-        # Reshape freqs_cis to broadcast
-        # freqs_cis: (seq_len, dim//2) -> need to match x dimensions
-        seq_len = x_complex.shape[-2] if x_complex.dim() > 2 else x_complex.shape[0]
-        freqs = freqs_cis[:seq_len]
-        
-        # Broadcast freqs to match x shape
-        while freqs.dim() < x_complex.dim():
-            freqs = freqs.unsqueeze(0)
-        
-        # Apply rotation via complex multiplication
-        x_rotated = x_complex * freqs
-        
-        # Convert back to real
-        x_out = torch.view_as_real(x_rotated)  # (..., dim//2, 2)
-        x_out = x_out.view(*x_shape)
-        
-        return x_out.type_as(x)
     """
-    return x  # Replace
+    # API hints:
+    # - x.view(*x_shape[:-1], -1, 2) -> reshape to pairs for complex
+    # - torch.view_as_complex(tensor.float()) -> convert to complex
+    # - freqs_cis[:seq_len] -> get frequencies for sequence length
+    # - freqs.unsqueeze(0) -> add batch dimensions for broadcasting
+    # - x_complex * freqs -> apply rotation via complex multiplication
+    # - torch.view_as_real(complex_tensor) -> convert back to real
+    # - x_out.type_as(x) -> match original dtype
+    
+    return None
 
 
 # ============================================================================
@@ -268,18 +238,13 @@ class DecoupledRoPEKey(nn.Module):
         self.rope_dim = rope_dim
         
         # TODO: Create projections for content and RoPE
-        # HINT:
-        #   # Content key from compressed latent
-        #   self.up_proj_k = nn.Linear(d_latent, num_heads * head_dim, bias=False)
-        #   
-        #   # RoPE key directly from input (small dimension)
-        #   self.rope_proj = nn.Linear(d_model, num_heads * rope_dim, bias=False)
-        #   
-        #   # Precompute RoPE frequencies
-        #   self.register_buffer('freqs_cis', precompute_freqs_cis(rope_dim, max_seq_len))
-        self.up_proj_k = None   # Replace
-        self.rope_proj = None   # Replace
-        # Note: register_buffer for freqs_cis when implementing
+        # API hints:
+        # - nn.Linear(d_latent, num_heads * head_dim, bias=False) -> content key projection
+        # - nn.Linear(d_model, num_heads * rope_dim, bias=False) -> RoPE key projection
+        # - self.register_buffer('freqs_cis', precompute_freqs_cis(rope_dim, max_seq_len))
+        
+        self.up_proj_k = None
+        self.rope_proj = None
     
     def forward(self, x: torch.Tensor, c_kv: torch.Tensor, 
                 start_pos: int = 0) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -294,30 +259,15 @@ class DecoupledRoPEKey(nn.Module):
         Returns:
             k_content: Content-based key (batch, seq_len, num_heads, head_dim)
             k_rope: Position-encoded key (batch, seq_len, num_heads, rope_dim)
-        
-        TODO: Compute both key components
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Content key from compressed latent
-            k_content = self.up_proj_k(c_kv)
-            k_content = k_content.view(batch, seq_len, self.num_heads, self.head_dim)
-            
-            # RoPE key from original input
-            k_rope = self.rope_proj(x)
-            k_rope = k_rope.view(batch, seq_len, self.num_heads, self.rope_dim)
-            
-            # Apply rotary embeddings
-            freqs = self.freqs_cis[start_pos:start_pos + seq_len]
-            k_rope = apply_rotary_emb(k_rope, freqs)
-            
-            return k_content, k_rope
         """
-        batch, seq_len, _ = x.shape
-        return (
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim),
-            torch.zeros(batch, seq_len, self.num_heads, self.rope_dim)
-        )  # Replace
+        # API hints:
+        # - self.up_proj_k(c_kv) -> content key from latent
+        # - self.rope_proj(x) -> RoPE key from input
+        # - tensor.view(batch, seq_len, num_heads, dim) -> reshape
+        # - self.freqs_cis[start_pos:start_pos + seq_len] -> get frequencies
+        # - apply_rotary_emb(k_rope, freqs) -> apply RoPE
+        
+        return None
 
 
 # ============================================================================
@@ -358,23 +308,16 @@ class MLAKVCompression(nn.Module):
         self.total_key_dim = head_dim + rope_dim
         
         # TODO: Create all projection layers
-        # HINT:
-        #   # KV down projection with norm
-        #   self.kv_down = KVDownProjection(d_model, d_latent)
-        #   
-        #   # Content K and V from latent
-        #   self.up_proj_k = nn.Linear(d_latent, num_heads * head_dim, bias=False)
-        #   self.up_proj_v = nn.Linear(d_latent, num_heads * head_dim, bias=False)
-        #   
-        #   # RoPE K directly from input
-        #   self.rope_proj = nn.Linear(d_model, num_heads * rope_dim, bias=False)
-        #   
-        #   # Precompute frequencies
-        #   self.register_buffer('freqs_cis', precompute_freqs_cis(rope_dim, max_seq_len))
-        self.kv_down = None     # Replace
-        self.up_proj_k = None   # Replace
-        self.up_proj_v = None   # Replace
-        self.rope_proj = None   # Replace
+        # API hints:
+        # - KVDownProjection(d_model, d_latent) -> compression with norm
+        # - nn.Linear(d_latent, num_heads * head_dim, bias=False) -> K, V up projections
+        # - nn.Linear(d_model, num_heads * rope_dim, bias=False) -> RoPE projection
+        # - self.register_buffer('freqs_cis', precompute_freqs_cis(rope_dim, max_seq_len))
+        
+        self.kv_down = None
+        self.up_proj_k = None
+        self.up_proj_v = None
+        self.rope_proj = None
     
     def compress(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -385,12 +328,11 @@ class MLAKVCompression(nn.Module):
         
         Returns:
             Compressed latent (batch, seq_len, d_latent)
-        
-        TODO: Apply down projection with norm
-        HINT:
-            return self.kv_down(x)
         """
-        return x  # Replace
+        # API hints:
+        # - self.kv_down(x) -> compress and normalize
+        
+        return None
     
     def get_rope_k(self, x: torch.Tensor, start_pos: int = 0) -> torch.Tensor:
         """
@@ -402,21 +344,14 @@ class MLAKVCompression(nn.Module):
         
         Returns:
             k_rope: (batch, seq_len, num_heads, rope_dim)
-        
-        TODO: Compute RoPE key
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            k_rope = self.rope_proj(x)
-            k_rope = k_rope.view(batch, seq_len, self.num_heads, self.rope_dim)
-            
-            freqs = self.freqs_cis[start_pos:start_pos + seq_len]
-            k_rope = apply_rotary_emb(k_rope, freqs)
-            
-            return k_rope
         """
-        batch, seq_len, _ = x.shape
-        return torch.zeros(batch, seq_len, self.num_heads, self.rope_dim)  # Replace
+        # API hints:
+        # - self.rope_proj(x) -> project to RoPE dimension
+        # - tensor.view(batch, seq_len, num_heads, rope_dim) -> reshape
+        # - self.freqs_cis[start_pos:start_pos + seq_len] -> get frequencies
+        # - apply_rotary_emb(k_rope, freqs) -> apply rotation
+        
+        return None
     
     def reconstruct_kv(self, c_kv: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -428,24 +363,13 @@ class MLAKVCompression(nn.Module):
         Returns:
             k_content: (batch, seq_len, num_heads, head_dim)
             v: (batch, seq_len, num_heads, head_dim)
-        
-        TODO: Reconstruct K and V from latent
-        HINT:
-            batch, seq_len, _ = c_kv.shape
-            
-            k = self.up_proj_k(c_kv)
-            v = self.up_proj_v(c_kv)
-            
-            k = k.view(batch, seq_len, self.num_heads, self.head_dim)
-            v = v.view(batch, seq_len, self.num_heads, self.head_dim)
-            
-            return k, v
         """
-        batch, seq_len, _ = c_kv.shape
-        return (
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim),
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim)
-        )  # Replace
+        # API hints:
+        # - self.up_proj_k(c_kv) -> reconstruct K
+        # - self.up_proj_v(c_kv) -> reconstruct V
+        # - tensor.view(batch, seq_len, num_heads, head_dim) -> reshape
+        
+        return None
     
     def forward(self, x: torch.Tensor, start_pos: int = 0
                 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -461,27 +385,13 @@ class MLAKVCompression(nn.Module):
             k_content: Content-based key
             k_rope: Position-encoded key component
             v: Value
-        
-        TODO: Implement full forward
-        HINT:
-            # Compress
-            c_kv = self.compress(x)
-            
-            # Get content K and V from latent
-            k_content, v = self.reconstruct_kv(c_kv)
-            
-            # Get RoPE K from original input
-            k_rope = self.get_rope_k(x, start_pos)
-            
-            return c_kv, k_content, k_rope, v
         """
-        batch, seq_len, _ = x.shape
-        return (
-            torch.zeros(batch, seq_len, self.d_latent),
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim),
-            torch.zeros(batch, seq_len, self.num_heads, self.rope_dim),
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim)
-        )  # Replace
+        # API hints:
+        # - self.compress(x) -> get compressed latent
+        # - self.reconstruct_kv(c_kv) -> get content K and V
+        # - self.get_rope_k(x, start_pos) -> get RoPE key
+        
+        return None
 
 
 # ============================================================================
@@ -516,19 +426,17 @@ class MLAQueryCompression(nn.Module):
         self.rope_dim = rope_dim
         
         # TODO: Create query projection layers
-        # HINT:
-        #   # Query compression
-        #   self.q_down = nn.Linear(d_model, d_q_latent, bias=False)
-        #   self.q_norm = RMSNorm(d_q_latent)
-        #   self.q_up = nn.Linear(d_q_latent, num_heads * head_dim, bias=False)
-        #   
-        #   # RoPE for query
-        #   self.q_rope_proj = nn.Linear(d_model, num_heads * rope_dim, bias=False)
-        #   self.register_buffer('freqs_cis', precompute_freqs_cis(rope_dim, max_seq_len))
-        self.q_down = None       # Replace
-        self.q_norm = None       # Replace
-        self.q_up = None         # Replace
-        self.q_rope_proj = None  # Replace
+        # API hints:
+        # - nn.Linear(d_model, d_q_latent, bias=False) -> down projection
+        # - RMSNorm(d_q_latent) -> normalization
+        # - nn.Linear(d_q_latent, num_heads * head_dim, bias=False) -> up projection
+        # - nn.Linear(d_model, num_heads * rope_dim, bias=False) -> RoPE projection
+        # - self.register_buffer('freqs_cis', precompute_freqs_cis(rope_dim, max_seq_len))
+        
+        self.q_down = None
+        self.q_norm = None
+        self.q_up = None
+        self.q_rope_proj = None
     
     def forward(self, x: torch.Tensor, start_pos: int = 0
                 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -542,30 +450,15 @@ class MLAQueryCompression(nn.Module):
         Returns:
             q_content: Content query (batch, seq_len, num_heads, head_dim)
             q_rope: RoPE query (batch, seq_len, num_heads, rope_dim)
-        
-        TODO: Compute query components
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Content query through compression
-            c_q = self.q_down(x)
-            c_q = self.q_norm(c_q)
-            q_content = self.q_up(c_q)
-            q_content = q_content.view(batch, seq_len, self.num_heads, self.head_dim)
-            
-            # RoPE query
-            q_rope = self.q_rope_proj(x)
-            q_rope = q_rope.view(batch, seq_len, self.num_heads, self.rope_dim)
-            freqs = self.freqs_cis[start_pos:start_pos + seq_len]
-            q_rope = apply_rotary_emb(q_rope, freqs)
-            
-            return q_content, q_rope
         """
-        batch, seq_len, _ = x.shape
-        return (
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim),
-            torch.zeros(batch, seq_len, self.num_heads, self.rope_dim)
-        )  # Replace
+        # API hints:
+        # - self.q_down(x) -> compress query
+        # - self.q_norm(c_q) -> normalize
+        # - self.q_up(c_q) -> expand to full dimension
+        # - self.q_rope_proj(x) -> RoPE query projection
+        # - apply_rotary_emb(q_rope, freqs) -> apply RoPE
+        
+        return None
 
 
 # ============================================================================
@@ -596,28 +489,15 @@ def compute_mla_attention_scores(
     
     Returns:
         Attention scores (batch, num_heads, seq_q, seq_k)
-    
-    TODO: Compute combined attention scores
-    HINT:
-        if scale is None:
-            # Scale by total key dimension
-            total_dim = q_content.shape[-1] + q_rope.shape[-1]
-            scale = total_dim ** -0.5
-        
-        # Content-based scores
-        content_scores = torch.matmul(q_content, k_content.transpose(-2, -1))
-        
-        # Position-based scores
-        rope_scores = torch.matmul(q_rope, k_rope.transpose(-2, -1))
-        
-        # Combined scores
-        scores = (content_scores + rope_scores) * scale
-        
-        return scores
     """
-    batch, num_heads, seq_q, _ = q_content.shape
-    seq_k = k_content.shape[2]
-    return torch.zeros(batch, num_heads, seq_q, seq_k)  # Replace
+    # API hints:
+    # - total_dim = q_content.shape[-1] + q_rope.shape[-1] -> total key dim
+    # - scale = total_dim ** -0.5 -> attention scale
+    # - torch.matmul(q_content, k_content.transpose(-2, -1)) -> content scores
+    # - torch.matmul(q_rope, k_rope.transpose(-2, -1)) -> position scores
+    # - (content_scores + rope_scores) * scale -> combined scores
+    
+    return None
 
 
 if __name__ == "__main__":

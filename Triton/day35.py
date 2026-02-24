@@ -49,9 +49,13 @@ class FlashAttentionFunction(torch.autograd.Function):
         Returns:
             output: (batch, heads, seq_len, head_dim)
         """
-        # TODO: Run flash attention forward
-        # HINT: output, L, M = flash_attention_v2(Q, K, V, causal=causal)
-        output, L, M = flash_attention_v2(Q, K, V, causal=causal)
+        # TODO: Run flash attention forward from day33
+        # API hints:
+        # - flash_attention_v2(Q, K, V, causal=causal) -> (output, L, M)
+        # - L: log-sum-exp values for backward pass
+        # - M: max values for backward pass
+        
+        output, L, M = None, None, None  # Exercise: call flash_attention_v2
         
         # Save for backward
         ctx.save_for_backward(Q, K, V, output, L, M)
@@ -72,16 +76,18 @@ class FlashAttentionFunction(torch.autograd.Function):
         """
         Q, K, V, output, L, M = ctx.saved_tensors
         
-        # TODO: Compute gradients using our kernels
-        # HINT: dK, dV = flash_attention_backward_dv_dk(...)
-        # HINT: dQ = flash_attention_backward_dq(...)
+        # TODO: Compute gradients using kernels from day31 and day34
+        # API hints:
+        # - flash_attention_backward_dv_dk(Q, K, V, output, dO, L) -> (dK, dV)
+        # - flash_attention_backward_dq(Q, K, V, output, dO, L, M) -> dQ
+        # - L, M: saved statistics from forward pass
         
-        # For now, use reference implementation if kernels not ready
-        try:
-            dK, dV = flash_attention_backward_dv_dk(Q, K, V, output, dO, L)
-            dQ = flash_attention_backward_dq(Q, K, V, output, dO, L, M)
-        except:
-            # Fallback to reference implementation
+        # Exercise: Call the backward kernels to compute gradients
+        dK, dV = None, None  # Exercise: call flash_attention_backward_dv_dk
+        dQ = None  # Exercise: call flash_attention_backward_dq
+        
+        # Fallback to reference implementation if kernels return None
+        if dQ is None or dK is None or dV is None:
             scale = 1.0 / math.sqrt(Q.shape[-1])
             scores = (Q @ K.transpose(-2, -1)) * scale
             
@@ -91,21 +97,11 @@ class FlashAttentionFunction(torch.autograd.Function):
                 scores.masked_fill_(mask, float('-inf'))
             
             P = torch.softmax(scores, dim=-1)
-            
-            # dV = P^T @ dO
             dV = P.transpose(-2, -1) @ dO
-            
-            # dP = dO @ V^T
             dP = dO @ V.transpose(-2, -1)
-            
-            # Softmax backward
             D = (P * dP).sum(dim=-1, keepdim=True)
             dS = P * (dP - D)
-            
-            # dQ = dS @ K * scale
             dQ = dS @ K * scale
-            
-            # dK = dS^T @ Q * scale
             dK = dS.transpose(-2, -1) @ Q * scale
         
         return dQ, dK, dV, None

@@ -25,25 +25,30 @@ def compute_gradient_simple():
     Compute gradient of f(x) = x^2 at x=3.
     
     Returns:
-        dict with 'x', 'y', 'gradient'
+        dict with 'x', 'y', 'gradient' (gradient should be 6.0)
     """
+    # API hints:
+    # - torch.tensor(value, requires_grad=True) -> tensor that tracks gradients
+    # - tensor ** 2 -> element-wise square
+    # - tensor.backward() -> compute gradients via backpropagation
+    # - tensor.grad -> access computed gradient
+    
     # TODO: Create tensor with requires_grad=True
-    x = None  # Replace: torch.tensor(3.0, requires_grad=True)
+    x = None
     
     # TODO: Compute y = x^2
-    y = None  # Replace: x ** 2
+    y = None
     
     # TODO: Compute gradients
-    # HINT: y.backward()
-    pass  # Replace
+    pass
     
     # TODO: Get gradient
-    gradient = None  # Replace: x.grad
+    gradient = None
     
     return {
         'x': x,
         'y': y,
-        'gradient': gradient  # Should be 6.0 (derivative of x^2 is 2x)
+        'gradient': gradient
     }
 
 
@@ -55,28 +60,32 @@ def compute_chain_rule():
     """
     Compute gradient of f(x) = (2x + 1)^2 at x=2.
     
-    f(x) = (2x + 1)^2
-    f'(x) = 2 * (2x + 1) * 2 = 4 * (2x + 1)
-    f'(2) = 4 * (2*2 + 1) = 4 * 5 = 20
+    Expected gradient: f'(2) = 4 * (2*2 + 1) = 20.0
     
     Returns:
-        dict with 'x', 'y', 'gradient'
+        dict with 'x', 'y', 'gradient' (gradient should be 20.0)
     """
+    # API hints:
+    # - torch.tensor(value, requires_grad=True) -> tensor that tracks gradients
+    # - Arithmetic operations build computational graph automatically
+    # - tensor.backward() -> compute gradients via backpropagation
+    # - tensor.grad -> access computed gradient
+    
     # TODO: Create x with requires_grad
-    x = None  # Replace
+    x = None
     
     # TODO: Compute y = (2x + 1)^2
-    y = None  # Replace: (2 * x + 1) ** 2
+    y = None
     
     # TODO: Backward pass
-    pass  # Replace
+    pass
     
-    gradient = None  # Replace with x.grad
+    gradient = None
     
     return {
         'x': x,
         'y': y,
-        'gradient': gradient  # Should be 20.0
+        'gradient': gradient
     }
 
 
@@ -88,28 +97,33 @@ def compute_multi_variable():
     """
     Compute gradients of f(x, y) = x^2 * y + y^3 at (x=2, y=3).
     
-    df/dx = 2xy = 2*2*3 = 12
-    df/dy = x^2 + 3y^2 = 4 + 27 = 31
+    Expected: df/dx = 12, df/dy = 31
     
     Returns:
         dict with 'x', 'y', 'z', 'grad_x', 'grad_y'
     """
+    # API hints:
+    # - torch.tensor(value, requires_grad=True) -> tensor that tracks gradients
+    # - Multiple tensors can have requires_grad=True
+    # - tensor.backward() -> computes gradients for all tensors with requires_grad
+    # - tensor.grad -> access computed gradient
+    
     # TODO: Create x and y with requires_grad
-    x = None  # Replace
-    y = None  # Replace
+    x = None
+    y = None
     
     # TODO: Compute z = x^2 * y + y^3
-    z = None  # Replace: x ** 2 * y + y ** 3
+    z = None
     
     # TODO: Backward pass
-    pass  # Replace
+    pass
     
     return {
         'x': x,
         'y': y,
         'z': z,
-        'grad_x': None,  # Replace with x.grad (should be 12)
-        'grad_y': None   # Replace with y.grad (should be 31)
+        'grad_x': None,
+        'grad_y': None
     }
 
 
@@ -123,7 +137,13 @@ def gradient_accumulation():
     
     Returns:
         dict with gradients after each backward call
+        Expected: first=4.0, second=8.0 (accumulated), after_zero=4.0 (reset)
     """
+    # API hints:
+    # - tensor.grad.item() -> get gradient as Python scalar
+    # - tensor.grad.zero_() -> zero the gradient in-place
+    # - Gradients accumulate by default (add up across backward calls)
+    
     x = torch.tensor(2.0, requires_grad=True)
     
     # First forward/backward
@@ -134,21 +154,20 @@ def gradient_accumulation():
     # TODO: Second forward/backward (without zeroing grad)
     y2 = x ** 2
     y2.backward()
-    grad_after_second = None  # Replace with x.grad.item()
+    grad_after_second = None
     
     # TODO: Zero the gradient
-    # HINT: x.grad.zero_()
-    pass  # Replace
+    pass
     
     # Third forward/backward
     y3 = x ** 2
     y3.backward()
-    grad_after_zero = None  # Replace with x.grad.item()
+    grad_after_zero = None
     
     return {
-        'grad_after_first': grad_after_first,   # 4.0
-        'grad_after_second': grad_after_second, # 8.0 (accumulated!)
-        'grad_after_zero': grad_after_zero      # 4.0 (reset)
+        'grad_after_first': grad_after_first,
+        'grad_after_second': grad_after_second,
+        'grad_after_zero': grad_after_zero
     }
 
 
@@ -163,16 +182,21 @@ def control_gradient_flow():
     Returns:
         dict with various results
     """
+    # API hints:
+    # - tensor.detach() -> returns tensor detached from computation graph
+    # - tensor.requires_grad -> boolean indicating if gradients are tracked
+    # - torch.no_grad() -> context manager that disables gradient tracking
+    
     x = torch.tensor(3.0, requires_grad=True)
     
     # Normal computation
     y = x ** 2
     
     # TODO: Detach y from the graph
-    y_detached = None  # Replace: y.detach()
+    y_detached = None
     
     # TODO: Check if y_detached requires grad
-    detached_requires_grad = None  # Replace: y_detached.requires_grad
+    detached_requires_grad = None
     
     # TODO: Use torch.no_grad() context
     with torch.no_grad():
@@ -181,13 +205,13 @@ def control_gradient_flow():
     
     # TODO: After no_grad context
     w = x ** 2
-    after_no_grad_requires = None  # Replace: w.requires_grad (should be True)
+    after_no_grad_requires = None
     
     return {
         'y_detached': y_detached,
-        'detached_requires_grad': detached_requires_grad,  # False
-        'no_grad_requires': no_grad_requires,              # False
-        'after_no_grad_requires': after_no_grad_requires   # True
+        'detached_requires_grad': detached_requires_grad,
+        'no_grad_requires': no_grad_requires,
+        'after_no_grad_requires': after_no_grad_requires
     }
 
 
@@ -200,22 +224,27 @@ def tensor_gradients():
     Compute gradients with multi-dimensional tensors.
     
     Returns:
-        dict with tensor and its gradient
+        dict with tensor and its gradient (gradient should be 2 * x)
     """
+    # API hints:
+    # - torch.tensor(data, requires_grad=True) -> 2D tensor with gradient tracking
+    # - (tensor ** 2).sum() -> sum of squared elements (scalar output)
+    # - tensor.backward() -> compute gradients
+    # - tensor.grad -> gradient tensor (same shape as input)
+    
     # TODO: Create a 2x2 tensor with requires_grad
-    x = None  # Replace: torch.tensor([[1., 2.], [3., 4.]], requires_grad=True)
+    x = None
     
     # TODO: Compute sum of squares
-    y = None  # Replace: (x ** 2).sum()
+    y = None
     
     # TODO: Backward
-    pass  # Replace
+    pass
     
-    # Gradient should be 2 * x
     return {
         'x': x,
         'y': y,
-        'gradient': None  # Replace with x.grad
+        'gradient': None
     }
 
 

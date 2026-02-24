@@ -217,10 +217,12 @@ def attention_with_stats_kernel(
     o_offs = offs_m[:, None] * stride_Os + offs_d[None, :] * stride_Od
     tl.store(output_ptr + o_offs, output, mask=q_mask)
     
-    # TODO: Store statistics for backward
-    # HINT: tl.store(M_ptr + offs_m, m_i, mask=m_mask)
-    # HINT: tl.store(L_ptr + offs_m, l_i, mask=m_mask)
-    pass  # Replace
+    # TODO: Store statistics (max and sum) needed for backward pass
+    # API hints:
+    # - tl.store(ptr + offsets, values, mask=mask) -> store with bounds checking
+    # - Store m_i (row maxes) to M_ptr
+    # - Store l_i (row sums) to L_ptr
+    pass
 
 
 def attention_with_stats(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor):

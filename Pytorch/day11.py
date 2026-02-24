@@ -51,28 +51,17 @@ def batch_norm_forward(x: torch.Tensor, gamma: torch.Tensor, beta: torch.Tensor,
     
     Returns:
         Tuple of (normalized_output, batch_mean, batch_var)
-    
-    TODO: Implement batch normalization
-    HINT:
-        # For 2D input (N, C), compute mean/var over batch dimension
-        # For 4D input (N, C, H, W), compute mean/var over N, H, W dimensions
-        
-        if x.dim() == 2:
-            mean = x.mean(dim=0)
-            var = x.var(dim=0, unbiased=False)
-        else:  # 4D
-            mean = x.mean(dim=(0, 2, 3))
-            var = x.var(dim=(0, 2, 3), unbiased=False)
-        
-        # Normalize
-        x_norm = (x - mean.view(1, -1, *([1]*(x.dim()-2)))) / torch.sqrt(var.view(1, -1, *([1]*(x.dim()-2))) + eps)
-        
-        # Scale and shift
-        out = gamma.view(1, -1, *([1]*(x.dim()-2))) * x_norm + beta.view(1, -1, *([1]*(x.dim()-2)))
-        
-        return out, mean, var
     """
-    return x, torch.zeros(x.shape[1]), torch.ones(x.shape[1])  # Replace
+    # API hints:
+    # - x.dim() -> number of dimensions (2 for FC, 4 for CNN)
+    # - x.mean(dim=...) -> compute mean over specified dimensions
+    # - x.var(dim=..., unbiased=False) -> compute variance (use unbiased=False for batch norm)
+    # - For 2D: mean/var over dim=0 (batch)
+    # - For 4D: mean/var over dim=(0, 2, 3) (batch, height, width)
+    # - tensor.view(1, -1, 1, 1) -> reshape for broadcasting
+    # - torch.sqrt(var + eps) -> add eps before sqrt for stability
+    # - Formula: out = gamma * (x - mean) / sqrt(var + eps) + beta
+    return None
 
 
 # ============================================================================
@@ -100,28 +89,17 @@ class ManualBatchNorm1d(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass with train/eval mode handling.
-        
-        TODO: Implement forward pass
-        HINT:
-            if self.training:
-                # Compute batch statistics
-                mean = x.mean(dim=0)
-                var = x.var(dim=0, unbiased=False)
-                
-                # Update running statistics
-                self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean
-                self.running_var = (1 - self.momentum) * self.running_var + self.momentum * var
-            else:
-                mean = self.running_mean
-                var = self.running_var
-            
-            # Normalize
-            x_norm = (x - mean) / torch.sqrt(var + self.eps)
-            
-            # Scale and shift
-            return self.gamma * x_norm + self.beta
+        Training: use batch stats and update running stats.
+        Eval: use running stats.
         """
-        return x  # Replace
+        # API hints:
+        # - self.training -> bool indicating train mode
+        # - x.mean(dim=0), x.var(dim=0, unbiased=False) -> batch statistics
+        # - self.running_mean, self.running_var -> running statistics (buffers)
+        # - Update running stats: running = (1 - momentum) * running + momentum * batch
+        # - Normalize: x_norm = (x - mean) / sqrt(var + eps)
+        # - Scale and shift: output = gamma * x_norm + beta
+        return None
 
 
 # ============================================================================
@@ -150,31 +128,16 @@ class ManualBatchNorm2d(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass for 4D input (N, C, H, W).
-        
-        TODO: Implement 2D batch norm forward
-        HINT:
-            if self.training:
-                # Compute mean/var over N, H, W (keep C separate)
-                mean = x.mean(dim=(0, 2, 3))
-                var = x.var(dim=(0, 2, 3), unbiased=False)
-                
-                # Update running stats
-                self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean
-                self.running_var = (1 - self.momentum) * self.running_var + self.momentum * var
-            else:
-                mean = self.running_mean
-                var = self.running_var
-            
-            # Reshape for broadcasting: (C,) -> (1, C, 1, 1)
-            mean = mean.view(1, -1, 1, 1)
-            var = var.view(1, -1, 1, 1)
-            gamma = self.gamma.view(1, -1, 1, 1)
-            beta = self.beta.view(1, -1, 1, 1)
-            
-            x_norm = (x - mean) / torch.sqrt(var + self.eps)
-            return gamma * x_norm + beta
+        Statistics computed over N, H, W dimensions (per-channel normalization).
         """
-        return x  # Replace
+        # API hints:
+        # - x.mean(dim=(0, 2, 3)), x.var(dim=(0, 2, 3), unbiased=False) -> per-channel stats
+        # - self.training -> check if in training mode
+        # - Update running stats with exponential moving average
+        # - Reshape params for broadcasting: tensor.view(1, -1, 1, 1) -> (1, C, 1, 1)
+        # - Normalize: (x - mean) / sqrt(var + eps)
+        # - Scale and shift: gamma * x_norm + beta
+        return None
 
 
 # ============================================================================
@@ -194,18 +157,12 @@ def demonstrate_train_eval_difference(bn_layer: nn.Module,
     
     Returns:
         Tuple of (train_output, eval_output)
-    
-    TODO: Run the layer in both modes
-    HINT:
-        bn_layer.train()
-        out_train = bn_layer(x_train)
-        
-        bn_layer.eval()
-        out_eval = bn_layer(x_eval)
-        
-        return out_train, out_eval
     """
-    return x_train, x_eval  # Replace
+    # API hints:
+    # - bn_layer.train() -> set module to training mode
+    # - bn_layer.eval() -> set module to evaluation mode
+    # - bn_layer(x) -> forward pass
+    return None
 
 
 # ============================================================================
@@ -221,26 +178,20 @@ class ConvBNReLU(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, 
                  kernel_size: int = 3, stride: int = 1, padding: int = 1):
         super().__init__()
-        """
-        TODO: Create the Conv -> BN -> ReLU block
-        HINT:
-            self.conv = nn.Conv2d(in_channels, out_channels, kernel_size,
-                                  stride=stride, padding=padding, bias=False)
-            self.bn = nn.BatchNorm2d(out_channels)
-            self.relu = nn.ReLU(inplace=True)
-        
-        Note: bias=False in conv because BN has its own bias (beta parameter)
-        """
-        self.conv = None  # Replace
-        self.bn = None    # Replace
-        self.relu = None  # Replace
+        # API hints:
+        # - nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=False)
+        #   Note: bias=False because BatchNorm has its own bias (beta)
+        # - nn.BatchNorm2d(num_features) -> batch norm for 4D input
+        # - nn.ReLU(inplace=True) -> ReLU activation
+        self.conv = None
+        self.bn = None
+        self.relu = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        TODO: Apply conv -> bn -> relu
-        HINT: return self.relu(self.bn(self.conv(x)))
-        """
-        return x  # Replace
+        """Apply conv -> bn -> relu sequentially."""
+        # API hints:
+        # - Chain: self.relu(self.bn(self.conv(x)))
+        return None
 
 
 # ============================================================================
@@ -253,33 +204,24 @@ class MLPWithBatchNorm(nn.Module):
     """
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
         super().__init__()
-        """
-        TODO: Create MLP with batch norm after each linear layer (except last)
-        HINT:
-            self.fc1 = nn.Linear(input_dim, hidden_dim)
-            self.bn1 = nn.BatchNorm1d(hidden_dim)
-            self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-            self.bn2 = nn.BatchNorm1d(hidden_dim)
-            self.fc3 = nn.Linear(hidden_dim, output_dim)
-            self.relu = nn.ReLU()
-        """
-        self.fc1 = None  # Replace
-        self.bn1 = None  # Replace
-        self.fc2 = None  # Replace
-        self.bn2 = None  # Replace
-        self.fc3 = None  # Replace
-        self.relu = None # Replace
+        # API hints:
+        # - nn.Linear(in_features, out_features) -> fully connected layer
+        # - nn.BatchNorm1d(num_features) -> batch norm for 2D input (N, C)
+        # - nn.ReLU() -> ReLU activation
+        # - Pattern: Linear -> BatchNorm -> ReLU (no BN on final layer)
+        self.fc1 = None
+        self.bn1 = None
+        self.fc2 = None
+        self.bn2 = None
+        self.fc3 = None
+        self.relu = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        TODO: Forward pass with BN after activations
-        HINT:
-            x = self.relu(self.bn1(self.fc1(x)))
-            x = self.relu(self.bn2(self.fc2(x)))
-            x = self.fc3(x)
-            return x
-        """
-        return x  # Replace
+        """Forward pass: fc1 -> bn1 -> relu -> fc2 -> bn2 -> relu -> fc3."""
+        # API hints:
+        # - Chain layers: relu(bn(fc(x)))
+        # - No activation/batchnorm after final fc layer
+        return None
 
 
 if __name__ == "__main__":

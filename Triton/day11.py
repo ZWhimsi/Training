@@ -34,16 +34,19 @@ def add_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
-    # TODO: Load x and y
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Use + operator for element-wise addition
+    
+    # TODO: Load x and y vectors
     x = tl.load(x_ptr + offsets, mask=mask)
     y = tl.load(y_ptr + offsets, mask=mask)
     
-    # TODO: Compute sum
-    # HINT: result = x + y
+    # TODO: Compute element-wise sum
     result = None  # Replace
     
-    # TODO: Store result
-    # HINT: tl.store(output_ptr + offsets, result, mask=mask)
+    # TODO: Store result to output
     pass  # Replace
 
 
@@ -74,13 +77,18 @@ def sub_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Use - operator for element-wise subtraction
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     y = tl.load(y_ptr + offsets, mask=mask)
     
-    # TODO: Compute difference
+    # TODO: Compute element-wise difference
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result to output
     pass  # Replace
 
 
@@ -111,13 +119,18 @@ def mul_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Use * operator for element-wise multiplication
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     y = tl.load(y_ptr + offsets, mask=mask)
     
-    # TODO: Compute product
+    # TODO: Compute element-wise product
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result to output
     pass  # Replace
 
 
@@ -148,13 +161,18 @@ def div_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Use / operator for element-wise division
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     y = tl.load(y_ptr + offsets, mask=mask)
     
-    # TODO: Compute quotient
+    # TODO: Compute element-wise quotient
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result to output
     pass  # Replace
 
 
@@ -185,12 +203,17 @@ def scalar_add_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Scalar values broadcast automatically with vectors
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     
-    # TODO: Add scalar (broadcasts automatically)
-    result = None  # Replace: x + scalar
+    # TODO: Add scalar to vector (scalar broadcasts automatically)
+    result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result to output
     pass  # Replace
 
 
@@ -221,14 +244,18 @@ def maximum_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.maximum(a, b) -> element-wise maximum of two tensors
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     y = tl.load(y_ptr + offsets, mask=mask)
     
     # TODO: Compute element-wise maximum
-    # HINT: result = tl.maximum(x, y)
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result to output
     pass  # Replace
 
 

@@ -27,23 +27,18 @@ def gelu_kernel(
 ):
     """
     GELU activation: x * 0.5 * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+    
+    Constants: sqrt(2/pi) = 0.7978845608028654, coeff = 0.044715
     """
-    pid = tl.program_id(0)
-    offs = pid * BLOCK + tl.arange(0, BLOCK)
-    mask = offs < n
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.tanh(x) -> hyperbolic tangent
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    x = tl.load(x_ptr + offs, mask=mask)
-    
-    # TODO: Implement GELU
-    # Constants
-    sqrt_2_over_pi = 0.7978845608028654  # sqrt(2/pi)
-    coeff = 0.044715
-    
-    # HINT: inner = sqrt_2_over_pi * (x + coeff * x * x * x)
-    # HINT: out = 0.5 * x * (1.0 + tl.tanh(inner))
-    out = None  # Replace
-    
-    tl.store(out_ptr + offs, out, mask=mask)
+    # TODO: Implement GELU kernel
+    pass
 
 
 def gelu(x: torch.Tensor) -> torch.Tensor:
@@ -61,19 +56,18 @@ def gelu(x: torch.Tensor) -> torch.Tensor:
 
 @triton.jit
 def silu_kernel(x_ptr, out_ptr, n, BLOCK: tl.constexpr):
-    """SiLU: x * sigmoid(x) = x / (1 + exp(-x))"""
-    pid = tl.program_id(0)
-    offs = pid * BLOCK + tl.arange(0, BLOCK)
-    mask = offs < n
+    """
+    SiLU: x * sigmoid(x) = x / (1 + exp(-x))
+    """
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.exp(x) -> exponential
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    x = tl.load(x_ptr + offs, mask=mask)
-    
-    # TODO: Implement SiLU
-    # HINT: sigmoid = 1.0 / (1.0 + tl.exp(-x))
-    # HINT: out = x * sigmoid
-    out = None  # Replace
-    
-    tl.store(out_ptr + offs, out, mask=mask)
+    # TODO: Implement SiLU kernel
+    pass
 
 
 def silu(x: torch.Tensor) -> torch.Tensor:
@@ -98,25 +92,15 @@ def fused_linear_gelu_kernel(
     Fused: out = GELU(x * w + b) for element-wise operation.
     (Not a full linear layer, just element-wise for learning)
     """
-    pid = tl.program_id(0)
-    offs = pid * BLOCK + tl.arange(0, BLOCK)
-    mask = offs < N
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.tanh(x) -> hyperbolic tangent for GELU
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load x, w, b
-    x = None  # Replace
-    w = None  # Replace
-    b = None  # Replace
-    
-    # TODO: Linear: y = x * w + b
-    y = None  # Replace
-    
-    # TODO: GELU on y
-    sqrt_2_over_pi = 0.7978845608028654
-    coeff = 0.044715
-    inner = sqrt_2_over_pi * (y + coeff * y * y * y)
-    out = 0.5 * y * (1.0 + tl.tanh(inner))
-    
-    tl.store(out_ptr + offs, out, mask=mask)
+    # TODO: Implement fused linear+GELU kernel
+    pass
 
 
 def fused_linear_gelu(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -138,19 +122,17 @@ def ema_update_kernel(
     n,
     BLOCK: tl.constexpr,
 ):
-    """EMA: out = (1-alpha) * running + alpha * new"""
-    pid = tl.program_id(0)
-    offs = pid * BLOCK + tl.arange(0, BLOCK)
-    mask = offs < n
+    """
+    EMA: out = (1-alpha) * running + alpha * new
+    """
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load running and new values
-    running = None  # Replace
-    new = None      # Replace
-    
-    # TODO: Compute EMA
-    out = None  # Replace: (1.0 - alpha) * running + alpha * new
-    
-    tl.store(out_ptr + offs, out, mask=mask)
+    # TODO: Implement EMA kernel
+    pass
 
 
 def ema_update(running: torch.Tensor, new: torch.Tensor, alpha: float) -> torch.Tensor:
@@ -172,18 +154,18 @@ def polynomial_kernel(
     n,
     BLOCK: tl.constexpr,
 ):
-    """Evaluate polynomial using Horner's method."""
-    pid = tl.program_id(0)
-    offs = pid * BLOCK + tl.arange(0, BLOCK)
-    mask = offs < n
+    """
+    Evaluate polynomial using Horner's method.
+    Result: a0 + x * (a1 + x * (a2 + x * a3))
+    """
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    x = tl.load(x_ptr + offs, mask=mask)
-    
-    # TODO: Horner's method: ((a3*x + a2)*x + a1)*x + a0
-    # HINT: out = a0 + x * (a1 + x * (a2 + x * a3))
-    out = None  # Replace
-    
-    tl.store(out_ptr + offs, out, mask=mask)
+    # TODO: Implement polynomial kernel using Horner's method
+    pass
 
 
 def polynomial(x: torch.Tensor, coeffs: list) -> torch.Tensor:

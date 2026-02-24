@@ -250,22 +250,13 @@ class ReLU(Module):
         
         Gradient: 1 if x > 0, 0 otherwise
         """
-        # TODO: Implement ReLU forward pass
-        # HINT:
-        # result = np.maximum(0, x.data)
-        # out = Tensor(result, (x,), 'relu')
+        # API hints:
+        # - np.maximum(0, x.data) -> element-wise max with 0
+        # - Tensor(result, (x,), 'relu') -> create output tensor
+        # - Backward: gradient is 1 where x > 0, 0 elsewhere
+        # - (x.data > 0) -> boolean mask for positive values
         
-        out = None  # Replace
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # Gradient is 1 where x > 0, 0 elsewhere
-            # HINT: x.grad += (x.data > 0) * out.grad
-            pass  # Replace
-        
-        if out is not None:
-            out._backward = _backward
-        return out
+        return None
 
 
 # ============================================================================
@@ -297,25 +288,14 @@ class Sigmoid(Module):
         
         Gradient: sigmoid(x) * (1 - sigmoid(x))
         """
-        # TODO: Implement numerically stable sigmoid
-        # HINT: For stability, handle positive and negative x differently
-        # For x >= 0: sigmoid = 1 / (1 + exp(-x))
-        # For x < 0: sigmoid = exp(x) / (1 + exp(x))
-        # Or just use: sigmoid = np.where(x.data >= 0, 
-        #                                  1 / (1 + np.exp(-x.data)),
-        #                                  np.exp(x.data) / (1 + np.exp(x.data)))
+        # API hints:
+        # - np.exp(x) -> element-wise exponential
+        # - np.where(cond, true_val, false_val) -> conditional selection
+        # - For stability: split computation for x >= 0 and x < 0
+        # - Formula: sigmoid = 1 / (1 + exp(-x))
+        # - Backward: d(sigmoid)/dx = sigmoid * (1 - sigmoid)
         
-        out = None  # Replace
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # d(sigmoid)/dx = sigmoid * (1 - sigmoid)
-            # HINT: x.grad += out.data * (1 - out.data) * out.grad
-            pass  # Replace
-        
-        if out is not None:
-            out._backward = _backward
-        return out
+        return None
 
 
 # ============================================================================
@@ -346,22 +326,13 @@ class Tanh(Module):
         
         Gradient: 1 - tanh(x)^2
         """
-        # TODO: Implement tanh forward pass
-        # HINT: Use np.tanh for numerical stability
-        # result = np.tanh(x.data)
-        # out = Tensor(result, (x,), 'tanh')
+        # API hints:
+        # - np.tanh(x.data) -> element-wise hyperbolic tangent
+        # - Tensor(result, (x,), 'tanh') -> create output tensor
+        # - Backward: d(tanh)/dx = 1 - tanh^2
+        # - Use out.data for tanh value in backward
         
-        out = None  # Replace
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # d(tanh)/dx = 1 - tanh^2
-            # HINT: x.grad += (1 - out.data ** 2) * out.grad
-            pass  # Replace
-        
-        if out is not None:
-            out._backward = _backward
-        return out
+        return None
 
 
 # ============================================================================
@@ -395,22 +366,13 @@ class LeakyReLU(Module):
         
         Gradient: 1 if x > 0, alpha otherwise
         """
-        # TODO: Implement Leaky ReLU forward pass
-        # HINT: result = np.where(x.data > 0, x.data, self.alpha * x.data)
+        # API hints:
+        # - np.where(cond, true_val, false_val) -> conditional selection
+        # - self.alpha -> leaky slope for negative values
+        # - Formula: f(x) = x if x > 0, else alpha * x
+        # - Backward: gradient is 1 for x > 0, alpha for x <= 0
         
-        out = None  # Replace
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # Gradient is 1 for x > 0, alpha for x <= 0
-            # HINT: 
-            # grad_mask = np.where(x.data > 0, 1, self.alpha)
-            # x.grad += grad_mask * out.grad
-            pass  # Replace
-        
-        if out is not None:
-            out._backward = _backward
-        return out
+        return None
 
 
 # ============================================================================
@@ -447,30 +409,14 @@ class GELU(Module):
             Tensor with GELU applied element-wise
         """
         if self.approximate:
-            # TODO: Implement GELU approximation
-            # HINT:
-            # sqrt_2_pi = np.sqrt(2 / np.pi)
-            # inner = sqrt_2_pi * (x.data + 0.044715 * x.data ** 3)
-            # result = 0.5 * x.data * (1 + np.tanh(inner))
+            # API hints:
+            # - np.sqrt(2 / np.pi) -> constant for approximation
+            # - np.tanh(x) -> hyperbolic tangent
+            # - Formula: 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+            # - Backward uses chain rule through tanh
+            # - sech^2 = 1 - tanh^2 for derivative of tanh
             
-            out = None  # Replace
-            
-            # TODO: Implement backward pass (approximate)
-            def _backward():
-                # This is complex - use chain rule through tanh
-                # HINT:
-                # sqrt_2_pi = np.sqrt(2 / np.pi)
-                # inner = sqrt_2_pi * (x.data + 0.044715 * x.data ** 3)
-                # tanh_inner = np.tanh(inner)
-                # sech2 = 1 - tanh_inner ** 2
-                # inner_grad = sqrt_2_pi * (1 + 3 * 0.044715 * x.data ** 2)
-                # grad = 0.5 * (1 + tanh_inner) + 0.5 * x.data * sech2 * inner_grad
-                # x.grad += grad * out.grad
-                pass  # Replace
-            
-            if out is not None:
-                out._backward = _backward
-            return out
+            return None
         else:
             from scipy import special
             result = x.data * special.ndtr(x.data)
@@ -511,27 +457,14 @@ class Softplus(Module):
         
         For numerical stability, use linear approximation for large x.
         """
-        # TODO: Implement numerically stable softplus
-        # HINT:
-        # For x > threshold: softplus(x) ≈ x (to avoid overflow)
-        # Otherwise: softplus(x) = log(1 + exp(beta*x)) / beta
-        # result = np.where(x.data * self.beta > self.threshold,
-        #                   x.data,
-        #                   np.log(1 + np.exp(self.beta * x.data)) / self.beta)
+        # API hints:
+        # - np.log(1 + np.exp(x)) -> softplus formula
+        # - np.where(cond, true_val, false_val) -> handle large values
+        # - self.beta, self.threshold -> scaling and stability params
+        # - For large x: softplus(x) ≈ x (linear approximation)
+        # - Backward: d(softplus)/dx = sigmoid(beta*x)
         
-        out = None  # Replace
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # d(softplus)/dx = sigmoid(beta*x)
-            # HINT:
-            # sigmoid = 1 / (1 + np.exp(-self.beta * x.data))
-            # x.grad += sigmoid * out.grad
-            pass  # Replace
-        
-        if out is not None:
-            out._backward = _backward
-        return out
+        return None
 
 
 # ============================================================================
@@ -557,23 +490,14 @@ class ELU(Module):
         """
         Apply ELU activation.
         """
-        # TODO: Implement ELU forward pass
-        # HINT:
-        # result = np.where(x.data > 0, x.data, self.alpha * (np.exp(x.data) - 1))
+        # API hints:
+        # - np.where(cond, true_val, false_val) -> conditional selection
+        # - np.exp(x) -> exponential
+        # - self.alpha -> scale for negative region
+        # - Formula: f(x) = x if x > 0, else alpha * (exp(x) - 1)
+        # - Backward: grad = 1 if x > 0, else output + alpha
         
-        out = None  # Replace
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # d(ELU)/dx = 1 if x > 0, else alpha * exp(x) = output + alpha
-            # HINT:
-            # grad = np.where(x.data > 0, 1, out.data + self.alpha)
-            # x.grad += grad * out.grad
-            pass  # Replace
-        
-        if out is not None:
-            out._backward = _backward
-        return out
+        return None
 
 
 # ============================================================================

@@ -35,19 +35,17 @@ def train_step(model: nn.Module, batch: tuple, optimizer: torch.optim.Optimizer,
     
     Returns:
         Loss value as float
-    
-    TODO: Implement training step
-    HINT:
-        model.train()
-        optimizer.zero_grad()
-        inputs, targets = batch
-        outputs = model(inputs)
-        loss = loss_fn(outputs, targets)
-        loss.backward()
-        optimizer.step()
-        return loss.item()
     """
-    return 0.0  # Replace
+    # API hints:
+    # - model.train() -> set model to training mode
+    # - optimizer.zero_grad() -> clear gradients
+    # - model(inputs) -> forward pass
+    # - loss_fn(outputs, targets) -> compute loss
+    # - loss.backward() -> backpropagation
+    # - optimizer.step() -> update weights
+    # - loss.item() -> get Python scalar
+    
+    return 0.0
 
 
 # ============================================================================
@@ -65,22 +63,15 @@ def val_step(model: nn.Module, batch: tuple, loss_fn: Callable) -> Dict[str, flo
     
     Returns:
         Dictionary with 'loss' and 'accuracy'
-    
-    TODO: Implement validation step
-    HINT:
-        model.eval()
-        with torch.no_grad():
-            inputs, targets = batch
-            outputs = model(inputs)
-            loss = loss_fn(outputs, targets)
-            
-            # For classification
-            preds = outputs.argmax(dim=-1)
-            accuracy = (preds == targets).float().mean()
-            
-            return {'loss': loss.item(), 'accuracy': accuracy.item()}
     """
-    return {'loss': 0.0, 'accuracy': 0.0}  # Replace
+    # API hints:
+    # - model.eval() -> set model to evaluation mode
+    # - torch.no_grad() -> disable gradient computation
+    # - outputs.argmax(dim=-1) -> predicted class indices
+    # - (preds == targets).float().mean() -> accuracy calculation
+    # - tensor.item() -> get Python scalar
+    
+    return {'loss': 0.0, 'accuracy': 0.0}
 
 
 # ============================================================================
@@ -94,17 +85,14 @@ def train_epoch(model: nn.Module, dataloader: DataLoader,
     
     Returns:
         Average loss over epoch
-    
-    TODO: Implement epoch training
-    HINT:
-        model.train()
-        total_loss = 0.0
-        for batch in dataloader:
-            loss = train_step(model, batch, optimizer, loss_fn)
-            total_loss += loss
-        return total_loss / len(dataloader)
     """
-    return 0.0  # Replace
+    # API hints:
+    # - model.train() -> set training mode
+    # - for batch in dataloader -> iterate over batches
+    # - train_step(model, batch, optimizer, loss_fn) -> single training step
+    # - total_loss / len(dataloader) -> average loss
+    
+    return 0.0
 
 
 def validate_epoch(model: nn.Module, dataloader: DataLoader, 
@@ -115,14 +103,17 @@ def validate_epoch(model: nn.Module, dataloader: DataLoader,
     Returns:
         Dictionary with average loss and accuracy
     """
+    # API hints:
+    # - model.eval() -> set evaluation mode
+    # - for batch in dataloader -> iterate over batches
+    # - val_step(model, batch, loss_fn) -> single validation step
+    # - Accumulate and average loss and accuracy
+    
     model.eval()
     total_loss = 0.0
     total_acc = 0.0
     
-    # TODO: Implement validation epoch
-    # HINT: Similar to train_epoch but use val_step
-    
-    return {'loss': 0.0, 'accuracy': 0.0}  # Replace
+    return {'loss': 0.0, 'accuracy': 0.0}
 
 
 # ============================================================================
@@ -137,24 +128,15 @@ def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoad
     
     Returns:
         History dictionary with 'train_loss', 'val_loss', 'val_accuracy'
-    
-    TODO: Implement complete training
-    HINT:
-        history = {'train_loss': [], 'val_loss': [], 'val_accuracy': []}
-        
-        for epoch in range(n_epochs):
-            train_loss = train_epoch(model, train_loader, optimizer, loss_fn)
-            val_metrics = validate_epoch(model, val_loader, loss_fn)
-            
-            history['train_loss'].append(train_loss)
-            history['val_loss'].append(val_metrics['loss'])
-            history['val_accuracy'].append(val_metrics['accuracy'])
-            
-            print(f"Epoch {epoch+1}: train_loss={train_loss:.4f}, val_loss={val_metrics['loss']:.4f}, val_acc={val_metrics['accuracy']:.4f}")
-        
-        return history
     """
-    return {'train_loss': [], 'val_loss': [], 'val_accuracy': []}  # Replace
+    # API hints:
+    # - for epoch in range(n_epochs) -> training loop
+    # - train_epoch(model, train_loader, optimizer, loss_fn) -> one epoch of training
+    # - validate_epoch(model, val_loader, loss_fn) -> one epoch of validation
+    # - history['key'].append(value) -> track metrics
+    # - print() -> log progress
+    
+    return {'train_loss': [], 'val_loss': [], 'val_accuracy': []}
 
 
 # ============================================================================
@@ -173,19 +155,15 @@ class EarlyStopping:
         self.should_stop = False
     
     def __call__(self, val_loss: float) -> bool:
-        """
-        TODO: Check if training should stop
-        HINT:
-            if val_loss < self.best_loss - self.min_delta:
-                self.best_loss = val_loss
-                self.counter = 0
-            else:
-                self.counter += 1
-                if self.counter >= self.patience:
-                    self.should_stop = True
-            return self.should_stop
-        """
-        return False  # Replace
+        """Check if training should stop based on validation loss."""
+        # API hints:
+        # - Compare val_loss to self.best_loss - self.min_delta
+        # - If improved: update best_loss, reset counter
+        # - If not improved: increment counter
+        # - If counter >= patience: set should_stop = True
+        # - Return self.should_stop
+        
+        return False
 
 
 # ============================================================================

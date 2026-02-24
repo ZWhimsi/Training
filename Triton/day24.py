@@ -47,18 +47,17 @@ def online_softmax_update(
     
     Returns: (m_new, l_new)
     """
-    # TODO: Find max of new block
-    # HINT: m_block = tl.max(x_block, axis=0)
-    m_block = None  # Replace
-    
-    # TODO: New running max
-    # HINT: m_new = tl.maximum(m_old, m_block)
-    m_new = None  # Replace
-    
-    # TODO: Rescale old sum and add new contributions
-    # l_new = l_old * exp(m_old - m_new) + sum(exp(x_block - m_new))
-    # HINT: l_new = l_old * tl.exp(m_old - m_new) + tl.sum(tl.exp(x_block - m_new), axis=0)
-    l_new = None  # Replace
+    # TODO: Implement online softmax statistics update
+    # 1. Find max of new block
+    # 2. Compute new running max (max of old and block max)
+    # 3. Rescale old sum and add new exponential contributions
+    # API hints:
+    # - tl.max(tensor, axis=0) -> find maximum along axis
+    # - tl.maximum(a, b) -> element-wise maximum of two values
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.sum(tensor, axis=0) -> sum reduction along axis
+    m_new = m_old
+    l_new = l_old
     
     return m_new, l_new
 
@@ -108,13 +107,12 @@ def online_softmax_kernel(
         # Load block
         x = tl.load(input_ptr + row_start + offs, mask=mask, other=float('-inf'))
         
-        # TODO: Compute softmax: exp(x - m) / l
-        # HINT: softmax = tl.exp(x - m) / l
-        softmax = None  # Replace
-        
-        # TODO: Store
-        # HINT: tl.store(output_ptr + row_start + offs, softmax, mask=mask)
-        pass  # Replace
+        # TODO: Compute softmax values and store
+        # API hints:
+        # - tl.exp(x - m) -> compute numerator (shifted for stability)
+        # - Divide by sum l for normalization
+        # - tl.store(ptr, values, mask=mask) -> store with bounds checking
+        pass
 
 
 def online_softmax(x: torch.Tensor) -> torch.Tensor:

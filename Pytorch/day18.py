@@ -66,10 +66,10 @@ def create_causal_mask(seq_len, device=None):
               (1 = attend, 0 = mask out)
     """
     # TODO: Create a lower triangular matrix of ones
-    # HINT: torch.tril(torch.ones(seq_len, seq_len, device=device))
-    mask = None  # Replace
-    
-    return mask
+    # API hints:
+    # - torch.ones(seq_len, seq_len, device=device) -> matrix of ones
+    # - torch.tril(tensor) -> lower triangular part of matrix
+    return None
 
 
 def create_causal_mask_batched(batch_size, num_heads, seq_len, device=None):
@@ -87,10 +87,11 @@ def create_causal_mask_batched(batch_size, num_heads, seq_len, device=None):
               (can also be [1, 1, seq_len, seq_len] for broadcasting)
     """
     # TODO: Create causal mask and expand for batch/heads
-    # HINT: Create [seq_len, seq_len] mask and use .unsqueeze() or .expand()
-    mask = None  # Replace
-    
-    return mask
+    # API hints:
+    # - create_causal_mask(seq_len, device) -> base [seq_len, seq_len] mask
+    # - tensor.unsqueeze(0).unsqueeze(0) -> add batch and head dims
+    # - tensor.expand(batch_size, num_heads, -1, -1) -> expand to full size
+    return None
 
 
 # ============================================================================
@@ -113,13 +114,15 @@ class MaskedMultiHeadAttention(nn.Module):
         self.num_heads = num_heads
         self.d_k = d_model // num_heads
         
-        # TODO: Create Q, K, V, and output projections
-        self.W_q = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_k = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_v = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_o = None  # Replace: nn.Linear(d_model, d_model)
-        
-        self.dropout = None  # Replace: nn.Dropout(dropout)
+        # TODO: Create Q, K, V, output projections, and dropout
+        # API hints:
+        # - nn.Linear(d_model, d_model) -> projection layer
+        # - nn.Dropout(dropout) -> dropout layer
+        self.W_q = None
+        self.W_k = None
+        self.W_v = None
+        self.W_o = None
+        self.dropout = None
     
     def forward(self, x, mask=None, use_causal_mask=True):
         """
@@ -132,52 +135,18 @@ class MaskedMultiHeadAttention(nn.Module):
             output: [batch, seq, d_model]
             attention_weights: [batch, num_heads, seq, seq]
         """
-        batch_size, seq_len, _ = x.shape
-        
-        # TODO: Project to Q, K, V
-        Q = None  # Replace: self.W_q(x)
-        K = None  # Replace: self.W_k(x)
-        V = None  # Replace: self.W_v(x)
-        
-        # TODO: Reshape for multi-head: [batch, seq, d_model] -> [batch, heads, seq, d_k]
-        # HINT: Q = Q.view(batch_size, seq_len, self.num_heads, self.d_k).transpose(1, 2)
-        Q = None  # Replace
-        K = None  # Replace
-        V = None  # Replace
-        
-        # TODO: Compute attention scores: Q @ K^T / sqrt(d_k)
-        scores = None  # Replace: torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)
-        
-        # TODO: Apply causal mask if requested
-        if use_causal_mask:
-            # Create causal mask [1, 1, seq, seq]
-            causal_mask = create_causal_mask(seq_len, device=x.device)
-            if causal_mask is not None:
-                causal_mask = causal_mask.unsqueeze(0).unsqueeze(0)
-                # Mask out future positions with -inf
-                # HINT: scores = scores.masked_fill(causal_mask == 0, float('-inf'))
-                pass  # Replace with masking
-        
-        # TODO: Apply additional mask if provided (e.g., padding mask)
-        if mask is not None:
-            # HINT: scores = scores.masked_fill(mask == 0, float('-inf'))
-            pass  # Replace
-        
-        # TODO: Softmax and dropout
-        attention_weights = None  # Replace: F.softmax(scores, dim=-1)
-        attention_weights = None  # Replace: self.dropout(attention_weights)
-        
-        # TODO: Apply attention to V
-        attn_output = None  # Replace: torch.matmul(attention_weights, V)
-        
-        # TODO: Reshape back: [batch, heads, seq, d_k] -> [batch, seq, d_model]
-        # HINT: attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
-        attn_output = None  # Replace
-        
-        # TODO: Final projection
-        output = None  # Replace: self.W_o(attn_output)
-        
-        return output, attention_weights
+        # TODO: Implement masked multi-head attention
+        # API hints:
+        # - self.W_q(x), self.W_k(x), self.W_v(x) -> project to Q, K, V
+        # - tensor.view(batch, seq, num_heads, d_k).transpose(1, 2) -> reshape for multi-head
+        # - torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k) -> attention scores
+        # - create_causal_mask(seq_len, device) -> causal mask
+        # - scores.masked_fill(mask == 0, float('-inf')) -> apply mask
+        # - F.softmax(scores, dim=-1) -> attention weights
+        # - torch.matmul(attn_weights, V) -> weighted sum of values
+        # - tensor.transpose(1, 2).contiguous().view(batch, seq, d_model) -> reshape back
+        # - self.W_o(attn_output) -> final projection
+        return None, None
 
 
 # ============================================================================
@@ -204,14 +173,15 @@ class CrossAttention(nn.Module):
         self.num_heads = num_heads
         self.d_k = d_model // num_heads
         
-        # TODO: Create projections
-        # Note: Q projection for decoder, K and V projections for encoder output
-        self.W_q = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_k = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_v = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_o = None  # Replace: nn.Linear(d_model, d_model)
-        
-        self.dropout = None  # Replace: nn.Dropout(dropout)
+        # TODO: Create Q, K, V, output projections, and dropout
+        # API hints:
+        # - nn.Linear(d_model, d_model) -> projection layer
+        # - nn.Dropout(dropout) -> dropout layer
+        self.W_q = None
+        self.W_k = None
+        self.W_v = None
+        self.W_o = None
+        self.dropout = None
     
     def forward(self, decoder_hidden, encoder_output, encoder_mask=None):
         """
@@ -224,40 +194,18 @@ class CrossAttention(nn.Module):
             output: [batch, tgt_seq, d_model]
             attention_weights: [batch, num_heads, tgt_seq, src_seq]
         """
-        batch_size = decoder_hidden.shape[0]
-        tgt_seq = decoder_hidden.shape[1]
-        src_seq = encoder_output.shape[1]
-        
-        # TODO: Queries from decoder, Keys and Values from encoder
-        Q = None  # Replace: self.W_q(decoder_hidden)
-        K = None  # Replace: self.W_k(encoder_output)
-        V = None  # Replace: self.W_v(encoder_output)
-        
-        # TODO: Reshape for multi-head
-        # Q: [batch, tgt_seq, heads, d_k] -> [batch, heads, tgt_seq, d_k]
-        # K, V: [batch, src_seq, heads, d_k] -> [batch, heads, src_seq, d_k]
-        Q = None  # Replace
-        K = None  # Replace
-        V = None  # Replace
-        
-        # TODO: Compute attention scores
-        scores = None  # Replace: torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)
-        
-        # TODO: Apply encoder padding mask if provided
-        if encoder_mask is not None:
-            pass  # Replace: scores = scores.masked_fill(encoder_mask == 0, float('-inf'))
-        
-        # TODO: Softmax and dropout
-        attention_weights = None  # Replace
-        
-        # TODO: Apply attention to V
-        attn_output = None  # Replace
-        
-        # TODO: Reshape and project
-        attn_output = None  # Replace: reshape back to [batch, tgt_seq, d_model]
-        output = None  # Replace: self.W_o(attn_output)
-        
-        return output, attention_weights
+        # TODO: Implement cross-attention
+        # API hints:
+        # - self.W_q(decoder_hidden) -> Q from decoder
+        # - self.W_k(encoder_output), self.W_v(encoder_output) -> K, V from encoder
+        # - tensor.view(batch, seq, num_heads, d_k).transpose(1, 2) -> reshape for multi-head
+        # - torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k) -> attention scores
+        # - scores.masked_fill(encoder_mask == 0, float('-inf')) -> apply mask
+        # - F.softmax(scores, dim=-1) -> attention weights
+        # - torch.matmul(attn_weights, V) -> weighted sum of values
+        # - tensor.transpose(1, 2).contiguous().view(batch, tgt_seq, d_model) -> reshape back
+        # - self.W_o(attn_output) -> final projection
+        return None, None
 
 
 # ============================================================================
@@ -272,16 +220,21 @@ class FeedForward(nn.Module):
         
         d_ff = d_ff or d_model * 4
         
-        # TODO: Two linear layers with GELU activation
-        self.linear1 = None  # Replace: nn.Linear(d_model, d_ff)
-        self.linear2 = None  # Replace: nn.Linear(d_ff, d_model)
-        self.dropout = None  # Replace: nn.Dropout(dropout)
+        # TODO: Create two linear layers and dropout
+        # API hints:
+        # - nn.Linear(d_model, d_ff) -> expansion layer
+        # - nn.Linear(d_ff, d_model) -> projection layer
+        # - nn.Dropout(dropout) -> dropout layer
+        self.linear1 = None
+        self.linear2 = None
+        self.dropout = None
     
     def forward(self, x):
         # TODO: linear1 -> GELU -> dropout -> linear2
-        x = None  # Replace: self.dropout(F.gelu(self.linear1(x)))
-        x = None  # Replace: self.linear2(x)
-        return x
+        # API hints:
+        # - F.gelu(tensor) -> GELU activation
+        # - self.dropout(tensor) -> apply dropout
+        return None
 
 
 # ============================================================================
@@ -295,16 +248,20 @@ class LayerNorm(nn.Module):
         super().__init__()
         self.eps = eps
         
-        # TODO: Learnable scale and shift
-        self.gamma = None  # Replace: nn.Parameter(torch.ones(d_model))
-        self.beta = None   # Replace: nn.Parameter(torch.zeros(d_model))
+        # TODO: Create learnable scale and shift parameters
+        # API hints:
+        # - nn.Parameter(torch.ones(d_model)) -> learnable scale (gamma)
+        # - nn.Parameter(torch.zeros(d_model)) -> learnable shift (beta)
+        self.gamma = None
+        self.beta = None
     
     def forward(self, x):
-        # TODO: Normalize over last dimension
-        mean = None  # Replace: x.mean(dim=-1, keepdim=True)
-        var = None   # Replace: ((x - mean) ** 2).mean(dim=-1, keepdim=True)
-        x_norm = None  # Replace: (x - mean) / torch.sqrt(var + self.eps)
-        return None  # Replace: self.gamma * x_norm + self.beta
+        # TODO: Normalize over last dimension, apply scale and shift
+        # API hints:
+        # - x.mean(dim=-1, keepdim=True) -> mean over last dim
+        # - torch.sqrt(var + self.eps) -> standard deviation
+        # - self.gamma * x_norm + self.beta -> scale and shift
+        return None
 
 
 # ============================================================================
@@ -324,21 +281,20 @@ class PreNormDecoderBlock(nn.Module):
     def __init__(self, d_model, num_heads, d_ff=None, dropout=0.0):
         super().__init__()
         
-        # TODO: Masked self-attention sublayer
-        self.self_attn = None  # Replace: MaskedMultiHeadAttention(d_model, num_heads, dropout)
-        
-        # TODO: Cross-attention sublayer
-        self.cross_attn = None  # Replace: CrossAttention(d_model, num_heads, dropout)
-        
-        # TODO: Feed-forward sublayer
-        self.ffn = None  # Replace: FeedForward(d_model, d_ff, dropout)
-        
-        # TODO: Layer norms (one for each sublayer)
-        self.norm1 = None  # Replace: LayerNorm(d_model)
-        self.norm2 = None  # Replace: LayerNorm(d_model)
-        self.norm3 = None  # Replace: LayerNorm(d_model)
-        
-        self.dropout = None  # Replace: nn.Dropout(dropout)
+        # TODO: Create masked self-attention, cross-attention, FFN, layer norms, dropout
+        # API hints:
+        # - MaskedMultiHeadAttention(d_model, num_heads, dropout) -> masked self-attention
+        # - CrossAttention(d_model, num_heads, dropout) -> cross-attention
+        # - FeedForward(d_model, d_ff, dropout) -> feed-forward
+        # - LayerNorm(d_model) -> layer norm (need 3 for 3 sublayers)
+        # - nn.Dropout(dropout) -> dropout layer
+        self.self_attn = None
+        self.cross_attn = None
+        self.ffn = None
+        self.norm1 = None
+        self.norm2 = None
+        self.norm3 = None
+        self.dropout = None
     
     def forward(self, x, encoder_output, src_mask=None, tgt_mask=None):
         """
@@ -351,37 +307,14 @@ class PreNormDecoderBlock(nn.Module):
         Returns:
             [batch, tgt_seq, d_model]
         """
-        # TODO: Sublayer 1 - Masked Self-Attention (Pre-Norm)
-        # Step 1: Normalize
-        normed = None  # Replace: self.norm1(x)
-        
-        # Step 2: Masked self-attention (use_causal_mask=True by default)
-        attn_output, _ = self.self_attn(normed, mask=tgt_mask) if self.self_attn else (None, None)
-        
-        # Step 3: Residual connection with dropout
-        x = None  # Replace: x + self.dropout(attn_output)
-        
-        # TODO: Sublayer 2 - Cross-Attention (Pre-Norm)
-        # Step 1: Normalize
-        normed = None  # Replace: self.norm2(x)
-        
-        # Step 2: Cross-attention (decoder attends to encoder)
-        cross_output, _ = self.cross_attn(normed, encoder_output, src_mask) if self.cross_attn else (None, None)
-        
-        # Step 3: Residual connection
-        x = None  # Replace: x + self.dropout(cross_output)
-        
-        # TODO: Sublayer 3 - Feed-Forward (Pre-Norm)
-        # Step 1: Normalize
-        normed = None  # Replace: self.norm3(x)
-        
-        # Step 2: FFN
-        ffn_output = None  # Replace: self.ffn(normed)
-        
-        # Step 3: Residual connection
-        x = None  # Replace: x + self.dropout(ffn_output)
-        
-        return x
+        # TODO: Implement pre-norm decoder block with 3 sublayers
+        # API hints:
+        # - Sublayer 1: x = x + dropout(self_attn(norm1(x), mask=tgt_mask))
+        # - Sublayer 2: x = x + dropout(cross_attn(norm2(x), encoder_output, src_mask))
+        # - Sublayer 3: x = x + dropout(ffn(norm3(x)))
+        # - self.self_attn(x, mask) returns (output, attn_weights)
+        # - self.cross_attn(x, encoder_output, mask) returns (output, attn_weights)
+        return None
 
 
 # ============================================================================
@@ -396,11 +329,13 @@ class TransformerDecoder(nn.Module):
     def __init__(self, d_model, num_heads, num_layers, d_ff=None, dropout=0.0):
         super().__init__()
         
-        # TODO: Create stack of decoder blocks
-        self.layers = None  # Replace: nn.ModuleList([PreNormDecoderBlock(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
-        
-        # TODO: Final layer norm (for pre-norm architecture)
-        self.final_norm = None  # Replace: LayerNorm(d_model)
+        # TODO: Create stack of decoder blocks and final norm
+        # API hints:
+        # - nn.ModuleList([...]) -> list of modules for iteration
+        # - PreNormDecoderBlock(d_model, num_heads, d_ff, dropout) -> decoder block
+        # - LayerNorm(d_model) -> final layer norm
+        self.layers = None
+        self.final_norm = None
     
     def forward(self, x, encoder_output, src_mask=None, tgt_mask=None):
         """
@@ -413,16 +348,11 @@ class TransformerDecoder(nn.Module):
         Returns:
             [batch, tgt_seq, d_model]
         """
-        # TODO: Pass through all decoder layers
-        if self.layers is not None:
-            for layer in self.layers:
-                x = layer(x, encoder_output, src_mask, tgt_mask)
-        
-        # TODO: Apply final layer norm
-        if self.final_norm is not None:
-            x = self.final_norm(x)
-        
-        return x
+        # TODO: Pass through all layers, apply final norm
+        # API hints:
+        # - for layer in self.layers: x = layer(x, encoder_output, src_mask, tgt_mask)
+        # - self.final_norm(x) -> apply final normalization
+        return None
 
 
 # ============================================================================

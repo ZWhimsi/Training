@@ -50,23 +50,24 @@ def outer_product_kernel(
     mask_m = offs_m < M
     mask_n = offs_n < N
     
-    # TODO: Load a and b
-    # HINT: a = tl.load(a_ptr + offs_m, mask=mask_m, other=0.0)
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Broadcasting: a[:, None] expands to (M, 1), b[None, :] expands to (1, N)
+    # - Element-wise multiply of (M, 1) * (1, N) gives (M, N) outer product
+    
     a = tl.load(a_ptr + offs_m, mask=mask_m, other=0.0)
     b = tl.load(b_ptr + offs_n, mask=mask_n, other=0.0)
     
-    # TODO: Compute outer product
-    # a is (BLOCK_M,), b is (BLOCK_N,)
-    # Need to broadcast: a[:, None] * b[None, :]
-    # HINT: result = a[:, None] * b[None, :]
+    # TODO: Compute outer product using broadcasting
+    # a is (BLOCK_M,), b is (BLOCK_N,) -> result should be (BLOCK_M, BLOCK_N)
     result = None  # Replace
     
-    # TODO: Store with proper indexing
-    # output[i, j] stored at i * N + j
+    # Store with proper 2D indexing
     offs_output = offs_m[:, None] * N + offs_n[None, :]
     mask_output = mask_m[:, None] & mask_n[None, :]
     
-    # HINT: tl.store(output_ptr + offs_output, result, mask=mask_output)
+    # TODO: Store result
     pass  # Replace
 
 
@@ -112,18 +113,22 @@ def batched_outer_kernel(
     a_batch_ptr = a_ptr + pid_b * stride_ab
     b_batch_ptr = b_ptr + pid_b * stride_bb
     
+    # API hints:
+    # - Broadcasting: a[:, None] * b[None, :] computes outer product
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    
     a = tl.load(a_batch_ptr + offs_m, mask=mask_m, other=0.0)
     b = tl.load(b_batch_ptr + offs_n, mask=mask_n, other=0.0)
     
     # TODO: Compute outer product for this batch
-    result = None  # Replace: a[:, None] * b[None, :]
+    result = None  # Replace
     
-    # TODO: Store
+    # Store to output
     output_batch_ptr = output_ptr + pid_b * stride_ob
     offs_output = offs_m[:, None] * N + offs_n[None, :]
     mask_output = mask_m[:, None] & mask_n[None, :]
     
-    # HINT: tl.store(output_batch_ptr + offs_output, result, mask=mask_output)
+    # TODO: Store result
     pass  # Replace
 
 
@@ -170,18 +175,22 @@ def scaled_outer_kernel(
     mask_m = offs_m < M
     mask_n = offs_n < N
     
+    # API hints:
+    # - Broadcasting: a[:, None] * b[None, :] computes outer product
+    # - Multiply by scale factor for attention-style scaling
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    
     a = tl.load(a_ptr + offs_m, mask=mask_m, other=0.0)
     b = tl.load(b_ptr + offs_n, mask=mask_n, other=0.0)
     
-    # TODO: Compute scaled outer product
-    # HINT: result = scale * a[:, None] * b[None, :]
+    # TODO: Compute scaled outer product: scale * outer(a, b)
     result = None  # Replace
     
     # Store
     offs_output = offs_m[:, None] * N + offs_n[None, :]
     mask_output = mask_m[:, None] & mask_n[None, :]
     
-    # HINT: tl.store(output_ptr + offs_output, result, mask=mask_output)
+    # TODO: Store result
     pass  # Replace
 
 

@@ -102,12 +102,16 @@ class Tensor:
         shape1_padded = (1,) * (max_len - len1) + shape1
         shape2_padded = (1,) * (max_len - len2) + shape2
         
+        # API hints:
+        # - Compatible if dims equal OR one is 1
+        # - Return False immediately if incompatible found
+        # - Return True if all dimensions compatible
+        
         # TODO: Check each dimension pair
         for d1, d2 in zip(shape1_padded, shape2_padded):
-            # HINT: if d1 != d2 and d1 != 1 and d2 != 1: return False
             pass  # Replace with check
         
-        return None  # Replace: return True (if all checks pass)
+        return None  # Replace
     
     # ========================================================================
     # Exercise 2: Compute Broadcast Shape
@@ -135,13 +139,15 @@ class Tensor:
         shape1_padded = (1,) * (max_len - len1) + shape1
         shape2_padded = (1,) * (max_len - len2) + shape2
         
+        # API hints:
+        # - max(d1, d2) -> resulting dimension
+        # - tuple(list) -> convert list to tuple
+        
         result = []
         for d1, d2 in zip(shape1_padded, shape2_padded):
-            # Take the max of the two dimensions
-            # HINT: result.append(max(d1, d2))
             pass  # Replace
         
-        return None  # Replace: tuple(result)
+        return None  # Replace
     
     # ========================================================================
     # Exercise 3: Unbroadcast Gradient
@@ -164,22 +170,22 @@ class Tensor:
         Returns:
             Gradient with original_shape
         """
-        # TODO: Implement gradient unbroadcasting
+        # API hints:
+        # - grad.sum(axis=0) -> sum along first axis (removes leading dim)
+        # - grad.sum(axis=i, keepdims=True) -> sum but keep dimension
+        # - grad.ndim -> number of dimensions
+        # - Sum along axes that were broadcast (size 1 -> larger)
         
-        # First, handle case where dimensions were added on the left
-        # by summing along those leading dimensions
+        # TODO: Handle added leading dimensions
         while grad.ndim > len(original_shape):
-            # HINT: grad = grad.sum(axis=0)
             pass  # Replace
         
-        # Then, handle case where original had 1s that were broadcast
-        # by summing along those dimensions (keeping dims)
+        # TODO: Handle broadcast dimensions (where original was 1)
         for i, (grad_dim, orig_dim) in enumerate(zip(grad.shape, original_shape)):
             if orig_dim == 1 and grad_dim > 1:
-                # HINT: grad = grad.sum(axis=i, keepdims=True)
                 pass  # Replace
         
-        return None  # Replace: grad
+        return None  # Replace
     
     # ========================================================================
     # Exercise 4: Addition with Broadcasting
@@ -195,11 +201,12 @@ class Tensor:
         # Forward: NumPy handles broadcasting automatically
         out = Tensor(self.data + other.data, (self, other), '+')
         
+        # API hints:
+        # - Tensor.unbroadcast(grad, shape) -> reduce grad to original shape
+        # - self.grad += ... -> accumulate gradient
+        
         # Backward: Must unbroadcast gradients
         def _backward():
-            # TODO: Unbroadcast gradients to original shapes
-            # HINT: self.grad += Tensor.unbroadcast(out.grad, self.shape)
-            # HINT: other.grad += Tensor.unbroadcast(out.grad, other.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -221,15 +228,12 @@ class Tensor:
         
         out = Tensor(self.data * other.data, (self, other), '*')
         
+        # API hints:
+        # - d(a*b)/da = b, d(a*b)/db = a
+        # - Multiply local gradient by upstream gradient
+        # - Tensor.unbroadcast(grad, shape) -> reduce to original shape
+        
         def _backward():
-            # TODO: Compute gradients with broadcasting
-            # Local gradient for self is other.data (may need broadcasting)
-            # Local gradient for other is self.data (may need broadcasting)
-            
-            # HINT: self_grad = other.data * out.grad
-            # HINT: other_grad = self.data * out.grad
-            # HINT: self.grad += Tensor.unbroadcast(self_grad, self.shape)
-            # HINT: other.grad += Tensor.unbroadcast(other_grad, other.shape)
             pass  # Replace
         
         out._backward = _backward

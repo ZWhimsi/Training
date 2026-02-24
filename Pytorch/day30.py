@@ -100,9 +100,10 @@ class RMSNorm(nn.Module):
         self.eps = eps
         
         # TODO: Initialize learnable scale parameter
-        # HINT:
-        #   self.weight = nn.Parameter(torch.ones(dim))
-        self.weight = None  # Replace
+        # API hints:
+        # - nn.Parameter(torch.ones(dim)) -> learnable scale parameter
+        
+        self.weight = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -113,17 +114,13 @@ class RMSNorm(nn.Module):
         
         Returns:
             Normalized tensor of same shape
-        
-        TODO: Implement RMSNorm
-        HINT:
-            # Compute RMS (root mean square)
-            rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
-            
-            # Normalize and scale
-            x_norm = x / rms
-            return x_norm * self.weight
         """
-        return x  # Replace
+        # API hints:
+        # - torch.mean(x ** 2, dim=-1, keepdim=True) -> mean of squared values
+        # - torch.sqrt(tensor + eps) -> RMS value
+        # - x / rms * self.weight -> normalize and scale
+        
+        return None
 
 
 # ============================================================================
@@ -152,18 +149,15 @@ class SwiGLUFFN(nn.Module):
         super().__init__()
         
         # TODO: Initialize SwiGLU layers
-        # HINT:
-        #   # Gate projection (with swish activation)
-        #   self.w_gate = nn.Linear(d_model, d_ff, bias=False)
-        #   # Up projection (multiplied with gate)
-        #   self.w_up = nn.Linear(d_model, d_ff, bias=False)
-        #   # Down projection (to output dim)
-        #   self.w_down = nn.Linear(d_ff, d_model, bias=False)
-        #   self.dropout = nn.Dropout(dropout)
-        self.w_gate = None  # Replace
-        self.w_up = None    # Replace
-        self.w_down = None  # Replace
-        self.dropout = None # Replace
+        # API hints:
+        # - nn.Linear(d_model, d_ff, bias=False) -> w_gate, w_up
+        # - nn.Linear(d_ff, d_model, bias=False) -> w_down
+        # - nn.Dropout(dropout) -> dropout layer
+        
+        self.w_gate = None
+        self.w_up = None
+        self.w_down = None
+        self.dropout = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -174,22 +168,14 @@ class SwiGLUFFN(nn.Module):
         
         Returns:
             Output tensor (batch, seq_len, d_model)
-        
-        TODO: Implement SwiGLU
-        HINT:
-            # Swish activation: x * sigmoid(x)
-            gate = F.silu(self.w_gate(x))  # silu is swish
-            up = self.w_up(x)
-            
-            # Element-wise product
-            hidden = gate * up
-            hidden = self.dropout(hidden)
-            
-            # Project back to d_model
-            output = self.w_down(hidden)
-            return output
         """
-        return x  # Replace
+        # API hints:
+        # - F.silu(self.w_gate(x)) -> swish activation (x * sigmoid(x))
+        # - self.w_up(x) -> up projection
+        # - gate * up -> element-wise gating
+        # - self.w_down(self.dropout(hidden)) -> output
+        
+        return None
 
 
 # ============================================================================
@@ -225,27 +211,19 @@ class MultiHeadLatentAttention(nn.Module):
         self.num_kv_groups = self.num_heads // self.num_kv_heads
         
         # TODO: Initialize MLA projections
-        # HINT:
-        #   # Query projection (includes rope component)
-        #   self.W_q = nn.Linear(config.d_model, config.num_heads * self.head_dim, bias=False)
-        #   
-        #   # KV compression: project to shared latent space
-        #   self.W_kv_compress = nn.Linear(config.d_model, config.latent_dim, bias=False)
-        #   
-        #   # KV expansion: project from latent to K and V
-        #   self.W_k_expand = nn.Linear(config.latent_dim, config.num_kv_heads * self.head_dim, bias=False)
-        #   self.W_v_expand = nn.Linear(config.latent_dim, config.num_kv_heads * self.head_dim, bias=False)
-        #   
-        #   # Output projection
-        #   self.W_o = nn.Linear(config.d_model, config.d_model, bias=False)
-        #   
-        #   self.dropout = nn.Dropout(config.dropout)
-        self.W_q = None           # Replace
-        self.W_kv_compress = None # Replace
-        self.W_k_expand = None    # Replace
-        self.W_v_expand = None    # Replace
-        self.W_o = None           # Replace
-        self.dropout = None       # Replace
+        # API hints:
+        # - nn.Linear(d_model, num_heads * head_dim, bias=False) -> W_q
+        # - nn.Linear(d_model, latent_dim, bias=False) -> W_kv_compress
+        # - nn.Linear(latent_dim, num_kv_heads * head_dim, bias=False) -> W_k_expand, W_v_expand
+        # - nn.Linear(d_model, d_model, bias=False) -> W_o
+        # - nn.Dropout(dropout) -> dropout
+        
+        self.W_q = None
+        self.W_kv_compress = None
+        self.W_k_expand = None
+        self.W_v_expand = None
+        self.W_o = None
+        self.dropout = None
     
     def _repeat_kv(self, x: torch.Tensor) -> torch.Tensor:
         """Repeat KV heads to match number of query heads."""
@@ -271,56 +249,18 @@ class MultiHeadLatentAttention(nn.Module):
             output: (batch, seq_len, d_model)
             attention_weights: (batch, num_heads, seq_len, kv_len)
             new_kv_cache: Updated cache tuple
-        
-        TODO: Implement MLA forward pass
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Query projection
-            q = self.W_q(x)
-            q = q.view(batch, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-            
-            # KV compression
-            kv_latent = self.W_kv_compress(x)  # (batch, seq_len, latent_dim)
-            
-            # KV expansion
-            k = self.W_k_expand(kv_latent)
-            v = self.W_v_expand(kv_latent)
-            
-            k = k.view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-            v = v.view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-            
-            # Handle KV cache
-            if kv_cache is not None:
-                k_cache, v_cache = kv_cache
-                k = torch.cat([k_cache, k], dim=2)
-                v = torch.cat([v_cache, v], dim=2)
-            
-            new_kv_cache = (k, v)
-            
-            # Repeat KV heads for GQA
-            k = self._repeat_kv(k)
-            v = self._repeat_kv(v)
-            
-            # Attention computation
-            scores = torch.matmul(q, k.transpose(-2, -1)) * self.scale
-            
-            if mask is not None:
-                scores = scores.masked_fill(mask == 0, float('-inf'))
-            
-            attn_weights = F.softmax(scores, dim=-1)
-            attn_weights = self.dropout(attn_weights)
-            
-            # Apply attention to values
-            output = torch.matmul(attn_weights, v)
-            output = output.transpose(1, 2).reshape(batch, seq_len, self.d_model)
-            output = self.W_o(output)
-            
-            return output, attn_weights, new_kv_cache
         """
-        batch, seq_len, _ = x.shape
-        dummy_weights = torch.zeros(batch, self.num_heads, seq_len, seq_len)
-        return x, dummy_weights, None  # Replace
+        # API hints:
+        # - self.W_q(x).view(batch, seq_len, num_heads, head_dim).transpose(1, 2)
+        # - self.W_kv_compress(x) -> latent representation
+        # - self.W_k_expand(latent), self.W_v_expand(latent) -> K, V
+        # - torch.cat([cache, new], dim=2) -> append to cache
+        # - self._repeat_kv(k) -> repeat for GQA
+        # - torch.matmul(q, k.transpose(-2, -1)) * self.scale -> attention scores
+        # - scores.masked_fill(mask == 0, float('-inf')) -> apply mask
+        # - F.softmax(scores, dim=-1) -> attention weights
+        
+        return None
 
 
 # ============================================================================
@@ -350,29 +290,17 @@ class DeepSeekBlock(nn.Module):
         self.layer_idx = layer_idx
         
         # TODO: Initialize block components
-        # HINT:
-        #   # Pre-attention normalization
-        #   self.attn_norm = RMSNorm(config.d_model, config.layer_norm_eps)
-        #   
-        #   # Multi-head Latent Attention
-        #   self.attention = MultiHeadLatentAttention(config)
-        #   
-        #   # Pre-FFN normalization
-        #   self.ffn_norm = RMSNorm(config.d_model, config.layer_norm_eps)
-        #   
-        #   # FFN or MoE
-        #   if config.use_moe:
-        #       # For MoE variant (simplified - you could import from day24)
-        #       self.ffn = SwiGLUFFN(config.d_model, config.d_ff, config.dropout)
-        #   else:
-        #       self.ffn = SwiGLUFFN(config.d_model, config.d_ff, config.dropout)
-        #   
-        #   self.dropout = nn.Dropout(config.dropout)
-        self.attn_norm = None  # Replace
-        self.attention = None  # Replace
-        self.ffn_norm = None   # Replace
-        self.ffn = None        # Replace
-        self.dropout = None    # Replace
+        # API hints:
+        # - RMSNorm(d_model, eps) -> attn_norm, ffn_norm
+        # - MultiHeadLatentAttention(config) -> attention
+        # - SwiGLUFFN(d_model, d_ff, dropout) -> ffn
+        # - nn.Dropout(dropout) -> dropout
+        
+        self.attn_norm = None
+        self.attention = None
+        self.ffn_norm = None
+        self.ffn = None
+        self.dropout = None
     
     def forward(self, x: torch.Tensor,
                 mask: Optional[torch.Tensor] = None,
@@ -390,24 +318,15 @@ class DeepSeekBlock(nn.Module):
             output: (batch, seq_len, d_model)
             attention_weights: (batch, num_heads, seq_len, kv_len)
             new_kv_cache: Updated KV cache
-        
-        TODO: Implement pre-norm transformer block
-        HINT:
-            # Pre-norm attention
-            normed = self.attn_norm(x)
-            attn_out, attn_weights, new_kv_cache = self.attention(normed, mask, kv_cache)
-            x = x + self.dropout(attn_out)
-            
-            # Pre-norm FFN
-            normed = self.ffn_norm(x)
-            ffn_out = self.ffn(normed)
-            x = x + self.dropout(ffn_out)
-            
-            return x, attn_weights, new_kv_cache
         """
-        batch, seq_len, _ = x.shape
-        dummy_weights = torch.zeros(batch, self.config.num_heads, seq_len, seq_len)
-        return x, dummy_weights, None  # Replace
+        # API hints:
+        # - self.attn_norm(x) -> pre-norm
+        # - self.attention(normed, mask, kv_cache) -> attention + cache
+        # - x = x + self.dropout(attn_out) -> residual
+        # - self.ffn_norm(x) -> pre-norm for FFN
+        # - x = x + self.dropout(self.ffn(normed)) -> FFN with residual
+        
+        return None
 
 
 # ============================================================================
@@ -437,20 +356,14 @@ class RotaryEmbedding(nn.Module):
         assert dim % 2 == 0, "RoPE dimension must be even"
         
         # TODO: Precompute rotation frequencies
-        # HINT:
-        #   # Compute inverse frequencies
-        #   inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
-        #   self.register_buffer('inv_freq', inv_freq)
-        #   
-        #   # Precompute cos and sin for all positions
-        #   t = torch.arange(max_seq_len).float()
-        #   freqs = torch.outer(t, inv_freq)  # (max_seq_len, dim/2)
-        #   
-        #   # Create cos and sin caches
-        #   cos_cached = torch.cos(freqs)
-        #   sin_cached = torch.sin(freqs)
-        #   self.register_buffer('cos_cached', cos_cached)
-        #   self.register_buffer('sin_cached', sin_cached)
+        # API hints:
+        # - inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+        # - self.register_buffer('inv_freq', inv_freq)
+        # - t = torch.arange(max_seq_len).float()
+        # - freqs = torch.outer(t, inv_freq) -> (max_seq_len, dim/2)
+        # - self.register_buffer('cos_cached', torch.cos(freqs))
+        # - self.register_buffer('sin_cached', torch.sin(freqs))
+        
         self.dim = dim
     
     def forward(self, x: torch.Tensor, seq_len: int, 
@@ -465,15 +378,12 @@ class RotaryEmbedding(nn.Module):
         
         Returns:
             cos, sin tensors of shape (seq_len, dim/2)
-        
-        TODO: Return appropriate cos/sin values
-        HINT:
-            return (
-                self.cos_cached[offset:offset + seq_len],
-                self.sin_cached[offset:offset + seq_len]
-            )
         """
-        return torch.ones(seq_len, self.dim // 2), torch.zeros(seq_len, self.dim // 2)
+        # API hints:
+        # - self.cos_cached[offset:offset + seq_len] -> sliced cos
+        # - self.sin_cached[offset:offset + seq_len] -> sliced sin
+        
+        return None
 
 
 def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor, 
@@ -489,29 +399,15 @@ def apply_rotary_pos_emb(q: torch.Tensor, k: torch.Tensor,
     
     Returns:
         Rotated q, k tensors
-    
-    TODO: Implement RoPE rotation
-    HINT:
-        def rotate_half(x):
-            # Split into two halves and swap with negation
-            x1, x2 = x[..., :x.shape[-1]//2], x[..., x.shape[-1]//2:]
-            return torch.cat([-x2, x1], dim=-1)
-        
-        # Expand cos/sin for broadcasting
-        cos = cos.unsqueeze(0).unsqueeze(0)  # (1, 1, seq_len, dim/2)
-        sin = sin.unsqueeze(0).unsqueeze(0)
-        
-        # Duplicate for full head_dim
-        cos = torch.cat([cos, cos], dim=-1)
-        sin = torch.cat([sin, sin], dim=-1)
-        
-        # Apply rotation
-        q_rot = q * cos + rotate_half(q) * sin
-        k_rot = k * cos + rotate_half(k) * sin
-        
-        return q_rot, k_rot
     """
-    return q, k  # Replace
+    # API hints:
+    # - rotate_half(x): x1, x2 = x[..., :half], x[..., half:]; return torch.cat([-x2, x1], dim=-1)
+    # - cos.unsqueeze(0).unsqueeze(0) -> (1, 1, seq_len, dim/2)
+    # - torch.cat([cos, cos], dim=-1) -> duplicate for full head_dim
+    # - q_rot = q * cos + rotate_half(q) * sin -> apply rotation
+    # - k_rot = k * cos + rotate_half(k) * sin -> apply rotation
+    
+    return None
 
 
 # ============================================================================
@@ -533,19 +429,19 @@ class DeepSeekBlockWithRoPE(nn.Module):
         self.head_dim = config.d_model // config.num_heads
         
         # TODO: Initialize all components including RoPE
-        # HINT:
-        #   self.attn_norm = RMSNorm(config.d_model, config.layer_norm_eps)
-        #   self.attention = MultiHeadLatentAttention(config)
-        #   self.ffn_norm = RMSNorm(config.d_model, config.layer_norm_eps)
-        #   self.ffn = SwiGLUFFN(config.d_model, config.d_ff, config.dropout)
-        #   self.rope = RotaryEmbedding(self.head_dim)
-        #   self.dropout = nn.Dropout(config.dropout)
-        self.attn_norm = None  # Replace
-        self.attention = None  # Replace
-        self.ffn_norm = None   # Replace
-        self.ffn = None        # Replace
-        self.rope = None       # Replace
-        self.dropout = None    # Replace
+        # API hints:
+        # - RMSNorm(d_model, eps) -> attn_norm, ffn_norm
+        # - MultiHeadLatentAttention(config) -> attention
+        # - SwiGLUFFN(d_model, d_ff, dropout) -> ffn
+        # - RotaryEmbedding(head_dim) -> rope
+        # - nn.Dropout(dropout) -> dropout
+        
+        self.attn_norm = None
+        self.attention = None
+        self.ffn_norm = None
+        self.ffn = None
+        self.rope = None
+        self.dropout = None
     
     def forward(self, x: torch.Tensor,
                 mask: Optional[torch.Tensor] = None,
@@ -564,11 +460,13 @@ class DeepSeekBlockWithRoPE(nn.Module):
         Returns:
             output: (batch, seq_len, d_model)
             new_kv_cache: Updated KV cache
-        
-        TODO: Implement forward with RoPE
-        HINT: Similar to DeepSeekBlock but get RoPE cos/sin and pass to attention
         """
-        return x, None  # Replace
+        # API hints:
+        # - Similar to DeepSeekBlock but with RoPE
+        # - self.rope(x, seq_len, start_pos) -> cos, sin
+        # - Pass cos/sin to attention along with x, mask, kv_cache
+        
+        return None
 
 
 # ============================================================================
@@ -586,13 +484,12 @@ def create_causal_mask(seq_len: int, device: torch.device = None) -> torch.Tenso
     Returns:
         Causal mask of shape (1, 1, seq_len, seq_len)
         1 = attend, 0 = mask
-    
-    TODO: Create lower triangular causal mask
-    HINT:
-        mask = torch.tril(torch.ones(seq_len, seq_len, device=device))
-        return mask.unsqueeze(0).unsqueeze(0)
     """
-    return torch.ones(1, 1, seq_len, seq_len)  # Replace
+    # API hints:
+    # - torch.tril(torch.ones(seq_len, seq_len, device=device)) -> lower triangular
+    # - mask.unsqueeze(0).unsqueeze(0) -> add batch and head dims
+    
+    return None
 
 
 def create_causal_mask_with_cache(q_len: int, kv_len: int, 
@@ -609,14 +506,12 @@ def create_causal_mask_with_cache(q_len: int, kv_len: int,
     
     Returns:
         Mask of shape (1, 1, q_len, kv_len)
-    
-    TODO: Create appropriate mask for cached attention
-    HINT:
-        # New tokens can attend to all previous tokens
-        mask = torch.ones(q_len, kv_len, device=device)
-        return mask.unsqueeze(0).unsqueeze(0)
     """
-    return torch.ones(1, 1, q_len, kv_len)  # Replace
+    # API hints:
+    # - torch.ones(q_len, kv_len, device=device) -> new tokens attend to all prev
+    # - mask.unsqueeze(0).unsqueeze(0) -> add batch and head dims
+    
+    return None
 
 
 # ============================================================================

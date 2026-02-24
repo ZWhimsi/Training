@@ -76,11 +76,12 @@ def attn_output_kernel(
         # Accumulate: [BLOCK_M, BLOCK_N] @ [BLOCK_N, BLOCK_D]
         acc += tl.dot(weights, v)
     
-    # TODO: Store output
+    # TODO: Store accumulated output to memory
+    # API hints:
+    # - tl.store(ptr + offsets, values, mask=mask) -> store with bounds checking
     o_offs = offs_m[:, None] * stride_Os + offs_d[None, :] * stride_Od
     o_mask = (offs_m[:, None] < seq_len) & (offs_d[None, :] < head_dim)
-    # HINT: tl.store(output_ptr + o_offs, acc, mask=o_mask)
-    pass  # Replace
+    pass
 
 
 def attention_output(weights: torch.Tensor, V: torch.Tensor) -> torch.Tensor:
@@ -207,9 +208,10 @@ def full_attention(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor) -> torch.T
     weights = torch.softmax(scores, dim=-1)
     
     # Step 3: Output
-    # TODO: Use our attention_output function
-    # HINT: output = attention_output(weights, V)
-    output = None  # Replace
+    # TODO: Compute attention output using weights and V
+    # API hints:
+    # - attention_output(weights, V) -> multiply attention weights by values
+    output = None
     
     return output
 
@@ -232,9 +234,10 @@ def full_mha(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor) -> torch.Tensor:
     # Softmax per head
     weights = torch.softmax(scores, dim=-1)
     
-    # TODO: Use our mha_attention_output function
-    # HINT: output = mha_attention_output(weights, V)
-    output = None  # Replace
+    # TODO: Compute multi-head attention output
+    # API hints:
+    # - mha_attention_output(weights, V) -> batched attention output for all heads
+    output = None
     
     return output
 

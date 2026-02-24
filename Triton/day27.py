@@ -97,10 +97,11 @@ def single_query_attention_kernel(
     # Normalize
     output = acc / l
     
-    # TODO: Store
+    # TODO: Store the computed output for this query
+    # API hints:
+    # - tl.store(ptr + offsets, values, mask=mask) -> store with bounds checking
     o_offs = query_idx * stride_Qs + offs_d * stride_Qd
-    # HINT: tl.store(output_ptr + o_offs, output, mask=q_mask)
-    pass  # Replace
+    pass
 
 
 def single_query_attention(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor, 

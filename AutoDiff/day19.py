@@ -188,14 +188,17 @@ class Tensor:
         
         Warning: exp(x) overflows for x > ~709 (float64)
         """
+        # API hints:
+        # - np.exp(data) -> element-wise exponential
+        # - Tensor(result, children, op) -> create output
+        # - d/dx(e^x) = e^x = out.data
+        # - self.grad += local_grad * out.grad
+        
         # TODO: Implement forward pass
-        # HINT: result = np.exp(self.data)
-        out = None  # Replace: Tensor(result, (self,), 'exp')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # d/dx(e^x) = e^x = out.data
-            # HINT: self.grad += out.data * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -216,14 +219,17 @@ class Tensor:
         
         Warning: Only valid for x > 0. log(0) = -inf, log(negative) = NaN
         """
+        # API hints:
+        # - np.log(data) -> element-wise natural log
+        # - Tensor(result, children, op) -> create output
+        # - d/dx(ln(x)) = 1/x
+        # - self.grad += local_grad * out.grad
+        
         # TODO: Implement forward pass
-        # HINT: result = np.log(self.data)
-        out = None  # Replace: Tensor(result, (self,), 'log')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # d/dx(ln(x)) = 1/x
-            # HINT: self.grad += (1 / self.data) * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -250,23 +256,18 @@ class Tensor:
                   = exp(x) / sum(exp(x))
                   = exp(x - logsumexp(x))
         """
+        # API hints:
+        # - Stable formula: logsumexp(x) = max(x) + log(sum(exp(x - max(x))))
+        # - np.max(data, axis=axis, keepdims=True) -> max for stability
+        # - np.exp(x - max_val) -> prevent overflow
+        # - np.sum(..., axis=axis, keepdims=keepdims) -> sum of exp
+        # - Gradient is softmax(x) = exp(x - logsumexp(x))
+        
         # TODO: Implement forward pass (numerically stable)
-        # HINT:
-        # max_val = np.max(self.data, axis=axis, keepdims=True)
-        # shifted = self.data - max_val
-        # exp_shifted = np.exp(shifted)
-        # sum_exp = np.sum(exp_shifted, axis=axis, keepdims=keepdims)
-        # result = np.squeeze(max_val, axis=axis) + np.log(sum_exp) if not keepdims else max_val + np.log(sum_exp)
-        out = None  # Replace: Tensor(result, (self,), 'logsumexp')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Gradient is softmax(x) * upstream_grad
-            # HINT:
-            # lse = out.data if keepdims else (np.expand_dims(out.data, axis=axis) if axis is not None else out.data)
-            # softmax = np.exp(self.data - lse)
-            # grad = out.grad if keepdims else (np.expand_dims(out.grad, axis=axis) if axis is not None else out.grad)
-            # self.grad += softmax * grad
             pass  # Replace
         
         out._backward = _backward
@@ -289,20 +290,17 @@ class Tensor:
         - For x >= 0: σ(x) = 1 / (1 + exp(-x))
         - For x < 0:  σ(x) = exp(x) / (1 + exp(x))
         """
+        # API hints:
+        # - sigmoid(x) = 1 / (1 + exp(-x))
+        # - Stable: use different formula for positive vs negative x
+        # - np.where(condition, x, y) -> x where True, y where False
+        # - d(sigmoid)/dx = sigmoid(x) * (1 - sigmoid(x))
+        
         # TODO: Implement forward pass (numerically stable)
-        # HINT:
-        # positive = self.data >= 0
-        # result = np.where(
-        #     positive,
-        #     1 / (1 + np.exp(-self.data)),
-        #     np.exp(self.data) / (1 + np.exp(self.data))
-        # )
-        out = None  # Replace: Tensor(result, (self,), 'sigmoid')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # dσ/dx = σ(x) * (1 - σ(x)) = out.data * (1 - out.data)
-            # HINT: self.grad += out.data * (1 - out.data) * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -323,14 +321,16 @@ class Tensor:
         
         Alternative: tanh(x) = 2*sigmoid(2x) - 1
         """
+        # API hints:
+        # - np.tanh(data) -> element-wise tanh
+        # - Tensor(result, children, op) -> create output
+        # - d(tanh)/dx = 1 - tanh(x)^2 = 1 - out.data^2
+        
         # TODO: Implement forward pass
-        # HINT: result = np.tanh(self.data)
-        out = None  # Replace: Tensor(result, (self,), 'tanh')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # d(tanh)/dx = 1 - tanh²(x) = 1 - out.data²
-            # HINT: self.grad += (1 - out.data ** 2) * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -359,24 +359,18 @@ class Tensor:
         - For large x: softplus(x) ≈ x
         - For small x: Use log1p for better precision
         """
+        # API hints:
+        # - softplus(x) = (1/beta) * log(1 + exp(beta * x))
+        # - For large x: softplus(x) ≈ x (use for numerical stability)
+        # - np.log1p(x) = log(1 + x) with better precision for small x
+        # - np.where(condition, x, y) -> x where True, y where False
+        # - d(softplus)/dx = sigmoid(beta * x)
+        
         # TODO: Implement forward pass (numerically stable)
-        # HINT:
-        # scaled = beta * self.data
-        # result = np.where(
-        #     scaled > threshold,
-        #     self.data,  # Linear for large values
-        #     np.log1p(np.exp(scaled)) / beta
-        # )
-        out = None  # Replace: Tensor(result, (self,), 'softplus')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # d(softplus)/dx = sigmoid(beta * x)
-            # HINT:
-            # scaled = beta * self.data
-            # sigmoid_grad = 1 / (1 + np.exp(-scaled))
-            # sigmoid_grad = np.where(scaled > threshold, 1.0, sigmoid_grad)
-            # self.grad += sigmoid_grad * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -398,25 +392,18 @@ class Tensor:
         
         Gradient: d(log_sigmoid)/dx = 1 - sigmoid(x) = sigmoid(-x)
         """
+        # API hints:
+        # - log_sigmoid(x) = log(sigmoid(x)) = -log(1 + exp(-x))
+        # - Stable: different formula for x >= 0 vs x < 0
+        # - np.log1p(x) = log(1 + x) with better precision
+        # - np.where(condition, x, y) -> x where True, y where False
+        # - d(log_sigmoid)/dx = sigmoid(-x) = 1 - sigmoid(x)
+        
         # TODO: Implement forward pass (numerically stable)
-        # HINT:
-        # result = np.where(
-        #     self.data >= 0,
-        #     -np.log1p(np.exp(-self.data)),
-        #     self.data - np.log1p(np.exp(self.data))
-        # )
-        out = None  # Replace: Tensor(result, (self,), 'log_sigmoid')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # d(log_sigmoid)/dx = sigmoid(-x) = 1 / (1 + exp(x))
-            # HINT:
-            # sigmoid_neg_x = np.where(
-            #     self.data >= 0,
-            #     np.exp(-self.data) / (1 + np.exp(-self.data)),
-            #     1 / (1 + np.exp(self.data))
-            # )
-            # self.grad += sigmoid_neg_x * out.grad
             pass  # Replace
         
         out._backward = _backward

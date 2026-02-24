@@ -31,16 +31,22 @@ def naive_softmax_kernel(x_ptr, out_ptr, n, BLOCK: tl.constexpr):
     offs = tl.arange(0, BLOCK)
     mask = offs < n
     
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    
     x = tl.load(x_ptr + offs, mask=mask, other=-float('inf'))
     
-    # TODO: Compute exp(x) - UNSTABLE for large x!
-    exp_x = None  # Replace: tl.exp(x)
+    # TODO: Compute exp(x) - WARNING: unstable for large x!
+    exp_x = None  # Replace
     
     # TODO: Sum of exponentials
-    sum_exp = None  # Replace: tl.sum(exp_x, axis=0)
+    sum_exp = None  # Replace
     
-    # TODO: Normalize
-    out = None  # Replace: exp_x / sum_exp
+    # TODO: Normalize by dividing by sum
+    out = None  # Replace
     
     tl.store(out_ptr + offs, out, mask=mask)
 
@@ -58,25 +64,33 @@ def safe_softmax_kernel(x_ptr, out_ptr, n, BLOCK: tl.constexpr):
     offs = tl.arange(0, BLOCK)
     mask = offs < n
     
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.max(x, axis=0) -> max reduction along axis
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.where(cond, x, y) -> conditional select
+    
     x = tl.load(x_ptr + offs, mask=mask, other=-float('inf'))
     
-    # TODO: Find maximum (for stability)
-    x_max = None  # Replace: tl.max(x, axis=0)
+    # TODO: Find maximum for numerical stability
+    x_max = None  # Replace
     
-    # TODO: Subtract max before exp
-    x_shifted = None  # Replace: x - x_max
+    # TODO: Subtract max before exp (shift values)
+    x_shifted = None  # Replace
     
     # TODO: Compute exp of shifted values
-    exp_x = None  # Replace: tl.exp(x_shifted)
+    exp_x = None  # Replace
     
-    # TODO: Apply mask before sum
+    # TODO: Apply mask before sum (zero out invalid elements)
     exp_x_masked = tl.where(mask, exp_x, 0.0)
     
     # TODO: Sum of exponentials
-    sum_exp = None  # Replace: tl.sum(exp_x_masked, axis=0)
+    sum_exp = None  # Replace
     
-    # TODO: Normalize
-    out = None  # Replace: exp_x / sum_exp
+    # TODO: Normalize by dividing by sum
+    out = None  # Replace
     
     tl.store(out_ptr + offs, out, mask=mask)
 
@@ -108,23 +122,31 @@ def row_softmax_kernel(x_ptr, out_ptr, M, N, stride, BLOCK_N: tl.constexpr):
     cols = tl.arange(0, BLOCK_N)
     mask = cols < N
     
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.max(x, axis=0) -> max reduction along axis
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.where(cond, x, y) -> conditional select
+    
     # Pointer to this row
     row_ptr = x_ptr + row * stride
     
     # TODO: Load row
-    x = None  # Replace: tl.load(row_ptr + cols, mask=mask, other=-float('inf'))
+    x = None  # Replace
     
-    # TODO: Max for stability
-    x_max = None  # Replace: tl.max(x, axis=0)
+    # TODO: Compute max for stability
+    x_max = None  # Replace
     
-    # TODO: Shift, exp, mask
+    # TODO: Shift, exp, apply mask
     x_shifted = x - x_max
     exp_x = tl.exp(x_shifted)
     exp_x = tl.where(mask, exp_x, 0.0)
     
     # TODO: Sum and normalize
-    sum_exp = None  # Replace: tl.sum(exp_x, axis=0)
-    out = None     # Replace: exp_x / sum_exp
+    sum_exp = None  # Replace
+    out = None     # Replace
     
     # Store
     out_ptr_row = out_ptr + row * stride
@@ -160,14 +182,19 @@ def log_softmax_kernel(x_ptr, out_ptr, n, BLOCK: tl.constexpr):
     x_max = tl.max(x, axis=0)
     x_shifted = x - x_max
     
+    # API hints:
+    # - tl.log(x) -> element-wise natural logarithm
+    
     # Exp and sum
     exp_x = tl.exp(x_shifted)
     exp_x_masked = tl.where(mask, exp_x, 0.0)
     sum_exp = tl.sum(exp_x_masked, axis=0)
     
-    # TODO: Log-softmax = x - max - log(sum(exp))
-    log_sum_exp = None  # Replace: tl.log(sum_exp)
-    out = None          # Replace: x_shifted - log_sum_exp
+    # TODO: Compute log of sum of exponentials
+    log_sum_exp = None  # Replace
+    
+    # TODO: Compute log-softmax = x_shifted - log_sum_exp
+    out = None          # Replace
     
     tl.store(out_ptr + offs, out, mask=mask)
 
@@ -196,10 +223,15 @@ def softmax_temp_kernel(x_ptr, out_ptr, temperature, n, BLOCK: tl.constexpr):
     offs = tl.arange(0, BLOCK)
     mask = offs < n
     
+    # API hints:
+    # - Division operator / for scaling
+    # - Temperature > 1 makes distribution softer (more uniform)
+    # - Temperature < 1 makes distribution sharper (more peaked)
+    
     x = tl.load(x_ptr + offs, mask=mask, other=-float('inf'))
     
-    # TODO: Scale by temperature
-    x_scaled = None  # Replace: x / temperature
+    # TODO: Scale input by temperature (divide by T)
+    x_scaled = None  # Replace
     
     # Standard softmax on scaled input
     x_max = tl.max(x_scaled, axis=0)

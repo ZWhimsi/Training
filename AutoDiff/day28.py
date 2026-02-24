@@ -367,14 +367,12 @@ class Adagrad(Optimizer):
             lr: Learning rate
             eps: Small constant for numerical stability
         """
-        # TODO: Initialize Adagrad
-        # HINT:
-        # if lr < 0.0:
-        #     raise ValueError(f"Invalid learning rate: {lr}")
-        # defaults = {'lr': lr, 'eps': eps}
-        # super().__init__(params, defaults)
+        # API hints:
+        # - Validate: lr >= 0.0
+        # - defaults = {'lr': lr, 'eps': eps}
+        # - super().__init__(params, defaults)
         
-        pass  # Replace with initialization
+        pass
     
     def step(self):
         """
@@ -384,30 +382,15 @@ class Adagrad(Optimizer):
         1. Accumulate squared gradient: v += g²
         2. Update: θ -= lr * g / (√v + ε)
         """
-        # TODO: Implement Adagrad update
-        # HINT:
-        # for group in self.param_groups:
-        #     lr = group['lr']
-        #     eps = group['eps']
-        #     
-        #     for p in group['params']:
-        #         if p.grad is None:
-        #             continue
-        #         
-        #         param_id = id(p)
-        #         if param_id not in self.state:
-        #             self.state[param_id] = {'sum': np.zeros_like(p.data)}
-        #         
-        #         state = self.state[param_id]
-        #         grad = p.grad
-        #         
-        #         # Accumulate squared gradients
-        #         state['sum'] += grad ** 2
-        #         
-        #         # Update parameters
-        #         p.data -= lr * grad / (np.sqrt(state['sum']) + eps)
+        # API hints:
+        # - self.param_groups -> iterate groups
+        # - id(p) -> unique state key
+        # - self.state[param_id] = {'sum': np.zeros_like(p.data)}
+        # - state['sum'] += grad ** 2
+        # - np.sqrt(arr) -> square root
+        # - Formula: θ -= lr * g / (√sum + ε)
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -444,17 +427,12 @@ class RMSprop(Optimizer):
             alpha: Decay rate for moving average
             eps: Small constant for numerical stability
         """
-        # TODO: Initialize RMSprop
-        # HINT:
-        # if lr < 0.0:
-        #     raise ValueError(f"Invalid learning rate: {lr}")
-        # if alpha < 0.0 or alpha > 1.0:
-        #     raise ValueError(f"Invalid alpha: {alpha}")
-        # 
-        # defaults = {'lr': lr, 'alpha': alpha, 'eps': eps}
-        # super().__init__(params, defaults)
+        # API hints:
+        # - Validate: lr >= 0.0, 0 <= alpha <= 1
+        # - defaults = {'lr': lr, 'alpha': alpha, 'eps': eps}
+        # - super().__init__(params, defaults)
         
-        pass  # Replace with initialization
+        pass
     
     def step(self):
         """
@@ -464,31 +442,15 @@ class RMSprop(Optimizer):
         1. Update moving average: v = α * v + (1 - α) * g²
         2. Update: θ -= lr * g / (√v + ε)
         """
-        # TODO: Implement RMSprop update
-        # HINT:
-        # for group in self.param_groups:
-        #     lr = group['lr']
-        #     alpha = group['alpha']
-        #     eps = group['eps']
-        #     
-        #     for p in group['params']:
-        #         if p.grad is None:
-        #             continue
-        #         
-        #         param_id = id(p)
-        #         if param_id not in self.state:
-        #             self.state[param_id] = {'square_avg': np.zeros_like(p.data)}
-        #         
-        #         state = self.state[param_id]
-        #         grad = p.grad
-        #         
-        #         # Update moving average of squared gradients
-        #         state['square_avg'] = alpha * state['square_avg'] + (1 - alpha) * grad ** 2
-        #         
-        #         # Update parameters
-        #         p.data -= lr * grad / (np.sqrt(state['square_avg']) + eps)
+        # API hints:
+        # - self.param_groups -> iterate groups
+        # - id(p) -> unique state key
+        # - self.state[param_id] = {'square_avg': np.zeros_like(p.data)}
+        # - Formula: v = α * v + (1 - α) * g²
+        # - np.sqrt(arr) -> square root
+        # - Formula: θ -= lr * g / (√v + ε)
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -532,21 +494,14 @@ class Adam(Optimizer):
             betas: (β₁, β₂) for moment estimates
             eps: Small constant for numerical stability
         """
-        # TODO: Initialize Adam
-        # HINT:
-        # if lr < 0.0:
-        #     raise ValueError(f"Invalid learning rate: {lr}")
-        # if not 0.0 <= betas[0] < 1.0:
-        #     raise ValueError(f"Invalid beta1: {betas[0]}")
-        # if not 0.0 <= betas[1] < 1.0:
-        #     raise ValueError(f"Invalid beta2: {betas[1]}")
-        # 
-        # defaults = {'lr': lr, 'betas': betas, 'eps': eps}
-        # self._step_count = 0
-        # super().__init__(params, defaults)
+        # API hints:
+        # - Validate: lr >= 0.0, 0 <= beta1 < 1, 0 <= beta2 < 1
+        # - defaults = {'lr': lr, 'betas': betas, 'eps': eps}
+        # - self._step_count = 0 -> track iteration for bias correction
+        # - super().__init__(params, defaults)
         
         self._step_count = 0
-        pass  # Replace with initialization
+        pass
     
     def step(self):
         """
@@ -558,47 +513,17 @@ class Adam(Optimizer):
         3. Bias correct: m̂ = m / (1 - β₁^t), v̂ = v / (1 - β₂^t)
         4. Update: θ -= lr * m̂ / (√v̂ + ε)
         """
-        # TODO: Implement Adam update with bias correction
-        # HINT:
-        # self._step_count += 1
-        # 
-        # for group in self.param_groups:
-        #     lr = group['lr']
-        #     beta1, beta2 = group['betas']
-        #     eps = group['eps']
-        #     
-        #     for p in group['params']:
-        #         if p.grad is None:
-        #             continue
-        #         
-        #         param_id = id(p)
-        #         if param_id not in self.state:
-        #             self.state[param_id] = {
-        #                 'exp_avg': np.zeros_like(p.data),      # First moment
-        #                 'exp_avg_sq': np.zeros_like(p.data)    # Second moment
-        #             }
-        #         
-        #         state = self.state[param_id]
-        #         grad = p.grad
-        #         
-        #         # Update biased first moment estimate
-        #         state['exp_avg'] = beta1 * state['exp_avg'] + (1 - beta1) * grad
-        #         
-        #         # Update biased second moment estimate
-        #         state['exp_avg_sq'] = beta2 * state['exp_avg_sq'] + (1 - beta2) * grad ** 2
-        #         
-        #         # Bias correction
-        #         bias_correction1 = 1 - beta1 ** self._step_count
-        #         bias_correction2 = 1 - beta2 ** self._step_count
-        #         
-        #         # Corrected estimates
-        #         m_hat = state['exp_avg'] / bias_correction1
-        #         v_hat = state['exp_avg_sq'] / bias_correction2
-        #         
-        #         # Update parameters
-        #         p.data -= lr * m_hat / (np.sqrt(v_hat) + eps)
+        # API hints:
+        # - self._step_count += 1 -> increment iteration
+        # - beta1, beta2 = group['betas']
+        # - state = {'exp_avg': zeros, 'exp_avg_sq': zeros}
+        # - m = β₁ * m + (1 - β₁) * g (first moment)
+        # - v = β₂ * v + (1 - β₂) * g² (second moment)
+        # - bias_correction = 1 - beta ** step_count
+        # - m_hat = m / bias_correction1, v_hat = v / bias_correction2
+        # - Formula: θ -= lr * m_hat / (√v_hat + ε)
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -642,24 +567,14 @@ class AdamW(Optimizer):
             eps: Small constant for numerical stability
             weight_decay: Weight decay coefficient
         """
-        # TODO: Initialize AdamW
-        # HINT:
-        # if lr < 0.0:
-        #     raise ValueError(f"Invalid learning rate: {lr}")
-        # if weight_decay < 0.0:
-        #     raise ValueError(f"Invalid weight_decay: {weight_decay}")
-        # 
-        # defaults = {
-        #     'lr': lr,
-        #     'betas': betas,
-        #     'eps': eps,
-        #     'weight_decay': weight_decay
-        # }
-        # self._step_count = 0
-        # super().__init__(params, defaults)
+        # API hints:
+        # - Validate: lr >= 0.0, weight_decay >= 0.0
+        # - defaults = {'lr': ..., 'betas': ..., 'eps': ..., 'weight_decay': ...}
+        # - self._step_count = 0
+        # - super().__init__(params, defaults)
         
         self._step_count = 0
-        pass  # Replace with initialization
+        pass
     
     def step(self):
         """
@@ -667,48 +582,14 @@ class AdamW(Optimizer):
         
         Key difference from Adam: weight decay applied directly to params.
         """
-        # TODO: Implement AdamW update
-        # HINT:
-        # self._step_count += 1
-        # 
-        # for group in self.param_groups:
-        #     lr = group['lr']
-        #     beta1, beta2 = group['betas']
-        #     eps = group['eps']
-        #     weight_decay = group['weight_decay']
-        #     
-        #     for p in group['params']:
-        #         if p.grad is None:
-        #             continue
-        #         
-        #         param_id = id(p)
-        #         if param_id not in self.state:
-        #             self.state[param_id] = {
-        #                 'exp_avg': np.zeros_like(p.data),
-        #                 'exp_avg_sq': np.zeros_like(p.data)
-        #             }
-        #         
-        #         state = self.state[param_id]
-        #         grad = p.grad
-        #         
-        #         # Update moments (same as Adam)
-        #         state['exp_avg'] = beta1 * state['exp_avg'] + (1 - beta1) * grad
-        #         state['exp_avg_sq'] = beta2 * state['exp_avg_sq'] + (1 - beta2) * grad ** 2
-        #         
-        #         # Bias correction
-        #         bias_correction1 = 1 - beta1 ** self._step_count
-        #         bias_correction2 = 1 - beta2 ** self._step_count
-        #         
-        #         m_hat = state['exp_avg'] / bias_correction1
-        #         v_hat = state['exp_avg_sq'] / bias_correction2
-        #         
-        #         # Adam update
-        #         adam_update = m_hat / (np.sqrt(v_hat) + eps)
-        #         
-        #         # Decoupled weight decay (directly on params, not gradients!)
-        #         p.data -= lr * (adam_update + weight_decay * p.data)
+        # API hints:
+        # - Same as Adam for moment updates and bias correction
+        # - group['weight_decay'] -> weight decay coefficient
+        # - adam_update = m_hat / (√v_hat + ε)
+        # - Decoupled decay: p.data -= lr * (adam_update + λ * p.data)
+        # - Key: weight decay on params directly, NOT on gradients
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -734,42 +615,13 @@ def compare_optimizers(X: np.ndarray, Y: np.ndarray,
     Returns:
         Dict mapping optimizer name to list of losses
     """
-    # TODO: Implement optimizer comparison
-    # HINT:
-    # results = {}
-    # 
-    # optimizers = {
-    #     'SGD': lambda params: SGD(params, lr=0.01),
-    #     'Adagrad': lambda params: Adagrad(params, lr=0.1),
-    #     'RMSprop': lambda params: RMSprop(params, lr=0.01),
-    #     'Adam': lambda params: Adam(params, lr=0.01),
-    # }
-    # 
-    # for name, opt_fn in optimizers.items():
-    #     np.random.seed(42)  # Same initialization for fair comparison
-    #     
-    #     model = Sequential(
-    #         Linear(X.shape[1], 16),
-    #         ReLU(),
-    #         Linear(16, Y.shape[1])
-    #     )
-    #     
-    #     optimizer = opt_fn(model.parameters())
-    #     losses = []
-    #     
-    #     for _ in range(epochs):
-    #         optimizer.zero_grad()
-    #         x = Tensor(X)
-    #         y = Tensor(Y)
-    #         pred = model(x)
-    #         loss = mse_loss(pred, y)
-    #         loss.backward()
-    #         optimizer.step()
-    #         losses.append(float(loss.data))
-    #     
-    #     results[name] = losses
-    # 
-    # return results
+    # API hints:
+    # - optimizers = {'name': lambda params: Optimizer(params, ...)}
+    # - np.random.seed(42) -> same init for fair comparison
+    # - Sequential(Linear(...), ReLU(), Linear(...)) -> model
+    # - model.parameters() -> params for optimizer
+    # - optimizer.zero_grad(), loss.backward(), optimizer.step()
+    # - Track losses per optimizer
     
     return {}  # Replace
 

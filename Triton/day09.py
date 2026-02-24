@@ -47,23 +47,14 @@ def fused_add_mul_kernel(
     
     With fusion: single kernel, no intermediate memory access.
     """
-    pid = tl.program_id(0)
-    block_start = pid * BLOCK_SIZE
-    offsets = block_start + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load all three inputs
-    x = tl.load(x_ptr + offsets, mask=mask)
-    y = tl.load(y_ptr + offsets, mask=mask)
-    z = tl.load(z_ptr + offsets, mask=mask)
-    
-    # TODO: Compute fused operation (x + y) * z
-    # HINT: result = (x + y) * z
-    result = None  # Replace
-    
-    # TODO: Store result
-    # HINT: tl.store(output_ptr + offsets, result, mask=mask)
-    pass  # Replace
+    # TODO: Implement fused add-multiply kernel
+    pass
 
 
 def fused_add_mul(x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
@@ -92,25 +83,15 @@ def fused_bias_relu_kernel(
     
     Common pattern in neural networks after linear layers.
     """
-    pid = tl.program_id(0)
-    block_start = pid * BLOCK_SIZE
-    offsets = block_start + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.maximum(a, b) -> element-wise maximum
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load x and bias
-    x = tl.load(x_ptr + offsets, mask=mask)
-    bias = tl.load(bias_ptr + offsets, mask=mask)
-    
-    # TODO: Compute x + bias
-    # HINT: y = x + bias
-    y = None  # Replace
-    
-    # TODO: Apply ReLU: max(0, y)
-    # HINT: result = tl.maximum(y, 0.0)
-    result = None  # Replace
-    
-    # TODO: Store
-    pass  # Replace
+    # TODO: Implement fused bias+ReLU kernel
+    pass
 
 
 def fused_bias_relu(x: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
@@ -139,21 +120,14 @@ def fused_scale_shift_kernel(
     
     This is the final step of batch normalization.
     """
-    pid = tl.program_id(0)
-    block_start = pid * BLOCK_SIZE
-    offsets = block_start + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load all inputs
-    x = tl.load(x_ptr + offsets, mask=mask)
-    scale = tl.load(scale_ptr + offsets, mask=mask)
-    shift = tl.load(shift_ptr + offsets, mask=mask)
-    
-    # TODO: Compute affine: x * scale + shift
-    result = None  # Replace
-    
-    # TODO: Store
-    pass  # Replace
+    # TODO: Implement fused scale-shift kernel
+    pass
 
 
 def fused_scale_shift(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor) -> torch.Tensor:
@@ -184,21 +158,14 @@ def fused_residual_dropout_kernel(
     Common in transformers: add residual connection after scaled output.
     (Simplified - real dropout would need random mask)
     """
-    pid = tl.program_id(0)
-    block_start = pid * BLOCK_SIZE
-    offsets = block_start + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load inputs
-    x = tl.load(x_ptr + offsets, mask=mask)
-    residual = tl.load(residual_ptr + offsets, mask=mask)
-    
-    # TODO: Compute scaled addition
-    # HINT: result = x * scale + residual
-    result = None  # Replace
-    
-    # TODO: Store
-    pass  # Replace
+    # TODO: Implement fused residual add kernel
+    pass
 
 
 def fused_residual_add(x: torch.Tensor, residual: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
@@ -228,24 +195,15 @@ def fused_linear_bias_relu_kernel(
     Element-wise version (real linear would be matrix multiply).
     Fuses three operations: multiply, add, activation.
     """
-    pid = tl.program_id(0)
-    block_start = pid * BLOCK_SIZE
-    offsets = block_start + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.maximum(a, b) -> element-wise maximum for ReLU
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load all inputs
-    x = tl.load(x_ptr + offsets, mask=mask)
-    weight = tl.load(weight_ptr + offsets, mask=mask)
-    bias = tl.load(bias_ptr + offsets, mask=mask)
-    
-    # TODO: Compute x * weight + bias
-    linear = None  # Replace
-    
-    # TODO: Apply ReLU
-    result = None  # Replace
-    
-    # TODO: Store
-    pass  # Replace
+    # TODO: Implement fused linear+bias+ReLU kernel
+    pass
 
 
 def fused_linear_bias_relu(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:

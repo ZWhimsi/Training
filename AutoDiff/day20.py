@@ -237,23 +237,18 @@ class Tensor:
             Subtract max before exp to prevent overflow.
             softmax(x) = softmax(x - max(x))
         """
+        # API hints:
+        # - Stable softmax: subtract max before exp
+        # - np.max(data, axis=axis, keepdims=True) -> max for stability
+        # - np.exp(shifted) -> exponentiate
+        # - np.sum(..., axis=axis, keepdims=True) -> normalize
+        # - Gradient (JVP): s * (g - sum(s * g)) where s=softmax, g=upstream
+        
         # TODO: Implement forward pass (numerically stable)
-        # HINT:
-        # shifted = self.data - np.max(self.data, axis=axis, keepdims=True)
-        # exp_shifted = np.exp(shifted)
-        # result = exp_shifted / np.sum(exp_shifted, axis=axis, keepdims=True)
-        out = None  # Replace: Tensor(result, (self,), 'softmax')
+        out = None  # Replace
         
         # TODO: Implement backward pass using Jacobian-vector product
         def _backward():
-            # Efficient JVP: grad = s * (g - sum(s * g))
-            # Where s = softmax output, g = upstream gradient
-            # HINT:
-            # s = out.data
-            # g = out.grad
-            # # Sum of (softmax * gradient) along axis
-            # sum_sg = np.sum(s * g, axis=axis, keepdims=True)
-            # self.grad += s * (g - sum_sg)
             pass  # Replace
         
         out._backward = _backward
@@ -277,23 +272,17 @@ class Tensor:
         
         This is more stable than log(softmax(x)) for very negative values.
         """
+        # API hints:
+        # - log_softmax(x) = x - logsumexp(x)
+        # - Stable logsumexp: max + log(sum(exp(x - max)))
+        # - np.exp(log_softmax) -> recovers softmax
+        # - Gradient: g - softmax * sum(g) where g=upstream gradient
+        
         # TODO: Implement forward pass
-        # HINT:
-        # # Compute logsumexp for stability
-        # max_val = np.max(self.data, axis=axis, keepdims=True)
-        # shifted = self.data - max_val
-        # logsumexp = max_val + np.log(np.sum(np.exp(shifted), axis=axis, keepdims=True))
-        # result = self.data - logsumexp
-        out = None  # Replace: Tensor(result, (self,), 'log_softmax')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # d(log_softmax)/dx = I - softmax (broadcast)
-            # grad = g - softmax * sum(g)
-            # HINT:
-            # softmax = np.exp(out.data)  # exp(log_softmax) = softmax
-            # sum_g = np.sum(out.grad, axis=axis, keepdims=True)
-            # self.grad += out.grad - softmax * sum_g
             pass  # Replace
         
         out._backward = _backward
@@ -325,41 +314,19 @@ class Tensor:
         else:
             targets = np.array(targets, dtype=int)
         
+        # API hints:
+        # - Compute log_softmax = x - logsumexp(x)
+        # - Select correct class: log_softmax[batch_idx, target_idx]
+        # - np.arange(len(targets)) -> batch indices
+        # - loss = -log_softmax[batch_indices, targets]
+        # - Gradient: softmax - one_hot(targets) (elegant result!)
+        # - Create one_hot with np.zeros_like then set 1s at target positions
+        
         # TODO: Implement forward pass
-        # HINT:
-        # # Compute log_softmax
-        # max_val = np.max(self.data, axis=axis, keepdims=True)
-        # shifted = self.data - max_val
-        # logsumexp = np.log(np.sum(np.exp(shifted), axis=axis, keepdims=True))
-        # log_softmax = shifted - logsumexp
-        # 
-        # # Select the log probability of the correct class
-        # # For 2D: log_softmax[range(batch), targets]
-        # if self.ndim == 2:
-        #     loss = -log_softmax[np.arange(len(targets)), targets]
-        # else:
-        #     loss = -np.take_along_axis(log_softmax, targets.reshape(-1, 1), axis=axis).squeeze(axis)
-        out = None  # Replace: Tensor(loss, (self,), 'cross_entropy')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Beautiful result: grad = softmax - one_hot(targets)
-            # HINT:
-            # # Compute softmax
-            # max_val = np.max(self.data, axis=axis, keepdims=True)
-            # shifted = self.data - max_val
-            # exp_shifted = np.exp(shifted)
-            # softmax = exp_shifted / np.sum(exp_shifted, axis=axis, keepdims=True)
-            # 
-            # # Create one-hot encoding
-            # one_hot = np.zeros_like(self.data)
-            # if self.ndim == 2:
-            #     one_hot[np.arange(len(targets)), targets] = 1
-            # else:
-            #     np.put_along_axis(one_hot, targets.reshape(-1, 1), 1, axis=axis)
-            # 
-            # # Gradient: softmax - one_hot, scaled by upstream
-            # self.grad += (softmax - one_hot) * out.grad.reshape(-1, 1)
             pass  # Replace
         
         out._backward = _backward
@@ -387,31 +354,17 @@ class Tensor:
         else:
             targets_data = np.array(targets, dtype=np.float64)
         
+        # API hints:
+        # - Compute log_softmax = x - logsumexp(x)
+        # - Cross-entropy: -sum(targets * log_softmax, axis=axis)
+        # - Gradient: (softmax - targets) * upstream_grad
+        # - np.expand_dims(grad, axis=axis) -> expand if needed
+        
         # TODO: Implement forward pass
-        # HINT:
-        # # Compute log_softmax
-        # max_val = np.max(self.data, axis=axis, keepdims=True)
-        # shifted = self.data - max_val
-        # logsumexp = np.log(np.sum(np.exp(shifted), axis=axis, keepdims=True))
-        # log_softmax = shifted - logsumexp
-        # 
-        # # Cross-entropy: -sum(target * log_softmax)
-        # loss = -np.sum(targets_data * log_softmax, axis=axis)
-        out = None  # Replace: Tensor(loss, (self,), 'cross_entropy_onehot')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # grad = (softmax - targets) * upstream
-            # HINT:
-            # max_val = np.max(self.data, axis=axis, keepdims=True)
-            # shifted = self.data - max_val
-            # exp_shifted = np.exp(shifted)
-            # softmax = exp_shifted / np.sum(exp_shifted, axis=axis, keepdims=True)
-            # 
-            # grad = out.grad
-            # if grad.ndim < self.ndim:
-            #     grad = np.expand_dims(grad, axis=axis)
-            # self.grad += (softmax - targets_data) * grad
             pass  # Replace
         
         out._backward = _backward
@@ -437,22 +390,17 @@ class Tensor:
         Returns:
             Tensor with temperature-scaled softmax
         """
+        # API hints:
+        # - Scale input: x / temperature
+        # - Apply standard softmax to scaled input
+        # - T > 1: softer/more uniform, T < 1: sharper/more peaked
+        # - Gradient: same as softmax but divided by temperature
+        
         # TODO: Implement forward pass
-        # HINT:
-        # scaled = self.data / temperature
-        # shifted = scaled - np.max(scaled, axis=axis, keepdims=True)
-        # exp_shifted = np.exp(shifted)
-        # result = exp_shifted / np.sum(exp_shifted, axis=axis, keepdims=True)
-        out = None  # Replace: Tensor(result, (self,), 'softmax_temp')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Same as softmax, but chain rule adds 1/T
-            # HINT:
-            # s = out.data
-            # g = out.grad
-            # sum_sg = np.sum(s * g, axis=axis, keepdims=True)
-            # self.grad += (s * (g - sum_sg)) / temperature
             pass  # Replace
         
         out._backward = _backward

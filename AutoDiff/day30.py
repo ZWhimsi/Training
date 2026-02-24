@@ -438,27 +438,24 @@ class Dataset:
             X: Feature array of shape (n_samples, n_features)
             Y: Label array of shape (n_samples, ...) 
         """
-        # TODO: Initialize dataset
-        # HINT:
-        # if len(X) != len(Y):
-        #     raise ValueError("X and Y must have same length")
-        # self.X = X
-        # self.Y = Y
+        # API hints:
+        # - Validate: len(X) == len(Y)
+        # - self.X = X, self.Y = Y
         
         self.X = X
         self.Y = Y
     
     def __len__(self) -> int:
         """Return number of samples."""
-        # TODO: Return dataset length
-        # HINT: return len(self.X)
+        # API hints:
+        # - len(self.X) -> number of samples
         
         return 0  # Replace
     
     def __getitem__(self, idx: int) -> Tuple[np.ndarray, np.ndarray]:
         """Get sample by index."""
-        # TODO: Return (x, y) for given index
-        # HINT: return self.X[idx], self.Y[idx]
+        # API hints:
+        # - return (self.X[idx], self.Y[idx])
         
         return None, None  # Replace
 
@@ -495,12 +492,8 @@ class DataLoader:
             shuffle: Whether to shuffle data each epoch
             drop_last: Whether to drop incomplete last batch
         """
-        # TODO: Initialize DataLoader
-        # HINT:
-        # self.dataset = dataset
-        # self.batch_size = batch_size
-        # self.shuffle = shuffle
-        # self.drop_last = drop_last
+        # API hints:
+        # - Store all args as instance attributes
         
         self.dataset = dataset
         self.batch_size = batch_size
@@ -509,13 +502,10 @@ class DataLoader:
     
     def __len__(self) -> int:
         """Return number of batches."""
-        # TODO: Calculate number of batches
-        # HINT:
-        # n = len(self.dataset)
-        # if self.drop_last:
-        #     return n // self.batch_size
-        # else:
-        #     return (n + self.batch_size - 1) // self.batch_size
+        # API hints:
+        # - n = len(self.dataset)
+        # - drop_last: n // batch_size (floor division)
+        # - keep_last: (n + batch_size - 1) // batch_size (ceiling division)
         
         return 0  # Replace
     
@@ -526,28 +516,13 @@ class DataLoader:
         Yields:
             Tuple of (batch_x, batch_y) arrays
         """
-        # TODO: Implement batch iteration
-        # HINT:
-        # n = len(self.dataset)
-        # indices = np.arange(n)
-        # 
-        # if self.shuffle:
-        #     np.random.shuffle(indices)
-        # 
-        # for start in range(0, n, self.batch_size):
-        #     end = start + self.batch_size
-        #     
-        #     # Handle last batch
-        #     if end > n:
-        #         if self.drop_last:
-        #             break
-        #         end = n
-        #     
-        #     batch_indices = indices[start:end]
-        #     batch_x = self.dataset.X[batch_indices]
-        #     batch_y = self.dataset.Y[batch_indices]
-        #     
-        #     yield batch_x, batch_y
+        # API hints:
+        # - indices = np.arange(n)
+        # - np.random.shuffle(indices) -> shuffle if needed
+        # - range(0, n, batch_size) -> iterate in batch_size steps
+        # - Handle last batch: drop if incomplete and drop_last=True
+        # - self.dataset.X[batch_indices] -> batch slice
+        # - yield (batch_x, batch_y)
         
         return iter([])  # Replace
 
@@ -565,10 +540,9 @@ class MSELoss:
         
         MSE = mean((pred - target)²)
         """
-        # TODO: Implement MSE loss
-        # HINT:
-        # diff = pred - target
-        # return (diff * diff).mean()
+        # API hints:
+        # - diff = pred - target
+        # - (diff * diff).mean() -> MSE
         
         return Tensor(np.array(0.0))  # Replace
 
@@ -590,32 +564,13 @@ class CrossEntropyLoss:
         
         CE = -log(softmax(pred)[target])
         """
-        # TODO: Implement cross-entropy loss
-        # HINT:
-        # # Numerically stable softmax
-        # logits = pred.data
-        # max_logits = np.max(logits, axis=1, keepdims=True)
-        # exp_logits = np.exp(logits - max_logits)
-        # softmax = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
-        # 
-        # # Get probabilities for correct classes
-        # batch_size = logits.shape[0]
-        # target_indices = target.data.astype(int)
-        # correct_probs = softmax[np.arange(batch_size), target_indices]
-        # 
-        # # Negative log likelihood
-        # loss_data = -np.mean(np.log(correct_probs + 1e-10))
-        # 
-        # out = Tensor(loss_data, (pred,), 'cross_entropy')
-        # 
-        # def _backward():
-        #     grad = softmax.copy()
-        #     grad[np.arange(batch_size), target_indices] -= 1
-        #     grad /= batch_size
-        #     pred.grad += grad
-        # out._backward = _backward
-        # 
-        # return out
+        # API hints:
+        # - Stable softmax: subtract max before exp
+        # - np.exp(logits - max_logits)
+        # - softmax = exp_logits / sum(exp_logits)
+        # - correct_probs = softmax[arange(batch), target]
+        # - loss = -mean(log(correct_probs + eps))
+        # - Backward: grad = softmax; grad[target] -= 1; grad /= batch_size
         
         return Tensor(np.array(0.0))  # Replace
 
@@ -638,27 +593,16 @@ def train_epoch(model: Module, dataloader: DataLoader,
     Returns:
         Dict with 'loss' and optionally 'accuracy'
     """
-    # TODO: Implement one training epoch
-    # HINT:
-    # model.train()
-    # total_loss = 0.0
-    # n_batches = 0
-    # 
-    # for batch_x, batch_y in dataloader:
-    #     optimizer.zero_grad()
-    #     
-    #     x = Tensor(batch_x)
-    #     y = Tensor(batch_y)
-    #     
-    #     pred = model(x)
-    #     loss = criterion(pred, y)
-    #     loss.backward()
-    #     optimizer.step()
-    #     
-    #     total_loss += float(loss.data)
-    #     n_batches += 1
-    # 
-    # return {'loss': total_loss / n_batches}
+    # API hints:
+    # - model.train() -> set training mode
+    # - for batch_x, batch_y in dataloader: iterate batches
+    # - optimizer.zero_grad() -> clear gradients
+    # - Tensor(batch_x) -> convert to Tensor
+    # - model(x) -> forward pass
+    # - criterion(pred, y) -> compute loss
+    # - loss.backward() -> backprop
+    # - optimizer.step() -> update
+    # - Track total_loss / n_batches
     
     return {}  # Replace
 
@@ -676,23 +620,11 @@ def validate_epoch(model: Module, dataloader: DataLoader,
     Returns:
         Dict with 'loss' and optionally 'accuracy'
     """
-    # TODO: Implement validation epoch
-    # HINT:
-    # model.eval()
-    # total_loss = 0.0
-    # n_batches = 0
-    # 
-    # for batch_x, batch_y in dataloader:
-    #     x = Tensor(batch_x, requires_grad=False)
-    #     y = Tensor(batch_y, requires_grad=False)
-    #     
-    #     pred = model(x)
-    #     loss = criterion(pred, y)
-    #     
-    #     total_loss += float(loss.data)
-    #     n_batches += 1
-    # 
-    # return {'loss': total_loss / n_batches}
+    # API hints:
+    # - model.eval() -> set eval mode
+    # - Tensor(data, requires_grad=False) -> no grad tracking
+    # - No zero_grad, backward, or step calls
+    # - Just forward pass and loss computation
     
     return {}  # Replace
 
@@ -714,19 +646,13 @@ def save_checkpoint(filepath: str, model: Module, optimizer: Optimizer,
         loss: Current loss value
         **kwargs: Additional data to save
     """
-    # TODO: Implement checkpoint saving
-    # HINT:
-    # checkpoint = {
-    #     'epoch': epoch,
-    #     'loss': loss,
-    #     'model_state_dict': model.state_dict(),
-    #     'optimizer_state_dict': optimizer.state_dict(),
-    # }
-    # checkpoint.update(kwargs)
-    # np.savez(filepath, **{k: np.array(v) if not isinstance(v, np.ndarray) else v 
-    #                        for k, v in checkpoint.items()})
+    # API hints:
+    # - model.state_dict() -> model weights
+    # - optimizer.state_dict() -> optimizer state
+    # - checkpoint = {'epoch': ..., 'loss': ..., 'model_state_dict': ...}
+    # - np.savez(filepath, **checkpoint) -> save to file
     
-    pass  # Replace
+    pass
 
 
 def load_checkpoint(filepath: str, model: Module, 
@@ -742,19 +668,11 @@ def load_checkpoint(filepath: str, model: Module,
     Returns:
         Dict with checkpoint metadata (epoch, loss, etc.)
     """
-    # TODO: Implement checkpoint loading
-    # HINT:
-    # loaded = np.load(filepath, allow_pickle=True)
-    # 
-    # model.load_state_dict(loaded['model_state_dict'].item())
-    # 
-    # if optimizer is not None and 'optimizer_state_dict' in loaded:
-    #     optimizer.load_state_dict(loaded['optimizer_state_dict'].item())
-    # 
-    # return {
-    #     'epoch': int(loaded['epoch']),
-    #     'loss': float(loaded['loss'])
-    # }
+    # API hints:
+    # - np.load(filepath, allow_pickle=True) -> load file
+    # - loaded['model_state_dict'].item() -> get dict
+    # - model.load_state_dict(...) -> restore weights
+    # - Return {'epoch': ..., 'loss': ...}
     
     return {}  # Replace
 
@@ -792,15 +710,12 @@ class EarlyStopping:
             min_delta: Minimum change to qualify as improvement
             mode: 'min' for loss (lower is better), 'max' for accuracy
         """
-        # TODO: Initialize early stopping
-        # HINT:
-        # self.patience = patience
-        # self.min_delta = min_delta
-        # self.mode = mode
-        # self.counter = 0
-        # self.best_value = None
-        # self.is_best = False
-        # self.should_stop = False
+        # API hints:
+        # - Store all args as attributes
+        # - self.counter = 0 -> tracks epochs without improvement
+        # - self.best_value = None -> best metric seen
+        # - self.is_best = False -> was last call the best?
+        # - self.should_stop = False -> should training stop?
         
         self.patience = patience
         self.min_delta = min_delta
@@ -820,28 +735,13 @@ class EarlyStopping:
         Returns:
             True if training should stop
         """
-        # TODO: Implement early stopping logic
-        # HINT:
-        # if self.best_value is None:
-        #     self.best_value = current_value
-        #     self.is_best = True
-        #     return False
-        # 
-        # if self.mode == 'min':
-        #     improved = current_value < self.best_value - self.min_delta
-        # else:
-        #     improved = current_value > self.best_value + self.min_delta
-        # 
-        # if improved:
-        #     self.best_value = current_value
-        #     self.counter = 0
-        #     self.is_best = True
-        # else:
-        #     self.counter += 1
-        #     self.is_best = False
-        # 
-        # self.should_stop = self.counter >= self.patience
-        # return self.should_stop
+        # API hints:
+        # - First call: set best_value, return False
+        # - mode='min': improved if current < best - min_delta
+        # - mode='max': improved if current > best + min_delta
+        # - If improved: reset counter, update best_value, is_best=True
+        # - If not improved: increment counter, is_best=False
+        # - Return counter >= patience
         
         return False  # Replace
 
@@ -888,13 +788,9 @@ class Trainer:
             criterion: Loss function
             checkpoint_dir: Directory for checkpoints
         """
-        # TODO: Initialize trainer
-        # HINT:
-        # self.model = model
-        # self.optimizer = optimizer
-        # self.criterion = criterion
-        # self.checkpoint_dir = checkpoint_dir
-        # self.history = {'train_loss': [], 'val_loss': []}
+        # API hints:
+        # - Store all args as attributes
+        # - self.history = {'train_loss': [], 'val_loss': []}
         
         self.model = model
         self.optimizer = optimizer
@@ -920,54 +816,15 @@ class Trainer:
         Returns:
             Training history dict
         """
-        # TODO: Implement complete training loop
-        # HINT:
-        # if early_stopping_patience:
-        #     early_stopping = EarlyStopping(patience=early_stopping_patience)
-        # else:
-        #     early_stopping = None
-        # 
-        # best_val_loss = float('inf')
-        # 
-        # for epoch in range(epochs):
-        #     # Training
-        #     train_metrics = train_epoch(
-        #         self.model, train_loader, self.optimizer, self.criterion
-        #     )
-        #     self.history['train_loss'].append(train_metrics['loss'])
-        #     
-        #     # Validation
-        #     if val_loader is not None:
-        #         val_metrics = validate_epoch(
-        #             self.model, val_loader, self.criterion
-        #         )
-        #         self.history['val_loss'].append(val_metrics['loss'])
-        #         val_loss = val_metrics['loss']
-        #     else:
-        #         val_loss = train_metrics['loss']
-        #     
-        #     # Logging
-        #     if verbose:
-        #         msg = f"Epoch {epoch+1}/{epochs} - loss: {train_metrics['loss']:.4f}"
-        #         if val_loader:
-        #             msg += f" - val_loss: {val_loss:.4f}"
-        #         print(msg)
-        #     
-        #     # Save best model
-        #     if self.checkpoint_dir and val_loss < best_val_loss:
-        #         best_val_loss = val_loss
-        #         save_checkpoint(
-        #             os.path.join(self.checkpoint_dir, 'best_model.npz'),
-        #             self.model, self.optimizer, epoch, val_loss
-        #         )
-        #     
-        #     # Early stopping
-        #     if early_stopping and early_stopping(val_loss):
-        #         if verbose:
-        #             print(f"Early stopping at epoch {epoch+1}")
-        #         break
-        # 
-        # return self.history
+        # API hints:
+        # - EarlyStopping(patience=...) -> optional early stopping
+        # - for epoch in range(epochs): main loop
+        # - train_epoch(...) -> training step
+        # - validate_epoch(...) -> validation step (if val_loader)
+        # - self.history['train_loss'].append(...) -> track history
+        # - save_checkpoint(...) -> save best model
+        # - early_stopping(val_loss) -> check stopping criterion
+        # - return self.history
         
         return self.history  # Replace
     

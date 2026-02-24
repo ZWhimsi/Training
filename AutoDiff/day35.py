@@ -811,55 +811,15 @@ def generate_synthetic_mnist(n_samples: int = 1000, n_classes: int = 10,
         images: Array of shape (n_samples, 1, img_size, img_size)
         labels: Array of shape (n_samples,)
     """
-    # TODO: Generate synthetic data
-    # HINT:
-    # images = np.zeros((n_samples, 1, img_size, img_size))
-    # labels = np.zeros(n_samples, dtype=np.int64)
-    # 
-    # for i in range(n_samples):
-    #     label = i % n_classes
-    #     labels[i] = label
-    #     
-    #     # Create different patterns for each class
-    #     img = np.random.randn(img_size, img_size) * 0.1
-    #     
-    #     if label == 0:  # Circle-ish
-    #         y, x = np.ogrid[:img_size, :img_size]
-    #         center = img_size // 2
-    #         mask = (x - center)**2 + (y - center)**2 < (img_size//3)**2
-    #         img[mask] += 1.0
-    #     elif label == 1:  # Vertical line
-    #         img[:, img_size//2-2:img_size//2+2] += 1.0
-    #     elif label == 2:  # Horizontal line
-    #         img[img_size//2-2:img_size//2+2, :] += 1.0
-    #     elif label == 3:  # Diagonal
-    #         for j in range(img_size):
-    #             img[j, max(0, j-2):min(img_size, j+2)] += 1.0
-    #     elif label == 4:  # Cross
-    #         img[:, img_size//2-1:img_size//2+1] += 0.5
-    #         img[img_size//2-1:img_size//2+1, :] += 0.5
-    #     elif label == 5:  # Top-left corner
-    #         img[:img_size//2, :img_size//2] += 1.0
-    #     elif label == 6:  # Top-right corner
-    #         img[:img_size//2, img_size//2:] += 1.0
-    #     elif label == 7:  # Bottom-left
-    #         img[img_size//2:, :img_size//2] += 1.0
-    #     elif label == 8:  # Bottom-right
-    #         img[img_size//2:, img_size//2:] += 1.0
-    #     elif label == 9:  # Border
-    #         img[:3, :] += 1.0
-    #         img[-3:, :] += 1.0
-    #         img[:, :3] += 1.0
-    #         img[:, -3:] += 1.0
-    #     
-    #     images[i, 0] = img
-    # 
-    # # Normalize
-    # images = (images - images.mean()) / (images.std() + 1e-8)
-    # 
-    # return images, labels
+    # API hints:
+    # - Create distinct pattern for each class (0-9)
+    # - np.ogrid for circle mask: (x-c)^2 + (y-c)^2 < r^2
+    # - Slicing for lines: img[h1:h2, w1:w2] += value
+    # - Add small noise: np.random.randn(...) * 0.1 for variety
+    # - Normalize at end: (images - mean) / (std + eps)
+    # - Return tuple: (images, labels)
     
-    pass  # Replace with implementation
+    return None
 
 
 class DataLoader:
@@ -904,44 +864,24 @@ class SimpleCNN(Module):
     def __init__(self, in_channels: int = 1, num_classes: int = 10):
         super().__init__()
         
-        # TODO: Initialize layers
-        # HINT:
-        # self.conv1 = Conv2d(in_channels, 32, kernel_size=3, padding=1)
-        # self.bn1 = BatchNorm2d(32)
-        # self.conv2 = Conv2d(32, 64, kernel_size=3, padding=1)
-        # self.bn2 = BatchNorm2d(64)
-        # self.pool = MaxPool2d(kernel_size=2, stride=2)
-        # self.flatten = Flatten()
-        # self.fc1 = Linear(64 * 7 * 7, 128)
-        # self.fc2 = Linear(128, num_classes)
-        # self.relu = ReLU()
-        # self.dropout = Dropout(0.5)
+        # API hints:
+        # - Two conv blocks: Conv2d -> BatchNorm2d -> ReLU -> MaxPool2d
+        # - conv1: in_channels -> 32, conv2: 32 -> 64
+        # - MaxPool2d(2, 2) halves spatial dims (28->14->7)
+        # - FC layers: 64*7*7 -> 128 -> num_classes
+        # - Dropout(0.5) for regularization
         
-        pass  # Replace with initialization
+        pass
     
     def forward(self, x: Tensor) -> Tensor:
         """Forward pass."""
-        # TODO: Implement forward
-        # HINT:
-        # x = self.conv1(x)
-        # x = self.bn1(x)
-        # x = self.relu(x)
-        # x = self.pool(x)
-        # 
-        # x = self.conv2(x)
-        # x = self.bn2(x)
-        # x = self.relu(x)
-        # x = self.pool(x)
-        # 
-        # x = self.flatten(x)
-        # x = self.fc1(x)
-        # x = self.relu(x)
-        # x = self.dropout(x)
-        # x = self.fc2(x)
-        # 
-        # return x
+        # API hints:
+        # - Block 1: conv1 -> bn1 -> relu -> pool
+        # - Block 2: conv2 -> bn2 -> relu -> pool
+        # - Classifier: flatten -> fc1 -> relu -> dropout -> fc2
+        # - Output is logits (no softmax here)
         
-        return None  # Replace
+        return None
 
 
 # ============================================================================

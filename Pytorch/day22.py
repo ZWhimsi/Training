@@ -55,28 +55,19 @@ def compute_kv_memory_savings(num_heads: int, num_kv_heads: int) -> dict:
     
     Returns:
         Dictionary with memory comparison metrics
-    
-    TODO: Calculate the memory savings
-    HINT:
-        mha_kv_heads = num_heads  # Standard MHA has equal KV heads
-        gqa_kv_heads = num_kv_heads
-        
-        savings_ratio = mha_kv_heads / gqa_kv_heads
-        heads_per_group = num_heads // num_kv_heads
-        
-        return {
-            'mha_kv_heads': mha_kv_heads,
-            'gqa_kv_heads': gqa_kv_heads,
-            'savings_ratio': savings_ratio,
-            'heads_per_group': heads_per_group
-        }
     """
+    # TODO: Calculate memory savings metrics
+    # API hints:
+    # - mha_kv_heads = num_heads (MHA has equal Q and KV heads)
+    # - gqa_kv_heads = num_kv_heads
+    # - savings_ratio = mha_kv_heads / gqa_kv_heads
+    # - heads_per_group = num_heads // num_kv_heads
     return {
         'mha_kv_heads': 0,
         'gqa_kv_heads': 0,
         'savings_ratio': 0.0,
         'heads_per_group': 0
-    }  # Replace
+    }
 
 
 def repeat_kv(x: torch.Tensor, num_repeats: int) -> torch.Tensor:
@@ -99,23 +90,14 @@ def repeat_kv(x: torch.Tensor, num_repeats: int) -> torch.Tensor:
         KV head 0 is used by query heads 0, 1
         KV head 1 is used by query heads 2, 3
         etc.
-    
-    TODO: Implement KV head repetition
-    HINT:
-        if num_repeats == 1:
-            return x
-        
-        batch, num_kv_heads, seq_len, head_dim = x.shape
-        
-        # Method 1: Using expand and reshape
-        # Add a new dimension and expand it
-        x = x.unsqueeze(2)  # (batch, num_kv_heads, 1, seq_len, head_dim)
-        x = x.expand(batch, num_kv_heads, num_repeats, seq_len, head_dim)
-        x = x.reshape(batch, num_kv_heads * num_repeats, seq_len, head_dim)
-        
-        return x
     """
-    return x  # Replace
+    # TODO: Repeat KV heads to match query heads
+    # API hints:
+    # - if num_repeats == 1: return x (no repetition needed)
+    # - x.unsqueeze(2) -> add dimension for repetition
+    # - x.expand(batch, num_kv_heads, num_repeats, seq_len, head_dim) -> expand
+    # - x.reshape(batch, num_kv_heads * num_repeats, seq_len, head_dim) -> flatten
+    return x
 
 
 # ============================================================================
@@ -143,16 +125,13 @@ class GQAProjection(nn.Module):
         self.head_dim = d_model // num_heads
         self.num_kv_groups = num_heads // num_kv_heads  # How many Q heads per KV head
         
-        # TODO: Create projection layers
-        # Q projection: projects to num_heads * head_dim
-        # K, V projections: project to num_kv_heads * head_dim (smaller!)
-        # HINT:
-        #   self.W_q = nn.Linear(d_model, num_heads * self.head_dim, bias=False)
-        #   self.W_k = nn.Linear(d_model, num_kv_heads * self.head_dim, bias=False)
-        #   self.W_v = nn.Linear(d_model, num_kv_heads * self.head_dim, bias=False)
-        self.W_q = None  # Replace
-        self.W_k = None  # Replace
-        self.W_v = None  # Replace
+        # TODO: Create Q, K, V projection layers
+        # API hints:
+        # - nn.Linear(d_model, num_heads * head_dim, bias=False) -> Q projection
+        # - nn.Linear(d_model, num_kv_heads * head_dim, bias=False) -> K, V projections
+        self.W_q = None
+        self.W_k = None
+        self.W_v = None
     
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -165,28 +144,18 @@ class GQAProjection(nn.Module):
             q: (batch, num_heads, seq_len, head_dim)
             k: (batch, num_kv_heads, seq_len, head_dim)
             v: (batch, num_kv_heads, seq_len, head_dim)
-        
-        TODO: Project and reshape
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            q = self.W_q(x)  # (batch, seq_len, num_heads * head_dim)
-            k = self.W_k(x)  # (batch, seq_len, num_kv_heads * head_dim)
-            v = self.W_v(x)
-            
-            # Reshape to multi-head format
-            q = q.view(batch, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-            k = k.view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-            v = v.view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-            
-            return q, k, v
         """
+        # TODO: Project and reshape to multi-head format
+        # API hints:
+        # - self.W_q(x), self.W_k(x), self.W_v(x) -> project inputs
+        # - q.view(batch, seq_len, num_heads, head_dim).transpose(1, 2) -> reshape Q
+        # - k.view(batch, seq_len, num_kv_heads, head_dim).transpose(1, 2) -> reshape K
+        # - v.view(batch, seq_len, num_kv_heads, head_dim).transpose(1, 2) -> reshape V
         batch, seq_len, _ = x.shape
-        # Return dummy tensors with correct shapes for now
         q = torch.zeros(batch, self.num_heads, seq_len, self.head_dim)
         k = torch.zeros(batch, self.num_kv_heads, seq_len, self.head_dim)
         v = torch.zeros(batch, self.num_kv_heads, seq_len, self.head_dim)
-        return q, k, v  # Replace
+        return q, k, v
 
 
 # ============================================================================
@@ -215,13 +184,13 @@ class GroupedQueryAttention(nn.Module):
         self.scale = self.head_dim ** -0.5
         
         # TODO: Create projection layers and output projection
-        # HINT:
-        #   self.projection = GQAProjection(d_model, num_heads, num_kv_heads)
-        #   self.W_o = nn.Linear(d_model, d_model, bias=False)
-        #   self.dropout = nn.Dropout(dropout)
-        self.projection = None  # Replace
-        self.W_o = None         # Replace
-        self.dropout = None     # Replace
+        # API hints:
+        # - GQAProjection(d_model, num_heads, num_kv_heads) -> Q, K, V projections
+        # - nn.Linear(d_model, d_model, bias=False) -> output projection
+        # - nn.Dropout(dropout) -> dropout layer
+        self.projection = None
+        self.W_o = None
+        self.dropout = None
     
     def forward(self, x: torch.Tensor, 
                 mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -235,40 +204,18 @@ class GroupedQueryAttention(nn.Module):
         Returns:
             output: (batch, seq_len, d_model)
             attention_weights: (batch, num_heads, seq_len, seq_len)
-        
-        TODO: Implement GQA forward pass
-        HINT:
-            # Step 1: Project to Q, K, V
-            q, k, v = self.projection(x)
-            # q: (batch, num_heads, seq_len, head_dim)
-            # k, v: (batch, num_kv_heads, seq_len, head_dim)
-            
-            # Step 2: Repeat KV heads to match Q heads
-            k = repeat_kv(k, self.num_kv_groups)
-            v = repeat_kv(v, self.num_kv_groups)
-            # Now k, v: (batch, num_heads, seq_len, head_dim)
-            
-            # Step 3: Compute attention scores
-            scores = torch.matmul(q, k.transpose(-2, -1)) * self.scale
-            
-            # Step 4: Apply mask if provided
-            if mask is not None:
-                scores = scores.masked_fill(mask == 0, float('-inf'))
-            
-            # Step 5: Softmax and dropout
-            attn_weights = F.softmax(scores, dim=-1)
-            attn_weights = self.dropout(attn_weights)
-            
-            # Step 6: Apply attention to values
-            output = torch.matmul(attn_weights, v)
-            
-            # Step 7: Reshape and project output
-            batch, _, seq_len, _ = output.shape
-            output = output.transpose(1, 2).reshape(batch, seq_len, self.d_model)
-            output = self.W_o(output)
-            
-            return output, attn_weights
         """
+        # TODO: Implement GQA forward pass
+        # API hints:
+        # - q, k, v = self.projection(x) -> get Q, K, V projections
+        # - repeat_kv(k, self.num_kv_groups) -> repeat K to match Q heads
+        # - repeat_kv(v, self.num_kv_groups) -> repeat V to match Q heads
+        # - torch.matmul(q, k.transpose(-2, -1)) * self.scale -> attention scores
+        # - scores.masked_fill(mask == 0, float('-inf')) -> apply mask
+        # - F.softmax(scores, dim=-1) -> attention weights
+        # - torch.matmul(attn_weights, v) -> weighted sum of values
+        # - output.transpose(1, 2).reshape(batch, seq_len, d_model) -> reshape
+        # - self.W_o(output) -> output projection
         batch, seq_len, _ = x.shape
         return torch.zeros_like(x), torch.zeros(batch, self.num_heads, seq_len, seq_len)
 
@@ -288,20 +235,20 @@ class MultiQueryAttention(nn.Module):
         super().__init__()
         
         # TODO: Initialize MQA (GQA with num_kv_heads=1)
-        # HINT: Reuse GroupedQueryAttention with num_kv_heads=1
-        #   self.attention = GroupedQueryAttention(d_model, num_heads, num_kv_heads=1, dropout=dropout)
-        self.attention = None  # Replace
+        # API hints:
+        # - GroupedQueryAttention(d_model, num_heads, num_kv_heads=1, dropout=dropout) -> MQA
+        self.attention = None
         self.num_heads = num_heads
     
     def forward(self, x: torch.Tensor, 
                 mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through MQA.
-        
-        TODO: Delegate to GQA
-        HINT: return self.attention(x, mask)
         """
-        return x, torch.zeros(1)  # Replace
+        # TODO: Delegate to GQA attention
+        # API hints:
+        # - return self.attention(x, mask)
+        return x, torch.zeros(1)
 
 
 # ============================================================================
@@ -363,39 +310,22 @@ def compare_attention_memory(d_model: int, num_heads: int,
     
     Returns:
         Dictionary with memory comparisons
-    
-    TODO: Compute KV cache memory for each attention type
-    HINT:
-        head_dim = d_model // num_heads
-        
-        # Memory for K and V tensors (2 for K+V, in bytes assuming float32)
-        bytes_per_element = 4  # float32
-        
-        # MHA: num_heads KV heads
-        mha_kv_memory = 2 * batch_size * num_heads * seq_len * head_dim * bytes_per_element
-        
-        # GQA with 4 KV heads (example)
-        num_kv_heads_gqa = num_heads // 4
-        gqa_kv_memory = 2 * batch_size * num_kv_heads_gqa * seq_len * head_dim * bytes_per_element
-        
-        # MQA: 1 KV head
-        mqa_kv_memory = 2 * batch_size * 1 * seq_len * head_dim * bytes_per_element
-        
-        return {
-            'mha_kv_bytes': mha_kv_memory,
-            'gqa_kv_bytes': gqa_kv_memory,
-            'mqa_kv_bytes': mqa_kv_memory,
-            'gqa_savings_vs_mha': mha_kv_memory / gqa_kv_memory,
-            'mqa_savings_vs_mha': mha_kv_memory / mqa_kv_memory
-        }
     """
+    # TODO: Compute KV cache memory for each attention type
+    # API hints:
+    # - head_dim = d_model // num_heads
+    # - bytes_per_element = 4 (for float32)
+    # - MHA: 2 * batch_size * num_heads * seq_len * head_dim * bytes_per_element
+    # - GQA: 2 * batch_size * (num_heads // 4) * seq_len * head_dim * bytes_per_element
+    # - MQA: 2 * batch_size * 1 * seq_len * head_dim * bytes_per_element
+    # - savings_ratio = mha_memory / gqa_memory
     return {
         'mha_kv_bytes': 0,
         'gqa_kv_bytes': 0,
         'mqa_kv_bytes': 0,
         'gqa_savings_vs_mha': 0.0,
         'mqa_savings_vs_mha': 0.0
-    }  # Replace
+    }
 
 
 # ============================================================================
@@ -414,43 +344,30 @@ class GQATransformerBlock(nn.Module):
         d_ff = d_ff or d_model * 4
         
         # TODO: Initialize GQA attention, FFN, and layer norms
-        # HINT:
-        #   self.attention = GroupedQueryAttention(d_model, num_heads, num_kv_heads, dropout)
-        #   self.ffn = nn.Sequential(
-        #       nn.Linear(d_model, d_ff),
-        #       nn.GELU(),
-        #       nn.Linear(d_ff, d_model),
-        #       nn.Dropout(dropout)
-        #   )
-        #   self.norm1 = nn.LayerNorm(d_model)
-        #   self.norm2 = nn.LayerNorm(d_model)
-        #   self.dropout = nn.Dropout(dropout)
-        self.attention = None  # Replace
-        self.ffn = None        # Replace
-        self.norm1 = None      # Replace
-        self.norm2 = None      # Replace
-        self.dropout = None    # Replace
+        # API hints:
+        # - GroupedQueryAttention(d_model, num_heads, num_kv_heads, dropout) -> GQA
+        # - nn.Sequential(nn.Linear(d_model, d_ff), nn.GELU(), nn.Linear(d_ff, d_model), nn.Dropout(dropout)) -> FFN
+        # - nn.LayerNorm(d_model) -> layer norm
+        # - nn.Dropout(dropout) -> dropout layer
+        self.attention = None
+        self.ffn = None
+        self.norm1 = None
+        self.norm2 = None
+        self.dropout = None
     
     def forward(self, x: torch.Tensor, 
                 mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Forward pass with pre-norm architecture.
-        
-        TODO: Implement forward pass
-        HINT:
-            # Pre-norm attention
-            normed = self.norm1(x)
-            attn_out, _ = self.attention(normed, mask)
-            x = x + self.dropout(attn_out)
-            
-            # Pre-norm FFN
-            normed = self.norm2(x)
-            ffn_out = self.ffn(normed)
-            x = x + self.dropout(ffn_out)
-            
-            return x
         """
-        return x  # Replace
+        # TODO: Implement pre-norm forward pass
+        # API hints:
+        # - self.norm1(x) -> pre-norm before attention
+        # - self.attention(normed, mask) -> returns (output, attn_weights)
+        # - x + self.dropout(attn_out) -> residual connection
+        # - self.norm2(x) -> pre-norm before FFN
+        # - self.ffn(normed) -> FFN output
+        return x
 
 
 if __name__ == "__main__":

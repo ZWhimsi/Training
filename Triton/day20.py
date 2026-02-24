@@ -49,20 +49,24 @@ def naive_transpose_kernel(
     mask_n = offs_n < N
     mask = mask_m[:, None] & mask_n[None, :]
     
-    # TODO: Load input block [BLOCK_M, BLOCK_N]
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.trans(x) -> transpose a 2D tensor
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    
+    # Load input block [BLOCK_M, BLOCK_N]
     input_offs = offs_m[:, None] * N + offs_n[None, :]
     block = tl.load(input_ptr + input_offs, mask=mask, other=0.0)
     
     # TODO: Transpose the block
-    # HINT: block_t = tl.trans(block)  # Or manually swap indices
     block_t = None  # Replace
     
-    # TODO: Store transposed block
+    # Store transposed block
     # Output shape is (N, M), so output[j, i] at position j * M + i
     output_offs = offs_n[:, None] * M + offs_m[None, :]
     mask_t = mask_n[:, None] & mask_m[None, :]
     
-    # HINT: tl.store(output_ptr + output_offs, block_t, mask=mask_t)
+    # TODO: Store transposed block
     pass  # Replace
 
 

@@ -234,13 +234,12 @@ class Parameter(Tensor):
             data: Initial values (numpy array or Tensor)
             requires_grad: Whether to compute gradients (default: True)
         """
-        # TODO: Initialize Parameter
-        # HINT: Call parent __init__ and ensure requires_grad is True
-        # if isinstance(data, Tensor):
-        #     data = data.data
-        # super().__init__(data, requires_grad=requires_grad)
+        # API hints:
+        # - isinstance(data, Tensor) -> check if already Tensor
+        # - data.data -> extract numpy array from Tensor
+        # - super().__init__(data, requires_grad=requires_grad) -> call parent
         
-        pass  # Replace with initialization
+        pass
     
     def __repr__(self):
         return f"Parameter(shape={self.shape})"
@@ -265,14 +264,14 @@ class Module:
     
     def __init__(self):
         """Initialize Module."""
-        # TODO: Initialize internal storage
-        # HINT:
-        # self._parameters: Dict[str, Parameter] = OrderedDict()
-        # self._modules: Dict[str, 'Module'] = OrderedDict()
-        # self._training = True
+        # API hints:
+        # - OrderedDict() -> ordered dictionary for params/modules
+        # - self._parameters -> stores Parameter instances
+        # - self._modules -> stores child Module instances
+        # - self._training -> boolean for train/eval mode
         
-        self._parameters = None  # Replace: OrderedDict()
-        self._modules = None     # Replace: OrderedDict()
+        self._parameters = None  # Replace
+        self._modules = None     # Replace
         self._training = True
     
     def __setattr__(self, name: str, value: Any):
@@ -282,15 +281,11 @@ class Module:
         When you do self.weight = Parameter(...), this method detects
         that it's a Parameter and registers it.
         """
-        # TODO: Implement automatic registration
-        # HINT:
-        # if isinstance(value, Parameter):
-        #     if self._parameters is not None:
-        #         self._parameters[name] = value
-        # elif isinstance(value, Module):
-        #     if self._modules is not None:
-        #         self._modules[name] = value
-        # object.__setattr__(self, name, value)
+        # API hints:
+        # - isinstance(value, Parameter) -> check if Parameter
+        # - isinstance(value, Module) -> check if Module
+        # - self._parameters[name] = value -> register in dict
+        # - object.__setattr__(self, name, value) -> actually set attr
         
         object.__setattr__(self, name, value)  # Replace with registration logic
     
@@ -312,14 +307,11 @@ class Module:
         Yields:
             Parameter objects
         """
-        # TODO: Implement parameter iteration
-        # HINT:
-        # if self._parameters:
-        #     for param in self._parameters.values():
-        #         yield param
-        # if recurse and self._modules:
-        #     for module in self._modules.values():
-        #         yield from module.parameters(recurse=True)
+        # API hints:
+        # - self._parameters.values() -> iterate parameter dict values
+        # - yield param -> yield each parameter
+        # - yield from module.parameters() -> recursively yield from children
+        # - recurse flag controls whether to include submodule params
         
         return iter([])  # Replace
     
@@ -334,16 +326,11 @@ class Module:
         Yields:
             Tuples of (name, Parameter)
         """
-        # TODO: Implement named parameter iteration
-        # HINT:
-        # if self._parameters:
-        #     for name, param in self._parameters.items():
-        #         full_name = f"{prefix}.{name}" if prefix else name
-        #         yield full_name, param
-        # if recurse and self._modules:
-        #     for mod_name, module in self._modules.items():
-        #         mod_prefix = f"{prefix}.{mod_name}" if prefix else mod_name
-        #         yield from module.named_parameters(prefix=mod_prefix, recurse=True)
+        # API hints:
+        # - self._parameters.items() -> (name, param) pairs
+        # - f"{prefix}.{name}" if prefix else name -> build full name
+        # - yield (full_name, param) -> yield tuple
+        # - Recurse into self._modules with updated prefix
         
         return iter([])  # Replace
     
@@ -354,12 +341,10 @@ class Module:
         Yields:
             Module objects
         """
-        # TODO: Implement module iteration
-        # HINT:
-        # yield self
-        # if self._modules:
-        #     for module in self._modules.values():
-        #         yield from module.modules()
+        # API hints:
+        # - yield self -> include this module
+        # - self._modules.values() -> child modules
+        # - yield from module.modules() -> recursively yield
         
         return iter([])  # Replace
     
@@ -370,13 +355,11 @@ class Module:
         Yields:
             Tuples of (name, Module)
         """
-        # TODO: Implement named module iteration
-        # HINT:
-        # yield prefix, self
-        # if self._modules:
-        #     for name, module in self._modules.items():
-        #         mod_prefix = f"{prefix}.{name}" if prefix else name
-        #         yield from module.named_modules(prefix=mod_prefix)
+        # API hints:
+        # - yield (prefix, self) -> this module with its name
+        # - self._modules.items() -> (name, module) pairs
+        # - Build prefix: f"{prefix}.{name}" if prefix else name
+        # - yield from module.named_modules(prefix=...) -> recurse
         
         return iter([])  # Replace
     
@@ -414,12 +397,11 @@ class Module:
         Returns:
             Dictionary mapping parameter names to numpy arrays
         """
-        # TODO: Implement state dict generation
-        # HINT:
-        # state = OrderedDict()
-        # for name, param in self.named_parameters():
-        #     state[name] = param.data.copy()
-        # return state
+        # API hints:
+        # - OrderedDict() -> create ordered dict
+        # - self.named_parameters() -> iterate (name, param) pairs
+        # - param.data.copy() -> copy the numpy array
+        # - state[name] = data -> store in dict
         
         return {}  # Replace
     
@@ -430,13 +412,12 @@ class Module:
         Args:
             state_dict: Dictionary mapping parameter names to numpy arrays
         """
-        # TODO: Implement state dict loading
-        # HINT:
-        # for name, param in self.named_parameters():
-        #     if name in state_dict:
-        #         param.data = state_dict[name].copy()
+        # API hints:
+        # - self.named_parameters() -> iterate (name, param) pairs
+        # - name in state_dict -> check if param exists
+        # - param.data = state_dict[name].copy() -> load values
         
-        pass  # Replace
+        pass
     
     def num_parameters(self) -> int:
         """Return total number of parameters."""
@@ -464,34 +445,25 @@ class Linear(Module):
     """
     
     def __init__(self, in_features: int, out_features: int, bias: bool = True):
-        # TODO: Initialize Module and register parameters
-        # HINT:
-        # super().__init__()
-        # self.in_features = in_features
-        # self.out_features = out_features
-        # 
-        # scale = np.sqrt(2.0 / (in_features + out_features))
-        # self.weight = Parameter(np.random.randn(out_features, in_features) * scale)
-        # 
-        # if bias:
-        #     self.bias = Parameter(np.zeros(out_features))
-        # else:
-        #     self.bias = None
+        # API hints:
+        # - super().__init__() -> call Module.__init__
+        # - Xavier scale = sqrt(2.0 / (in + out))
+        # - Parameter(data) -> create learnable parameter
+        # - np.random.randn(out, in) * scale -> init weights
+        # - np.zeros(out) -> init bias to zeros
         
-        pass  # Replace
+        pass
     
     def forward(self, x: Tensor) -> Tensor:
         """Linear transformation."""
-        # TODO: Implement forward pass
-        # HINT:
-        # if x.ndim == 1:
-        #     x = Tensor(x.data.reshape(1, -1))
-        # out = x @ self.weight.T
-        # if self.bias is not None:
-        #     out = out + self.bias
-        # return out
+        # API hints:
+        # - x.ndim -> check dimensions
+        # - x.data.reshape(1, -1) -> make 2D
+        # - x @ self.weight.T -> matrix multiply
+        # - out + self.bias -> add bias
+        # - Formula: y = xW^T + b
         
-        return None  # Replace
+        return None
     
     def __repr__(self):
         return f"Linear({self.in_features}, {self.out_features})"
@@ -566,23 +538,21 @@ class Sequential(Module):
     """Sequential container with proper module registration."""
     
     def __init__(self, *modules: Module):
-        # TODO: Initialize and register all modules
-        # HINT:
-        # super().__init__()
-        # for i, module in enumerate(modules):
-        #     setattr(self, str(i), module)
+        # API hints:
+        # - super().__init__() -> call Module.__init__
+        # - enumerate(modules) -> get (index, module) pairs
+        # - setattr(self, str(i), module) -> auto-register modules
         
-        pass  # Replace
+        pass
     
     def forward(self, x: Tensor) -> Tensor:
         """Pass through all modules in sequence."""
-        # TODO: Implement forward
-        # HINT:
-        # for module in self._modules.values():
-        #     x = module(x)
-        # return x
+        # API hints:
+        # - self._modules.values() -> iterate child modules
+        # - module(x) -> call module forward
+        # - Chain outputs: input to next = output of previous
         
-        return None  # Replace
+        return None
     
     def __getitem__(self, idx: int) -> Module:
         return list(self._modules.values())[idx] if self._modules else None
@@ -606,12 +576,11 @@ def save_model(model: Module, filepath: str):
         model: Module to save
         filepath: Path to save file
     """
-    # TODO: Implement model saving
-    # HINT:
-    # state_dict = model.state_dict()
-    # np.savez(filepath, **state_dict)
+    # API hints:
+    # - model.state_dict() -> get parameters as dict
+    # - np.savez(filepath, **state_dict) -> save to .npz file
     
-    pass  # Replace
+    pass
 
 
 def load_model(model: Module, filepath: str):
@@ -622,13 +591,13 @@ def load_model(model: Module, filepath: str):
         model: Module to load into
         filepath: Path to load file
     """
-    # TODO: Implement model loading
-    # HINT:
-    # loaded = np.load(filepath)
-    # state_dict = {key: loaded[key] for key in loaded.files}
-    # model.load_state_dict(state_dict)
+    # API hints:
+    # - np.load(filepath) -> load .npz file
+    # - loaded.files -> list of array names
+    # - {key: loaded[key] for key in loaded.files} -> convert to dict
+    # - model.load_state_dict(state_dict) -> load into model
     
-    pass  # Replace
+    pass
 
 
 # ============================================================================

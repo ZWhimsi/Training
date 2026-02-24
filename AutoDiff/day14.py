@@ -106,11 +106,15 @@ class Tensor:
         
         Gradient: dz/d(self) = -1
         """
+        # API hints:
+        # - -self.data -> negate data
+        # - Tensor(data, children, op) -> create output
+        # - Gradient of negation is -1
+        
         # TODO: Implement negation
-        out = None  # Replace: Tensor(-self.data, (self,), 'neg')
+        out = None  # Replace
         
         def _backward():
-            # HINT: self.grad += -out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -129,13 +133,17 @@ class Tensor:
         if isinstance(other, (int, float)):
             other = Tensor(np.array(other))
         
+        # API hints:
+        # - self.data - other.data -> element-wise subtraction
+        # - Tensor(data, children, op) -> create output
+        # - dz/d(self) = 1, dz/d(other) = -1
+        # - Tensor.unbroadcast(grad, shape) -> handle broadcasting
+        
         # TODO: Implement subtraction forward pass
-        out = None  # Replace: Tensor(self.data - other.data, (self, other), '-')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # HINT: self.grad += Tensor.unbroadcast(out.grad, self.shape)
-            # HINT: other.grad += Tensor.unbroadcast(-out.grad, other.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -186,15 +194,17 @@ class Tensor:
         if isinstance(other, (int, float)):
             other = Tensor(np.array(other))
         
+        # API hints:
+        # - self.data / other.data -> element-wise division
+        # - dz/d(self) = 1/other
+        # - dz/d(other) = -self/other^2
+        # - Tensor.unbroadcast(grad, shape) -> handle broadcasting
+        
         # TODO: Implement division forward pass
-        out = None  # Replace: Tensor(self.data / other.data, (self, other), '/')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # HINT: self_grad = (1 / other.data) * out.grad
-            # HINT: other_grad = (-self.data / (other.data ** 2)) * out.grad
-            # HINT: self.grad += Tensor.unbroadcast(self_grad, self.shape)
-            # HINT: other.grad += Tensor.unbroadcast(other_grad, other.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -218,13 +228,16 @@ class Tensor:
         """
         assert isinstance(n, (int, float)), "Exponent must be a scalar"
         
+        # API hints:
+        # - self.data ** n -> element-wise power
+        # - Power rule: d/dx(x^n) = n * x^(n-1)
+        # - self.grad += local_grad * out.grad
+        
         # TODO: Implement power forward pass
-        out = None  # Replace: Tensor(self.data ** n, (self,), f'**{n}')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Power rule: d/dx(x^n) = n * x^(n-1)
-            # HINT: self.grad += n * (self.data ** (n - 1)) * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -240,13 +253,16 @@ class Tensor:
         
         Gradient: dz/d(self) = e^self = z
         """
+        # API hints:
+        # - np.exp(self.data) -> element-wise exponential
+        # - d/dx(e^x) = e^x = out.data
+        # - self.grad += local_grad * out.grad
+        
         # TODO: Implement exp forward pass
-        out = None  # Replace: Tensor(np.exp(self.data), (self,), 'exp')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # d/dx(e^x) = e^x = out.data
-            # HINT: self.grad += out.data * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -264,13 +280,16 @@ class Tensor:
         
         Note: Only valid for positive inputs!
         """
+        # API hints:
+        # - np.log(self.data) -> element-wise natural log
+        # - d/dx(ln(x)) = 1/x
+        # - self.grad += local_grad * out.grad
+        
         # TODO: Implement log forward pass
-        out = None  # Replace: Tensor(np.log(self.data), (self,), 'log')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # d/dx(ln(x)) = 1/x
-            # HINT: self.grad += (1 / self.data) * out.grad
             pass  # Replace
         
         out._backward = _backward

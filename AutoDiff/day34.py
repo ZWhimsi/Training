@@ -227,18 +227,11 @@ class Conv2d(Module):
     
     def __init__(self, in_channels: int, out_channels: int, kernel_size: int,
                  stride: int = 1, padding: int = 0, bias: bool = True):
-        # TODO: Initialize Conv2d
-        # HINT: Copy your implementation from Day 31 or implement:
-        # self.in_channels = in_channels
-        # self.out_channels = out_channels
-        # self.kernel_size = kernel_size
-        # self.stride = stride
-        # self.padding = padding
-        # 
-        # fan_in = in_channels * kernel_size * kernel_size
-        # scale = np.sqrt(2.0 / fan_in)
-        # self.weight = Tensor(np.random.randn(out_channels, in_channels, kernel_size, kernel_size) * scale)
-        # self.bias = Tensor(np.zeros(out_channels)) if bias else None
+        # API hints:
+        # - He initialization: scale = sqrt(2.0 / fan_in), fan_in = in_channels * k * k
+        # - weight shape: (out_channels, in_channels, kernel_size, kernel_size)
+        # - bias shape: (out_channels,) or None if bias=False
+        # - Use Tensor(...) to wrap numpy arrays
         
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -250,9 +243,13 @@ class Conv2d(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply convolution - implement im2col based convolution."""
-        # TODO: Implement forward pass
-        # You can use a simplified version or copy from Day 31
-        return None  # Replace
+        # API hints:
+        # - Use im2col/col2im pattern from Day 31
+        # - Or implement direct convolution with loops (slower but simpler)
+        # - Track children for gradient computation
+        # - Define _backward closure for gradient flow
+        
+        return None
     
     def parameters(self):
         if self.bias is not None:
@@ -272,8 +269,12 @@ class MaxPool2d(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply max pooling."""
-        # TODO: Implement forward pass from Day 32
-        return None  # Replace
+        # API hints:
+        # - Extract windows, compute np.max over spatial dims
+        # - Track max positions (mask) for backward
+        # - Backward: gradient flows only to max positions
+        
+        return None
     
     def __repr__(self):
         return f"MaxPool2d(kernel_size={self.kernel_size})"
@@ -287,11 +288,10 @@ class BatchNorm2d(Module):
         self.eps = eps
         self.momentum = momentum
         
-        # TODO: Initialize parameters
-        # self.gamma = Tensor(np.ones(num_features))
-        # self.beta = Tensor(np.zeros(num_features))
-        # self.running_mean = np.zeros(num_features)
-        # self.running_var = np.ones(num_features)
+        # API hints:
+        # - gamma: Tensor of ones (scale parameter)
+        # - beta: Tensor of zeros (shift parameter)
+        # - running_mean/var: numpy arrays for inference mode
         
         self.gamma = None
         self.beta = None
@@ -300,8 +300,13 @@ class BatchNorm2d(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply batch normalization."""
-        # TODO: Implement forward pass from Day 33
-        return None  # Replace
+        # API hints:
+        # - Training: compute batch mean/var over (N, H, W)
+        # - Eval: use running_mean/running_var
+        # - Normalize: (x - mean) / sqrt(var + eps)
+        # - Scale and shift: gamma * x_norm + beta
+        
+        return None
     
     def parameters(self):
         if self.gamma is not None and self.beta is not None:
@@ -447,11 +452,10 @@ class ConvBlock(Module):
     def __init__(self, in_channels: int, out_channels: int, 
                  kernel_size: int = 3, stride: int = 1, padding: int = 1):
         """Initialize ConvBlock."""
-        # TODO: Create the layers
-        # HINT:
-        # self.conv = Conv2d(in_channels, out_channels, kernel_size, stride, padding)
-        # self.bn = BatchNorm2d(out_channels)
-        # self.relu = ReLU()
+        # API hints:
+        # - Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+        # - BatchNorm2d(out_channels)
+        # - ReLU() activation
         
         self.conv = None   # Replace
         self.bn = None     # Replace
@@ -459,16 +463,12 @@ class ConvBlock(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply conv -> bn -> relu."""
-        # TODO: Implement forward
-        # HINT:
-        # x = self.conv(x)
-        # if x is not None and self.bn is not None:
-        #     x = self.bn(x)
-        # if x is not None and self.relu is not None:
-        #     x = self.relu(x)
-        # return x
+        # API hints:
+        # - Sequential application: x = conv(x), x = bn(x), x = relu(x)
+        # - Check for None at each step (in case layers not implemented)
+        # - Common pattern: Conv -> BatchNorm -> Activation
         
-        return None  # Replace
+        return None
     
     def parameters(self):
         params = []
@@ -508,23 +508,12 @@ class ResidualBlock(Module):
     
     def __init__(self, in_channels: int, out_channels: int, stride: int = 1):
         """Initialize ResidualBlock."""
-        # TODO: Create the layers
-        # HINT:
-        # # Main path
-        # self.conv1 = Conv2d(in_channels, out_channels, 3, stride, 1)
-        # self.bn1 = BatchNorm2d(out_channels)
-        # self.conv2 = Conv2d(out_channels, out_channels, 3, 1, 1)
-        # self.bn2 = BatchNorm2d(out_channels)
-        # self.relu = ReLU()
-        # 
-        # # Skip connection (identity or projection)
-        # if stride != 1 or in_channels != out_channels:
-        #     self.skip = Sequential(
-        #         Conv2d(in_channels, out_channels, 1, stride, 0),
-        #         BatchNorm2d(out_channels)
-        #     )
-        # else:
-        #     self.skip = None
+        # API hints:
+        # - Main path: Conv2d(3x3) -> BN -> ReLU -> Conv2d(3x3) -> BN
+        # - conv1 uses stride for downsampling, conv2 uses stride=1
+        # - Skip connection: if dimensions change, use 1x1 conv to project
+        # - Skip = Sequential(Conv2d(1x1, stride), BatchNorm2d) when needed
+        # - Skip = None for identity shortcut (same dimensions)
         
         self.conv1 = None
         self.bn1 = None
@@ -535,34 +524,14 @@ class ResidualBlock(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply residual block: out = F(x) + skip(x)."""
-        # TODO: Implement forward
-        # HINT:
-        # # Store input for skip connection
-        # identity = x
-        # 
-        # # Main path
-        # out = self.conv1(x)
-        # if out is not None and self.bn1:
-        #     out = self.bn1(out)
-        # if out is not None:
-        #     out = self.relu(out)
-        # if out is not None and self.conv2:
-        #     out = self.conv2(out)
-        # if out is not None and self.bn2:
-        #     out = self.bn2(out)
-        # 
-        # # Skip connection
-        # if self.skip is not None:
-        #     identity = self.skip(identity)
-        # 
-        # # Add and activate
-        # if out is not None and identity is not None:
-        #     out = out + identity
-        #     out = self.relu(out)
-        # 
-        # return out
+        # API hints:
+        # - Store identity = x before main path
+        # - Main path: conv1 -> bn1 -> relu -> conv2 -> bn2
+        # - If skip exists: identity = skip(x)
+        # - Final: out = F(x) + identity, then relu(out)
+        # - The "+" is the residual connection that enables deep networks
         
-        return None  # Replace
+        return None
     
     def parameters(self):
         params = []
@@ -610,19 +579,12 @@ class LeNet(Module):
     
     def __init__(self, in_channels: int = 1, num_classes: int = 10):
         """Initialize LeNet."""
-        # TODO: Create the layers
-        # HINT:
-        # self.conv1 = Conv2d(in_channels, 6, kernel_size=5, padding=2)
-        # self.conv2 = Conv2d(6, 16, kernel_size=5)
-        # self.pool = MaxPool2d(kernel_size=2, stride=2)
-        # self.relu = ReLU()
-        # self.flatten = Flatten()
-        # 
-        # # For 28x28 input: after 2 pools -> 5x5
-        # # For 32x32 input: after 2 pools -> 5x5 (with padding)
-        # self.fc1 = Linear(16 * 5 * 5, 120)
-        # self.fc2 = Linear(120, 84)
-        # self.fc3 = Linear(84, num_classes)
+        # API hints:
+        # - conv1: Conv2d(in_channels, 6, kernel_size=5, padding=2)
+        # - conv2: Conv2d(6, 16, kernel_size=5)
+        # - pool: MaxPool2d(kernel_size=2, stride=2)
+        # - fc layers: 16*5*5 -> 120 -> 84 -> num_classes
+        # - Calculate feature map size after convs and pools
         
         self.conv1 = None
         self.conv2 = None
@@ -635,30 +597,13 @@ class LeNet(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Forward pass through LeNet."""
-        # TODO: Implement forward
-        # HINT:
-        # x = self.conv1(x)
-        # if x is None: return None
-        # x = self.relu(x)
-        # x = self.pool(x)
-        # if x is None: return None
-        # 
-        # x = self.conv2(x)
-        # if x is None: return None
-        # x = self.relu(x)
-        # x = self.pool(x)
-        # if x is None: return None
-        # 
-        # x = self.flatten(x)
-        # x = self.fc1(x)
-        # x = self.relu(x)
-        # x = self.fc2(x)
-        # x = self.relu(x)
-        # x = self.fc3(x)
-        # 
-        # return x
+        # API hints:
+        # - Pattern: Conv -> ReLU -> Pool (repeat twice)
+        # - Then Flatten -> FC -> ReLU -> FC -> ReLU -> FC
+        # - Check for None at each step if layers might not be implemented
+        # - Final output is logits (no softmax - applied in loss)
         
-        return None  # Replace
+        return None
     
     def parameters(self):
         params = []
@@ -695,13 +640,11 @@ class SimpleCNN(Module):
     
     def __init__(self, in_channels: int = 3, num_classes: int = 10):
         """Initialize SimpleCNN."""
-        # TODO: Create the layers
-        # HINT:
-        # self.block1 = ConvBlock(in_channels, 32, stride=1)
-        # self.block2 = ConvBlock(32, 64, stride=2)
-        # self.block3 = ConvBlock(64, 128, stride=2)
-        # self.gap = GlobalAvgPool()  # Need to implement
-        # self.fc = Linear(128, num_classes)
+        # API hints:
+        # - ConvBlock(in, out, stride) for conv+bn+relu blocks
+        # - stride=2 for downsampling (halves spatial dimensions)
+        # - GlobalAvgPool reduces spatial dims to 1x1
+        # - Linear(last_channels, num_classes) for classification
         
         self.block1 = None
         self.block2 = None
@@ -711,8 +654,12 @@ class SimpleCNN(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Forward pass."""
-        # TODO: Implement forward
-        return None  # Replace
+        # API hints:
+        # - Sequential: block1 -> block2 -> block3 -> gap -> fc
+        # - Each ConvBlock includes conv+bn+relu
+        # - GlobalAvgPool flattens spatial dims
+        
+        return None
     
     def parameters(self):
         params = []
@@ -769,29 +716,14 @@ class CrossEntropyLoss(Module):
     
     def forward(self, logits: Tensor, targets: np.ndarray) -> Tensor:
         """Compute cross-entropy loss."""
-        # TODO: Implement cross-entropy
-        # HINT:
-        # N = logits.shape[0]
-        # probs = softmax(logits.data)
-        # 
-        # # Clip for numerical stability
-        # probs_clipped = np.clip(probs, 1e-10, 1 - 1e-10)
-        # 
-        # # Negative log likelihood
-        # loss = -np.mean(np.log(probs_clipped[np.arange(N), targets]))
-        # 
-        # out = Tensor(loss, (logits,), 'cross_entropy')
-        # 
-        # def _backward():
-        #     grad = probs.copy()
-        #     grad[np.arange(N), targets] -= 1
-        #     grad /= N
-        #     logits.grad += grad * out.grad
-        # 
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - softmax(logits) to get probabilities
+        # - np.clip(probs, 1e-10, 1-1e-10) for numerical stability
+        # - loss = -mean(log(probs[range(N), targets])) - negative log likelihood
+        # - Backward: grad = probs - one_hot(targets), then grad /= N
+        # - Simplified: grad[i, targets[i]] -= 1 for each sample
         
-        return None  # Replace
+        return None
     
     def __repr__(self):
         return "CrossEntropyLoss()"
@@ -815,18 +747,10 @@ class SGD:
     def __init__(self, parameters: List[Tensor], lr: float = 0.01,
                  momentum: float = 0, weight_decay: float = 0):
         """Initialize SGD."""
-        # TODO: Initialize optimizer
-        # HINT:
-        # self.parameters = list(parameters)
-        # self.lr = lr
-        # self.momentum = momentum
-        # self.weight_decay = weight_decay
-        # 
-        # # Velocity for momentum
-        # if momentum > 0:
-        #     self.velocities = [np.zeros_like(p.data) for p in self.parameters]
-        # else:
-        #     self.velocities = None
+        # API hints:
+        # - Store parameters as list
+        # - velocities: list of zero arrays matching param shapes (for momentum)
+        # - Only create velocities if momentum > 0
         
         self.parameters = list(parameters)
         self.lr = lr
@@ -836,26 +760,13 @@ class SGD:
     
     def step(self):
         """Perform one optimization step."""
-        # TODO: Implement parameter update
-        # HINT:
-        # for i, param in enumerate(self.parameters):
-        #     grad = param.grad
-        #     
-        #     # Add weight decay
-        #     if self.weight_decay > 0:
-        #         grad = grad + self.weight_decay * param.data
-        #     
-        #     # Apply momentum
-        #     if self.momentum > 0 and self.velocities is not None:
-        #         self.velocities[i] = self.momentum * self.velocities[i] + grad
-        #         update = self.velocities[i]
-        #     else:
-        #         update = grad
-        #     
-        #     # Update parameters
-        #     param.data -= self.lr * update
+        # API hints:
+        # - For each param: grad = param.grad (optionally + weight_decay * param.data)
+        # - With momentum: v = momentum * v + grad, update = v
+        # - Without momentum: update = grad
+        # - param.data -= lr * update
         
-        pass  # Replace
+        pass
     
     def zero_grad(self):
         """Zero all parameter gradients."""

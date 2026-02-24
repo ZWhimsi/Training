@@ -53,13 +53,11 @@ def matvec_kernel(
     # TODO: Load x vector
     x = tl.load(x_ptr + offs_n, mask=mask, other=0.0)
     
-    # TODO: Compute dot product
-    # HINT: dot = tl.sum(row * x, axis=0)
-    dot = None  # Replace
-    
-    # TODO: Store result
-    # HINT: tl.store(y_ptr + row_idx, dot)
-    pass  # Replace
+    # TODO: Compute dot product and store result
+    # API hints:
+    # - tl.sum(tensor, axis=0) -> reduce along axis, returns scalar or reduced tensor
+    # - tl.store(ptr, value) -> store value to memory location
+    pass
 
 
 def matvec(A: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
@@ -150,11 +148,11 @@ def vecmat_kernel(
     col_offs = offs_m * N + col_idx
     col = tl.load(A_ptr + col_offs, mask=mask, other=0.0)
     
-    # TODO: Compute dot product
-    dot = None  # Replace: tl.sum(v * col, axis=0)
-    
-    # TODO: Store
-    pass  # Replace
+    # TODO: Compute dot product of v and column, then store result
+    # API hints:
+    # - tl.sum(tensor, axis=0) -> reduce along axis
+    # - tl.store(ptr, value) -> store value to memory
+    pass
 
 
 def vecmat(v: torch.Tensor, A: torch.Tensor) -> torch.Tensor:

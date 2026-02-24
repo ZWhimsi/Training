@@ -224,29 +224,16 @@ class Tensor:
             d(log_softmax)/d(x) = I - softmax(x)
             where I is identity for the selected element
         """
-        # TODO: Implement numerically stable log-softmax
-        # HINT:
-        # 1. x_max = np.max(self.data, axis=axis, keepdims=True)
-        # 2. x_shifted = self.data - x_max
-        # 3. exp_x = np.exp(x_shifted)
-        # 4. sum_exp = np.sum(exp_x, axis=axis, keepdims=True)
-        # 5. log_softmax = x_shifted - np.log(sum_exp)
-        # 6. softmax = exp_x / sum_exp  (save for backward)
+        # API hints:
+        # - np.max(arr, axis, keepdims=True) -> get max along axis
+        # - np.exp(arr) -> element-wise exponential
+        # - np.sum(arr, axis, keepdims=True) -> sum along axis
+        # - np.log(arr) -> element-wise natural log
+        # - Tensor(data, (self,), 'op') -> create output tensor
+        # - Backward: grad_sum = np.sum(out.grad, axis, keepdims=True)
+        # - Formula: log_softmax = x_shifted - log(sum(exp(x_shifted)))
         
-        out = None  # Replace with Tensor(log_softmax_result, (self,), 'log_softmax')
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # Gradient of log-softmax:
-            # If L = log_softmax(x), then dL/dx_i = 1 - softmax(x)_i (for selected i)
-            # For all: dL/dx = upstream_grad - softmax * sum(upstream_grad, axis)
-            # HINT:
-            # grad_sum = np.sum(out.grad, axis=axis, keepdims=True)
-            # self.grad += out.grad - softmax * grad_sum
-            pass  # Replace
-        
-        out._backward = _backward
-        return out
+        return None
     
     # ========================================================================
     # Exercise 2: Softmax Function
@@ -266,11 +253,12 @@ class Tensor:
         Returns:
             Tensor with softmax probabilities (sum to 1 along axis)
         """
-        # TODO: Implement softmax using log_softmax for stability
-        # HINT: softmax = exp(log_softmax(x))
-        # This automatically handles numerical stability!
+        # API hints:
+        # - self.log_softmax(axis) -> compute log-softmax
+        # - tensor.exp() -> element-wise exponential
+        # - Formula: softmax = exp(log_softmax(x))
         
-        return None  # Replace: self.log_softmax(axis).exp()
+        return None
     
     # ========================================================================
     # Exercise 3: Binary Cross-Entropy Loss
@@ -296,26 +284,14 @@ class Tensor:
         if isinstance(target, (int, float, list, np.ndarray)):
             target = Tensor(target, requires_grad=False)
         
-        # TODO: Implement binary cross-entropy
-        # HINT: Clamp predictions for stability
-        # p_clamped = np.clip(self.data, eps, 1 - eps)
-        # bce = -(target.data * np.log(p_clamped) + 
-        #         (1 - target.data) * np.log(1 - p_clamped))
-        # loss = np.mean(bce)
+        # API hints:
+        # - np.clip(arr, min, max) -> clamp values for stability
+        # - np.log(arr) -> element-wise natural log
+        # - np.mean(arr) -> compute mean
+        # - Formula: BCE = -[y * log(p) + (1-y) * log(1-p)]
+        # - Backward gradient: (p - y) / (p * (1-p)) / n
         
-        out = None  # Replace with Tensor(loss, (self, target), 'bce')
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # d(BCE)/d(p) = (p - y) / (p * (1-p)) / n
-            # HINT:
-            # n = self.data.size
-            # p = np.clip(self.data, eps, 1 - eps)
-            # self.grad += (p - target.data) / (p * (1 - p)) / n * out.grad
-            pass  # Replace
-        
-        out._backward = _backward
-        return out
+        return None
     
     # ========================================================================
     # Exercise 4: Cross-Entropy Loss (from logits)
@@ -343,36 +319,15 @@ class Tensor:
         if isinstance(target, (list, np.ndarray)):
             target = np.array(target, dtype=np.int64)
         
-        # TODO: Implement cross-entropy loss
-        # HINT:
-        # 1. Compute log-softmax for stability
-        # log_probs = self.data - np.max(self.data, axis=-1, keepdims=True)
-        # log_probs = log_probs - np.log(np.sum(np.exp(log_probs), axis=-1, keepdims=True))
-        # 
-        # 2. Select log-prob of correct class
-        # batch_size = self.data.shape[0]
-        # correct_log_probs = log_probs[np.arange(batch_size), target]
-        # 
-        # 3. Compute mean loss
-        # loss = -np.mean(correct_log_probs)
+        # API hints:
+        # - np.max(arr, axis=-1, keepdims=True) -> max for stability
+        # - np.exp(arr), np.log(arr), np.sum(arr, axis, keepdims)
+        # - np.arange(batch_size) -> indices for batch selection
+        # - arr[np.arange(n), indices] -> select elements by index
+        # - np.mean(arr) -> compute mean loss
+        # - Backward: grad = softmax - one_hot(target), scaled by 1/batch_size
         
-        out = None  # Replace with Tensor(loss, (self,), 'cross_entropy')
-        
-        # Save softmax for backward
-        # softmax = np.exp(log_probs)
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # d(CE)/d(z) = softmax(z) - one_hot(target)
-            # HINT:
-            # batch_size = self.data.shape[0]
-            # grad = softmax.copy()
-            # grad[np.arange(batch_size), target] -= 1
-            # self.grad += grad / batch_size * out.grad
-            pass  # Replace
-        
-        out._backward = _backward
-        return out
+        return None
     
     # ========================================================================
     # Exercise 5: Negative Log-Likelihood Loss
@@ -396,26 +351,15 @@ class Tensor:
         if isinstance(target, (list, np.ndarray)):
             target = np.array(target, dtype=np.int64)
         
-        # TODO: Implement NLL loss
-        # HINT:
-        # batch_size = self.data.shape[0]
-        # selected = self.data[np.arange(batch_size), target]
-        # loss = -np.mean(selected)
+        # API hints:
+        # - self.data.shape[0] -> batch_size
+        # - np.arange(batch_size) -> batch indices
+        # - arr[np.arange(n), target] -> select target class values
+        # - np.mean(arr) -> compute mean
+        # - np.zeros_like(arr) -> create zero gradient array
+        # - Backward: grad is -1/batch_size at target positions, 0 elsewhere
         
-        out = None  # Replace with Tensor(loss, (self,), 'nll')
-        
-        # TODO: Implement backward pass
-        def _backward():
-            # Gradient is -1/batch_size at target positions, 0 elsewhere
-            # HINT:
-            # batch_size = self.data.shape[0]
-            # grad = np.zeros_like(self.data)
-            # grad[np.arange(batch_size), target] = -1 / batch_size
-            # self.grad += grad * out.grad
-            pass  # Replace
-        
-        out._backward = _backward
-        return out
+        return None
 
 
 # ============================================================================

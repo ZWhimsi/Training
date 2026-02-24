@@ -358,21 +358,12 @@ class SGDMomentum(Optimizer):
             momentum: Momentum coefficient (0 = no momentum)
             dampening: Dampening for momentum (0 = no dampening)
         """
-        # TODO: Initialize with momentum parameters
-        # HINT:
-        # if lr < 0.0:
-        #     raise ValueError(f"Invalid learning rate: {lr}")
-        # if momentum < 0.0:
-        #     raise ValueError(f"Invalid momentum: {momentum}")
-        # 
-        # defaults = {
-        #     'lr': lr,
-        #     'momentum': momentum,
-        #     'dampening': dampening
-        # }
-        # super().__init__(params, defaults)
+        # API hints:
+        # - Validate: lr >= 0.0, momentum >= 0.0
+        # - defaults = {'lr': lr, 'momentum': momentum, 'dampening': dampening}
+        # - super().__init__(params, defaults)
         
-        pass  # Replace with initialization
+        pass
     
     def step(self):
         """
@@ -383,39 +374,16 @@ class SGDMomentum(Optimizer):
         2. Update velocity: v = momentum * v + (1 - dampening) * grad
         3. Update parameter: param -= lr * v
         """
-        # TODO: Implement momentum SGD update
-        # HINT:
-        # for group in self.param_groups:
-        #     momentum = group['momentum']
-        #     dampening = group['dampening']
-        #     lr = group['lr']
-        #     
-        #     for p in group['params']:
-        #         if p.grad is None:
-        #             continue
-        #         
-        #         # Get state for this parameter (use id(p) as key)
-        #         param_id = id(p)
-        #         if param_id not in self.state:
-        #             self.state[param_id] = {}
-        #         
-        #         state = self.state[param_id]
-        #         
-        #         grad = p.grad
-        #         
-        #         if momentum != 0:
-        #             # Get or initialize velocity buffer
-        #             if 'velocity' not in state:
-        #                 state['velocity'] = np.zeros_like(p.data)
-        #             
-        #             v = state['velocity']
-        #             v[:] = momentum * v + (1 - dampening) * grad
-        #             
-        #             p.data -= lr * v
-        #         else:
-        #             p.data -= lr * grad
+        # API hints:
+        # - self.param_groups -> iterate groups
+        # - group['momentum'], group['dampening'], group['lr']
+        # - id(p) -> unique key for state dict
+        # - self.state[param_id] -> per-parameter state
+        # - np.zeros_like(p.data) -> initialize velocity buffer
+        # - v[:] = ... -> update in-place
+        # - Formula: v = μ * v + (1 - d) * grad; param -= lr * v
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -444,17 +412,12 @@ class SGDNesterov(Optimizer):
     
     def __init__(self, params, lr: float, momentum: float = 0.9):
         """Initialize SGD with Nesterov momentum."""
-        # TODO: Initialize Nesterov optimizer
-        # HINT:
-        # if lr < 0.0:
-        #     raise ValueError(f"Invalid learning rate: {lr}")
-        # if momentum <= 0.0:
-        #     raise ValueError("Nesterov requires momentum > 0")
-        # 
-        # defaults = {'lr': lr, 'momentum': momentum, 'nesterov': True}
-        # super().__init__(params, defaults)
+        # API hints:
+        # - Validate: lr >= 0.0, momentum > 0.0
+        # - defaults = {'lr': lr, 'momentum': momentum, 'nesterov': True}
+        # - super().__init__(params, defaults)
         
-        pass  # Replace with initialization
+        pass
     
     def step(self):
         """
@@ -464,33 +427,15 @@ class SGDNesterov(Optimizer):
         1. Update velocity: v = momentum * v + grad
         2. Update param: param -= lr * (grad + momentum * v)
         """
-        # TODO: Implement Nesterov update
-        # HINT:
-        # for group in self.param_groups:
-        #     momentum = group['momentum']
-        #     lr = group['lr']
-        #     
-        #     for p in group['params']:
-        #         if p.grad is None:
-        #             continue
-        #         
-        #         param_id = id(p)
-        #         if param_id not in self.state:
-        #             self.state[param_id] = {}
-        #         state = self.state[param_id]
-        #         
-        #         grad = p.grad
-        #         
-        #         if 'velocity' not in state:
-        #             state['velocity'] = np.zeros_like(p.data)
-        #         
-        #         v = state['velocity']
-        #         v[:] = momentum * v + grad
-        #         
-        #         # Nesterov: use gradient + look-ahead term
-        #         p.data -= lr * (grad + momentum * v)
+        # API hints:
+        # - self.param_groups -> iterate groups
+        # - id(p) -> unique state key
+        # - self.state[param_id] -> per-parameter state
+        # - np.zeros_like(p.data) -> initialize velocity
+        # - v[:] = momentum * v + grad -> update velocity
+        # - Formula: param -= lr * (grad + momentum * v)
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -521,18 +466,10 @@ class LRScheduler:
             optimizer: Optimizer to schedule
             last_epoch: Index of last epoch (-1 means starting fresh)
         """
-        # TODO: Initialize scheduler
-        # HINT:
-        # self.optimizer = optimizer
-        # self.last_epoch = last_epoch
-        # 
-        # # Store base learning rates (initial lr values)
-        # self.base_lrs = [group['lr'] for group in optimizer.param_groups]
-        # 
-        # # Initialize at epoch 0 if starting fresh
-        # if last_epoch == -1:
-        #     self.last_epoch = 0
-        #     self._step_count = 0
+        # API hints:
+        # - self.optimizer = optimizer
+        # - [group['lr'] for group in optimizer.param_groups] -> base lrs
+        # - Handle last_epoch == -1 -> start at epoch 0
         
         self.optimizer = optimizer
         self.last_epoch = last_epoch
@@ -557,23 +494,13 @@ class LRScheduler:
         Args:
             epoch: Epoch number (if None, increment automatically)
         """
-        # TODO: Implement step
-        # HINT:
-        # if epoch is None:
-        #     self.last_epoch += 1
-        # else:
-        #     self.last_epoch = epoch
-        # 
-        # self._step_count += 1
-        # 
-        # # Get new learning rates
-        # new_lrs = self.get_lr()
-        # 
-        # # Update optimizer
-        # for group, lr in zip(self.optimizer.param_groups, new_lrs):
-        #     group['lr'] = lr
+        # API hints:
+        # - Increment self.last_epoch or set to epoch if provided
+        # - self.get_lr() -> compute new learning rates
+        # - zip(self.optimizer.param_groups, new_lrs)
+        # - group['lr'] = lr -> update each group
         
-        pass  # Replace
+        pass
     
     def get_last_lr(self) -> List[float]:
         """Return last computed learning rates."""
@@ -613,13 +540,12 @@ class StepLR(LRScheduler):
             gamma: Decay factor
             last_epoch: Index of last epoch
         """
-        # TODO: Initialize StepLR
-        # HINT:
-        # self.step_size = step_size
-        # self.gamma = gamma
-        # super().__init__(optimizer, last_epoch)
+        # API hints:
+        # - self.step_size = step_size
+        # - self.gamma = gamma
+        # - super().__init__(optimizer, last_epoch)
         
-        pass  # Replace with initialization
+        pass
     
     def get_lr(self) -> List[float]:
         """
@@ -628,10 +554,10 @@ class StepLR(LRScheduler):
         Returns:
             List of learning rates for each param group
         """
-        # TODO: Implement step decay
-        # HINT:
-        # factor = self.gamma ** (self.last_epoch // self.step_size)
-        # return [base_lr * factor for base_lr in self.base_lrs]
+        # API hints:
+        # - self.last_epoch // self.step_size -> number of decays
+        # - self.gamma ** n -> decay factor
+        # - Formula: lr = base_lr * gamma^(epoch // step_size)
         
         return []  # Replace
 
@@ -668,12 +594,11 @@ class ExponentialLR(LRScheduler):
             gamma: Decay rate per epoch
             last_epoch: Index of last epoch
         """
-        # TODO: Initialize ExponentialLR
-        # HINT:
-        # self.gamma = gamma
-        # super().__init__(optimizer, last_epoch)
+        # API hints:
+        # - self.gamma = gamma
+        # - super().__init__(optimizer, last_epoch)
         
-        pass  # Replace with initialization
+        pass
     
     def get_lr(self) -> List[float]:
         """
@@ -682,10 +607,9 @@ class ExponentialLR(LRScheduler):
         Returns:
             List of learning rates for each param group
         """
-        # TODO: Implement exponential decay
-        # HINT:
-        # factor = self.gamma ** self.last_epoch
-        # return [base_lr * factor for base_lr in self.base_lrs]
+        # API hints:
+        # - self.gamma ** self.last_epoch -> decay factor
+        # - Formula: lr = base_lr * gamma^epoch
         
         return []  # Replace
 
@@ -727,13 +651,12 @@ class CosineAnnealingLR(LRScheduler):
             eta_min: Minimum learning rate
             last_epoch: Index of last epoch
         """
-        # TODO: Initialize CosineAnnealingLR
-        # HINT:
-        # self.T_max = T_max
-        # self.eta_min = eta_min
-        # super().__init__(optimizer, last_epoch)
+        # API hints:
+        # - self.T_max = T_max
+        # - self.eta_min = eta_min
+        # - super().__init__(optimizer, last_epoch)
         
-        pass  # Replace with initialization
+        pass
     
     def get_lr(self) -> List[float]:
         """
@@ -742,13 +665,9 @@ class CosineAnnealingLR(LRScheduler):
         Returns:
             List of learning rates for each param group
         """
-        # TODO: Implement cosine annealing
-        # HINT:
-        # cosine_factor = (1 + math.cos(math.pi * self.last_epoch / self.T_max)) / 2
-        # return [
-        #     self.eta_min + (base_lr - self.eta_min) * cosine_factor
-        #     for base_lr in self.base_lrs
-        # ]
+        # API hints:
+        # - math.cos(math.pi * self.last_epoch / self.T_max)
+        # - Formula: lr = eta_min + 0.5 * (base_lr - eta_min) * (1 + cos(π * t / T))
         
         return []  # Replace
 
@@ -791,12 +710,11 @@ class WarmupLR(LRScheduler):
             warmup_epochs: Number of epochs to warm up
             last_epoch: Index of last epoch
         """
-        # TODO: Initialize WarmupLR
-        # HINT:
-        # self.warmup_epochs = warmup_epochs
-        # super().__init__(optimizer, last_epoch)
+        # API hints:
+        # - self.warmup_epochs = warmup_epochs
+        # - super().__init__(optimizer, last_epoch)
         
-        pass  # Replace with initialization
+        pass
     
     def get_lr(self) -> List[float]:
         """
@@ -805,15 +723,11 @@ class WarmupLR(LRScheduler):
         Returns:
             List of learning rates for each param group
         """
-        # TODO: Implement linear warmup
-        # HINT:
-        # if self.last_epoch < self.warmup_epochs:
-        #     # Linear warmup: scale from 0 to base_lr
-        #     warmup_factor = self.last_epoch / self.warmup_epochs
-        #     return [base_lr * warmup_factor for base_lr in self.base_lrs]
-        # else:
-        #     # After warmup: use base learning rate
-        #     return list(self.base_lrs)
+        # API hints:
+        # - self.last_epoch < self.warmup_epochs -> during warmup
+        # - warmup_factor = epoch / warmup_epochs
+        # - Formula: lr = base_lr * (epoch / warmup_epochs)
+        # - After warmup: return base_lrs unchanged
         
         return []  # Replace
 

@@ -40,8 +40,6 @@ def forward_difference(f, x: float, h: float = 1e-5) -> float:
     """
     Compute derivative using forward difference.
     
-    f'(x) ≈ [f(x + h) - f(x)] / h
-    
     Args:
         f: A function of one variable
         x: Point at which to compute derivative
@@ -50,9 +48,11 @@ def forward_difference(f, x: float, h: float = 1e-5) -> float:
     Returns:
         Approximate derivative at x
     """
-    # TODO: Implement forward difference
-    # HINT: return (f(x + h) - f(x)) / h
-    return None  # Replace
+    # API hints:
+    # - Forward difference formula: (f(x+h) - f(x)) / h
+    # - Evaluate f at x and at x+h
+    # - Return the difference quotient
+    return None
 
 
 # ============================================================================
@@ -63,13 +63,13 @@ def central_difference(f, x: float, h: float = 1e-5) -> float:
     """
     Compute derivative using central difference.
     
-    f'(x) ≈ [f(x + h) - f(x - h)] / (2h)
-    
     This is more accurate than forward difference (O(h²) vs O(h) error).
     """
-    # TODO: Implement central difference
-    # HINT: return (f(x + h) - f(x - h)) / (2 * h)
-    return None  # Replace
+    # API hints:
+    # - Central difference formula: (f(x+h) - f(x-h)) / (2*h)
+    # - Evaluate f at x+h and x-h
+    # - Divide difference by 2*h
+    return None
 
 
 # ============================================================================
@@ -78,42 +78,42 @@ def central_difference(f, x: float, h: float = 1e-5) -> float:
 
 def derivative_x_squared(x: float) -> float:
     """
-    Analytical derivative of f(x) = x²
-    
-    f'(x) = 2x
+    Analytical derivative of f(x) = x².
     """
-    # TODO: Return the analytical derivative
-    return None  # Replace with 2 * x
+    # API hints:
+    # - Power rule: d/dx(x^n) = n * x^(n-1)
+    # - Apply to x^2
+    return None
 
 
 def derivative_x_cubed(x: float) -> float:
     """
-    Analytical derivative of f(x) = x³
-    
-    f'(x) = 3x²
+    Analytical derivative of f(x) = x³.
     """
-    # TODO: Return the analytical derivative
-    return None  # Replace with 3 * x**2
+    # API hints:
+    # - Power rule: d/dx(x^n) = n * x^(n-1)
+    # - Apply to x^3
+    return None
 
 
 def derivative_sin(x: float) -> float:
     """
-    Analytical derivative of f(x) = sin(x)
-    
-    f'(x) = cos(x)
+    Analytical derivative of f(x) = sin(x).
     """
-    # TODO: Return the analytical derivative
-    return None  # Replace with np.cos(x)
+    # API hints:
+    # - d/dx(sin(x)) = cos(x)
+    # - Use np.cos()
+    return None
 
 
 def derivative_exp(x: float) -> float:
     """
-    Analytical derivative of f(x) = eˣ
-    
-    f'(x) = eˣ
+    Analytical derivative of f(x) = eˣ.
     """
-    # TODO: Return the analytical derivative
-    return None  # Replace with np.exp(x)
+    # API hints:
+    # - d/dx(e^x) = e^x
+    # - Use np.exp()
+    return None
 
 
 # ============================================================================
@@ -132,14 +132,13 @@ def compare_derivatives(f, df_analytical, x: float) -> dict:
     Returns:
         dict with 'numerical', 'analytical', 'error'
     """
-    # TODO: Compute numerical derivative using central difference
-    numerical = None  # Replace with central_difference(f, x)
-    
-    # TODO: Compute analytical derivative
-    analytical = None  # Replace with df_analytical(x)
-    
-    # TODO: Compute absolute error
-    error = None  # Replace with abs(numerical - analytical)
+    # API hints:
+    # - Use central_difference(f, x) for numerical derivative
+    # - Call df_analytical(x) for analytical derivative
+    # - Compute error with abs(numerical - analytical)
+    numerical = None
+    analytical = None
+    error = None
     
     return {
         'numerical': numerical,
@@ -155,12 +154,12 @@ def compare_derivatives(f, df_analytical, x: float) -> dict:
 def second_derivative(f, x: float, h: float = 1e-4) -> float:
     """
     Compute second derivative numerically.
-    
-    f''(x) ≈ [f(x+h) - 2f(x) + f(x-h)] / h²
     """
-    # TODO: Implement second derivative
-    # HINT: return (f(x + h) - 2 * f(x) + f(x - h)) / (h ** 2)
-    return None  # Replace
+    # API hints:
+    # - Second derivative formula: (f(x+h) - 2*f(x) + f(x-h)) / h²
+    # - Evaluate f at three points: x-h, x, x+h
+    # - Divide by h squared
+    return None
 
 
 # ============================================================================

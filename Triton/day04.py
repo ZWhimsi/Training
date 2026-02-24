@@ -9,12 +9,6 @@ Learning objectives:
 - Configure 1D, 2D, and 3D grids
 - Map program IDs to data indices
 - Understand parallelization strategies
-
-Hints:
-- program_id(0) = x-axis, program_id(1) = y-axis, program_id(2) = z-axis
-- Grid size determines total number of parallel programs
-- Each program should process a unique portion of data
-- Think about how to tile your problem for parallelism
 """
 
 import torch
@@ -58,26 +52,14 @@ def row_sum_kernel(
     
     Grid: (n_rows,) - one program per row
     """
-    # TODO: Get row index from program ID
-    row_idx = None  # Replace with tl.program_id(0)
+    # API hints:
+    # - tl.program_id(axis) -> get block index on given axis
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    # TODO: Calculate pointer to start of this row
-    # HINT: row_start = row_idx * n_cols
-    row_start = None  # Replace
-    
-    # TODO: Create offsets within the row
-    col_offsets = tl.arange(0, BLOCK_SIZE)
-    mask = col_offsets < n_cols
-    
-    # TODO: Load the row
-    # HINT: tl.load(x_ptr + row_start + col_offsets, mask=mask, other=0.0)
-    row_data = None  # Replace
-    
-    # TODO: Sum the row
-    row_sum = None  # Replace with tl.sum(...)
-    
-    # TODO: Store result (one value per row)
-    # HINT: tl.store(out_ptr + row_idx, row_sum)
+    # TODO: Implement row sum kernel
     pass
 
 
@@ -93,7 +75,11 @@ def row_sum(x: torch.Tensor) -> torch.Tensor:
     # BLOCK_SIZE must be >= n_cols for simple implementation
     BLOCK_SIZE = triton.next_power_of_2(n_cols)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -117,23 +103,14 @@ def col_sum_kernel(
     
     Grid: (n_cols,) - one program per column
     """
-    # TODO: Get column index
-    col_idx = None  # Replace
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    # Row indices
-    row_offsets = tl.arange(0, BLOCK_SIZE)
-    mask = row_offsets < n_rows
-    
-    # TODO: Calculate indices into the matrix
-    # For column access, we need: row * stride_row + col
-    # HINT: indices = row_offsets * stride_row + col_idx
-    indices = None  # Replace
-    
-    # TODO: Load the column
-    col_data = None  # Replace
-    
-    # TODO: Sum and store
-    col_sum = None  # Replace
+    # TODO: Implement column sum kernel
     pass
 
 
@@ -150,7 +127,11 @@ def col_sum(x: torch.Tensor) -> torch.Tensor:
     grid = (n_cols,)
     BLOCK_SIZE = triton.next_power_of_2(n_rows)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -177,34 +158,16 @@ def add_matrices_2d_kernel(
     Grid: (ceil(n_rows/BLOCK_M), ceil(n_cols/BLOCK_N))
     Each program handles a BLOCK_M x BLOCK_N tile.
     """
-    # TODO: Get 2D program IDs
-    pid_m = None  # Row block ID - Replace with tl.program_id(0)
-    pid_n = None  # Col block ID - Replace with tl.program_id(1)
+    # API hints:
+    # - tl.program_id(0) -> row block index
+    # - tl.program_id(1) -> column block index
+    # - tl.arange(start, end) -> create range
+    # - mask[:, None] & mask[None, :] -> 2D mask from 1D masks
+    # - offs[:, None] * stride + offs[None, :] -> 2D indices
+    # - tl.load(ptr + indices, mask=mask) -> load 2D block
+    # - tl.store(ptr + indices, value, mask=mask) -> store 2D block
     
-    # TODO: Calculate block start positions
-    block_start_m = None  # Replace with pid_m * BLOCK_M
-    block_start_n = None  # Replace with pid_n * BLOCK_N
-    
-    # Generate offsets within the block
-    offs_m = block_start_m + tl.arange(0, BLOCK_M)
-    offs_n = block_start_n + tl.arange(0, BLOCK_N)
-    
-    # Create masks for bounds
-    mask_m = offs_m < n_rows
-    mask_n = offs_n < n_cols
-    
-    # TODO: Create 2D mask
-    # HINT: mask = mask_m[:, None] & mask_n[None, :]
-    mask = None  # Replace
-    
-    # TODO: Calculate 2D indices
-    # HINT: indices = offs_m[:, None] * stride + offs_n[None, :]
-    indices = None  # Replace
-    
-    # TODO: Load, add, store
-    a = None  # Replace
-    b = None  # Replace
-    out = None  # Replace
+    # TODO: Implement 2D matrix add kernel
     pass
 
 
@@ -222,7 +185,11 @@ def add_matrices_2d(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     # 2D grid
     grid = (triton.cdiv(n_rows, BLOCK_M), triton.cdiv(n_cols, BLOCK_N))
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -245,22 +212,14 @@ def vector_add_cyclic_kernel(
     
     Uses a grid-stride loop pattern common in CUDA.
     """
-    pid = tl.program_id(0)
-    num_pids = tl.num_programs(0)
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.num_programs(axis) -> get total number of programs
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Process multiple blocks per program (grid-stride loop)
-    # Each program starts at pid * BLOCK_SIZE and jumps by num_pids * BLOCK_SIZE
-    # HINT: Use a conceptual loop (in Triton, we typically launch enough programs
-    #       but this pattern is useful for understanding)
-    
-    block_start = pid * BLOCK_SIZE
-    offsets = block_start + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
-    
-    # TODO: Load, add, store
-    a = None  # Replace
-    b = None  # Replace
-    out = None  # Replace
+    # TODO: Implement vector add kernel
     pass
 
 
@@ -274,7 +233,12 @@ def vector_add_cyclic(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     BLOCK_SIZE = 1024
     
     grid = (triton.cdiv(n_elements, BLOCK_SIZE),)
+    
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -300,23 +264,14 @@ def batch_scale_kernel(
     scales: [batch_size]
     out[b, i] = x[b, i] * scales[b]
     """
-    # TODO: Get batch index from program ID
-    batch_idx = None  # Replace
+    # API hints:
+    # - tl.program_id(axis) -> get block index (batch index)
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr) -> load single scalar
+    # - tl.load(ptr + offsets, mask=mask) -> load vector
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load the scale for this batch
-    scale = None  # Replace with tl.load(scales_ptr + batch_idx)
-    
-    # Vector offsets
-    vec_offsets = tl.arange(0, BLOCK_SIZE)
-    mask = vec_offsets < vec_size
-    
-    # TODO: Calculate pointer to this batch's vector
-    x_batch_ptr = None  # Replace with x_ptr + batch_idx * vec_size
-    out_batch_ptr = None  # Replace
-    
-    # TODO: Load, scale, store
-    x = None  # Replace
-    out = None  # Replace
+    # TODO: Implement batch scale kernel
     pass
 
 
@@ -333,7 +288,11 @@ def batch_scale(x: torch.Tensor, scales: torch.Tensor) -> torch.Tensor:
     grid = (batch_size,)
     BLOCK_SIZE = triton.next_power_of_2(vec_size)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 

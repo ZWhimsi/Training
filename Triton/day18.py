@@ -44,16 +44,19 @@ def strided_load_kernel(
     Load elements with a custom stride.
     output[i] = input[i * stride]
     """
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Strided access: multiply indices by stride to get actual offsets
+    
     pid = tl.program_id(0)
     offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offs < size
     
-    # TODO: Compute strided offsets
-    # HINT: strided_offs = offs * stride_in
+    # TODO: Compute strided offsets (multiply logical indices by stride)
     strided_offs = None  # Replace
     
     # TODO: Load with strided access
-    # HINT: data = tl.load(input_ptr + strided_offs, mask=mask)
     data = None  # Replace
     
     # Store contiguously
@@ -84,18 +87,22 @@ def column_access_kernel(
     Read a column from row-major matrix.
     For column c: elements are at [0*N+c, 1*N+c, 2*N+c, ...]
     """
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Row-major layout: element at (row, col) is at offset row * N + col
+    
     col_idx = tl.program_id(0)  # Which column
     
     row_offs = tl.arange(0, BLOCK_SIZE)
     mask = row_offs < M
     
     # TODO: Compute offsets for this column
-    # Each row is N elements apart, add col_idx for the column
-    # HINT: offs = row_offs * N + col_idx
+    # Each row is N elements apart in row-major layout
     offs = None  # Replace
     
-    # TODO: Load column
-    col_data = None  # Replace: tl.load(input_ptr + offs, mask=mask)
+    # TODO: Load column data
+    col_data = None  # Replace
     
     # Store to output (column col_idx of output)
     output_offs = row_offs * N + col_idx
@@ -136,16 +143,20 @@ def strided_2d_kernel(
     offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
     offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - 2D strided access: offs = row_offs * stride_row + col_offs * stride_col
+    
     mask_m = offs_m < M
     mask_n = offs_n < N
     mask = mask_m[:, None] & mask_n[None, :]
     
-    # TODO: Compute strided offsets
-    # HINT: offs = offs_m[:, None] * stride_m + offs_n[None, :] * stride_n
+    # TODO: Compute strided 2D offsets
     offs = None  # Replace
     
     # TODO: Load with strided access
-    data = None  # Replace: tl.load(input_ptr + offs, mask=mask)
+    data = None  # Replace
     
     # Store contiguously (standard row-major)
     out_offs = offs_m[:, None] * N + offs_n[None, :]
@@ -187,11 +198,15 @@ def gather_kernel(
     offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offs < n_elements
     
-    # TODO: Load indices
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Gather: use loaded indices as offsets into input array
+    
+    # Load indices
     indices = tl.load(indices_ptr + offs, mask=mask)
     
-    # TODO: Gather from input using indices
-    # HINT: data = tl.load(input_ptr + indices, mask=mask)
+    # TODO: Gather from input using indices as offsets
     data = None  # Replace
     
     # Store
@@ -228,12 +243,15 @@ def scatter_add_kernel(
     offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offs < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.atomic_add(ptr, value, mask=mask) -> atomic add for handling conflicts
+    
     # Load values and indices
     values = tl.load(input_ptr + offs, mask=mask)
     indices = tl.load(indices_ptr + offs, mask=mask)
     
-    # TODO: Atomic add to handle conflicts
-    # HINT: tl.atomic_add(output_ptr + indices, values, mask=mask)
+    # TODO: Scatter add using atomic operation to handle overlapping indices
     pass  # Replace
 
 

@@ -202,44 +202,15 @@ def maxpool2d_forward(x: np.ndarray, kernel_size: int, stride: int = None,
              [3, 4]]  -> out = [[4]]
                         mask marks position (1,1) as True
     """
-    # TODO: Implement max pooling forward
-    # HINT:
-    # if stride is None:
-    #     stride = kernel_size
-    # 
-    # N, C, H, W = x.shape
-    # 
-    # if padding > 0:
-    #     x = np.pad(x, ((0, 0), (0, 0), (padding, padding), (padding, padding)),
-    #                mode='constant', constant_values=-np.inf)
-    # 
-    # H_out = (H + 2*padding - kernel_size) // stride + 1
-    # W_out = (W + 2*padding - kernel_size) // stride + 1
-    # 
-    # out = np.zeros((N, C, H_out, W_out))
-    # mask = np.zeros((N, C, H + 2*padding, W + 2*padding), dtype=bool)
-    # 
-    # for h in range(H_out):
-    #     for w in range(W_out):
-    #         h_start = h * stride
-    #         w_start = w * stride
-    #         window = x[:, :, h_start:h_start+kernel_size, w_start:w_start+kernel_size]
-    #         
-    #         out[:, :, h, w] = np.max(window, axis=(2, 3))
-    #         
-    #         # Create mask for max positions
-    #         window_reshaped = window.reshape(N, C, -1)
-    #         max_idx = np.argmax(window_reshaped, axis=2)
-    #         for n in range(N):
-    #             for c in range(C):
-    #                 idx = max_idx[n, c]
-    #                 h_idx = h_start + idx // kernel_size
-    #                 w_idx = w_start + idx % kernel_size
-    #                 mask[n, c, h_idx, w_idx] = True
-    # 
-    # return out, mask
+    # API hints:
+    # - np.pad(..., constant_values=-np.inf) for max pool padding
+    # - np.max(window, axis=(2, 3)) -> max over spatial dimensions
+    # - np.argmax(window.reshape(N, C, -1), axis=2) -> find max position
+    # - mask[n, c, h_idx, w_idx] = True to record max locations
+    # - idx // kernel_size and idx % kernel_size to convert flat index to 2D
+    # - Return tuple: (output, mask) where mask tracks max positions for backward
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -265,31 +236,14 @@ def maxpool2d_backward(dy: np.ndarray, mask: np.ndarray, x_shape: Tuple[int, ...
     Returns:
         dx: Gradient w.r.t. input of shape (N, C, H, W)
     """
-    # TODO: Implement max pooling backward
-    # HINT:
-    # if stride is None:
-    #     stride = kernel_size
-    # 
-    # N, C, H, W = x_shape
-    # H_out, W_out = dy.shape[2], dy.shape[3]
-    # 
-    # dx = np.zeros((N, C, H + 2*padding, W + 2*padding))
-    # 
-    # for h in range(H_out):
-    #     for w in range(W_out):
-    #         h_start = h * stride
-    #         w_start = w * stride
-    #         
-    #         window_mask = mask[:, :, h_start:h_start+kernel_size, w_start:w_start+kernel_size]
-    #         dx[:, :, h_start:h_start+kernel_size, w_start:w_start+kernel_size] += \
-    #             window_mask * dy[:, :, h:h+1, w:w+1]
-    # 
-    # if padding > 0:
-    #     dx = dx[:, :, padding:-padding, padding:-padding]
-    # 
-    # return dx
+    # API hints:
+    # - Gradient only flows to max positions (from mask)
+    # - dx[..., h_start:h_start+k, w_start:w_start+k] += mask_window * dy[..., h:h+1, w:w+1]
+    # - Loop over H_out, W_out to distribute gradients
+    # - Remove padding at end if padding > 0
+    # - Only positions where mask=True receive gradient
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -315,11 +269,9 @@ class MaxPool2d(Module):
     
     def __init__(self, kernel_size: int, stride: int = None, padding: int = 0):
         """Initialize MaxPool2d layer."""
-        # TODO: Store parameters
-        # HINT:
-        # self.kernel_size = kernel_size
-        # self.stride = stride if stride is not None else kernel_size
-        # self.padding = padding
+        # API hints:
+        # - stride defaults to kernel_size if not provided
+        # - Store kernel_size, stride, padding as instance attributes
         
         self.kernel_size = kernel_size
         self.stride = stride if stride is not None else kernel_size
@@ -335,25 +287,14 @@ class MaxPool2d(Module):
         Returns:
             Output tensor of shape (N, C, H_out, W_out)
         """
-        # TODO: Implement forward with gradient tracking
-        # HINT:
-        # result = maxpool2d_forward(x.data, self.kernel_size, self.stride, self.padding)
-        # if result is None:
-        #     return None
-        # out_data, mask = result
-        # 
-        # out = Tensor(out_data, (x,), 'maxpool2d')
-        # 
-        # def _backward():
-        #     dx = maxpool2d_backward(out.grad, mask, x.shape, 
-        #                             self.kernel_size, self.stride, self.padding)
-        #     if dx is not None:
-        #         x.grad += dx
-        # 
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - maxpool2d_forward(x.data, ...) returns (out_data, mask)
+        # - Store mask for backward pass (gradient routing)
+        # - Create Tensor with children=(x,)
+        # - _backward: use maxpool2d_backward(out.grad, mask, x.shape, ...)
+        # - x.grad += dx to accumulate input gradient
         
-        return None  # Replace with implementation
+        return None
     
     def __repr__(self):
         return f"MaxPool2d(kernel_size={self.kernel_size}, stride={self.stride}, padding={self.padding})"
@@ -377,31 +318,13 @@ def avgpool2d_forward(x: np.ndarray, kernel_size: int, stride: int = None,
     Returns:
         out: Output of shape (N, C, H_out, W_out)
     """
-    # TODO: Implement average pooling forward
-    # HINT:
-    # if stride is None:
-    #     stride = kernel_size
-    # 
-    # N, C, H, W = x.shape
-    # 
-    # if padding > 0:
-    #     x = np.pad(x, ((0, 0), (0, 0), (padding, padding), (padding, padding)))
-    # 
-    # H_out = (H + 2*padding - kernel_size) // stride + 1
-    # W_out = (W + 2*padding - kernel_size) // stride + 1
-    # 
-    # out = np.zeros((N, C, H_out, W_out))
-    # 
-    # for h in range(H_out):
-    #     for w in range(W_out):
-    #         h_start = h * stride
-    #         w_start = w * stride
-    #         window = x[:, :, h_start:h_start+kernel_size, w_start:w_start+kernel_size]
-    #         out[:, :, h, w] = np.mean(window, axis=(2, 3))
-    # 
-    # return out
+    # API hints:
+    # - Similar structure to max pooling but use np.mean instead of np.max
+    # - np.mean(window, axis=(2, 3)) -> average over spatial dimensions
+    # - No mask needed (gradient distributes equally)
+    # - Loop over output positions, extract window, compute mean
     
-    pass  # Replace with implementation
+    return None
 
 
 def avgpool2d_backward(dy: np.ndarray, x_shape: Tuple[int, ...],
@@ -422,32 +345,14 @@ def avgpool2d_backward(dy: np.ndarray, x_shape: Tuple[int, ...],
     Returns:
         dx: Gradient w.r.t. input of shape (N, C, H, W)
     """
-    # TODO: Implement average pooling backward
-    # HINT:
-    # if stride is None:
-    #     stride = kernel_size
-    # 
-    # N, C, H, W = x_shape
-    # H_out, W_out = dy.shape[2], dy.shape[3]
-    # 
-    # dx = np.zeros((N, C, H + 2*padding, W + 2*padding))
-    # 
-    # pool_size = kernel_size * kernel_size
-    # 
-    # for h in range(H_out):
-    #     for w in range(W_out):
-    #         h_start = h * stride
-    #         w_start = w * stride
-    #         
-    #         dx[:, :, h_start:h_start+kernel_size, w_start:w_start+kernel_size] += \
-    #             dy[:, :, h:h+1, w:w+1] / pool_size
-    # 
-    # if padding > 0:
-    #     dx = dx[:, :, padding:-padding, padding:-padding]
-    # 
-    # return dx
+    # API hints:
+    # - Gradient distributed equally to all elements in window
+    # - pool_size = kernel_size * kernel_size
+    # - dx[..., window] += dy[..., h, w] / pool_size
+    # - Each input element receives gradient / pool_size
+    # - Remove padding at end if needed
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -474,24 +379,13 @@ class AvgPool2d(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply average pooling to input."""
-        # TODO: Implement forward with gradient tracking
-        # HINT:
-        # out_data = avgpool2d_forward(x.data, self.kernel_size, self.stride, self.padding)
-        # if out_data is None:
-        #     return None
-        # 
-        # out = Tensor(out_data, (x,), 'avgpool2d')
-        # 
-        # def _backward():
-        #     dx = avgpool2d_backward(out.grad, x.shape,
-        #                             self.kernel_size, self.stride, self.padding)
-        #     if dx is not None:
-        #         x.grad += dx
-        # 
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - avgpool2d_forward(x.data, ...) for forward computation
+        # - Create Tensor with children=(x,)
+        # - _backward: avgpool2d_backward(out.grad, x.shape, ...)
+        # - x.grad += dx to accumulate gradient
         
-        return None  # Replace with implementation
+        return None
     
     def __repr__(self):
         return f"AvgPool2d(kernel_size={self.kernel_size}, stride={self.stride}, padding={self.padding})"
@@ -528,27 +422,13 @@ class GlobalAvgPool2d(Module):
         Returns:
             Output tensor of shape (N, C) or (N, C, 1, 1)
         """
-        # TODO: Implement global average pooling
-        # HINT:
-        # N, C, H, W = x.shape
-        # out_data = np.mean(x.data, axis=(2, 3))  # (N, C)
-        # 
-        # if not self.flatten:
-        #     out_data = out_data[:, :, np.newaxis, np.newaxis]  # (N, C, 1, 1)
-        # 
-        # out = Tensor(out_data, (x,), 'global_avgpool')
-        # 
-        # def _backward():
-        #     if self.flatten:
-        #         grad = out.grad[:, :, np.newaxis, np.newaxis]
-        #     else:
-        #         grad = out.grad
-        #     x.grad += np.broadcast_to(grad / (H * W), x.shape).copy()
-        # 
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - np.mean(x.data, axis=(2, 3)) -> average over entire spatial dims
+        # - If flatten=False, add dimensions: out[:, :, np.newaxis, np.newaxis]
+        # - Backward: gradient = out.grad / (H * W), broadcast to input shape
+        # - np.broadcast_to(grad, x.shape).copy() for gradient expansion
         
-        return None  # Replace with implementation
+        return None
     
     def __repr__(self):
         return f"GlobalAvgPool2d(flatten={self.flatten})"
@@ -581,46 +461,14 @@ class AdaptiveAvgPool2d(Module):
         
         Automatically computes kernel_size and stride to achieve output_size.
         """
-        # TODO: Implement adaptive average pooling
-        # HINT:
-        # N, C, H, W = x.shape
-        # H_out, W_out = self.output_size
-        # 
-        # # Compute adaptive kernel size and stride
-        # stride_h = H // H_out
-        # stride_w = W // W_out
-        # kernel_h = H - (H_out - 1) * stride_h
-        # kernel_w = W - (W_out - 1) * stride_w
-        # 
-        # out_data = np.zeros((N, C, H_out, W_out))
-        # 
-        # for h in range(H_out):
-        #     for w in range(W_out):
-        #         h_start = h * stride_h
-        #         w_start = w * stride_w
-        #         h_end = h_start + kernel_h
-        #         w_end = w_start + kernel_w
-        #         out_data[:, :, h, w] = np.mean(x.data[:, :, h_start:h_end, w_start:w_end], axis=(2, 3))
-        # 
-        # out = Tensor(out_data, (x,), 'adaptive_avgpool')
-        # 
-        # def _backward():
-        #     dx = np.zeros_like(x.data)
-        #     for h in range(H_out):
-        #         for w in range(W_out):
-        #             h_start = h * stride_h
-        #             w_start = w * stride_w
-        #             h_end = h_start + kernel_h
-        #             w_end = w_start + kernel_w
-        #             pool_size = kernel_h * kernel_w
-        #             dx[:, :, h_start:h_end, w_start:w_end] += \
-        #                 out.grad[:, :, h:h+1, w:w+1] / pool_size
-        #     x.grad += dx
-        # 
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - Compute adaptive stride: stride_h = H // H_out, stride_w = W // W_out
+        # - Compute adaptive kernel: kernel_h = H - (H_out - 1) * stride_h
+        # - Variable window sizes possible (not fixed kernel)
+        # - Forward: np.mean over computed windows
+        # - Backward: distribute gradient / pool_size to each window
         
-        return None  # Replace with implementation
+        return None
     
     def __repr__(self):
         return f"AdaptiveAvgPool2d(output_size={self.output_size})"

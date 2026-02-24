@@ -25,20 +25,27 @@ def arithmetic_ops(a: torch.Tensor, b: torch.Tensor) -> dict:
     Returns:
         dict with keys: 'add', 'sub', 'mul', 'div', 'pow'
     """
+    # API hints:
+    # - a + b or torch.add(a, b) -> element-wise addition
+    # - a - b or torch.sub(a, b) -> element-wise subtraction
+    # - a * b or torch.mul(a, b) -> element-wise multiplication
+    # - a / b or torch.div(a, b) -> element-wise division
+    # - a ** b or torch.pow(a, b) -> element-wise power
+    
     # TODO: Addition
-    add = None  # Replace: a + b
+    add = None
     
     # TODO: Subtraction
-    sub = None  # Replace: a - b
+    sub = None
     
     # TODO: Element-wise multiplication
-    mul = None  # Replace: a * b
+    mul = None
     
     # TODO: Element-wise division
-    div = None  # Replace: a / b
+    div = None
     
     # TODO: Element-wise power (a^b)
-    pow_result = None  # Replace: a ** b or torch.pow(a, b)
+    pow_result = None
     
     return {
         'add': add,
@@ -64,15 +71,20 @@ def matrix_ops(A: torch.Tensor, B: torch.Tensor) -> dict:
     Returns:
         dict with keys: 'matmul', 'transpose', 'inner_product'
     """
+    # API hints:
+    # - A @ B or torch.mm(A, B) -> matrix multiplication
+    # - A.T or A.transpose(dim0, dim1) -> transpose
+    # - tensor.flatten() -> 1D tensor
+    # - torch.dot(a, b) -> dot product of 1D tensors
+    
     # TODO: Matrix multiplication
-    matmul = None  # Replace: A @ B or torch.mm(A, B)
+    matmul = None
     
     # TODO: Transpose of A
-    transpose = None  # Replace: A.T or A.transpose(0, 1)
+    transpose = None
     
-    # TODO: Inner product (flatten and dot)
-    # Compute A.flatten() dot A.flatten()
-    inner_product = None  # Replace: torch.dot(A.flatten(), A.flatten())
+    # TODO: Inner product (flatten A and compute dot product with itself)
+    inner_product = None
     
     return {
         'matmul': matmul,
@@ -92,24 +104,29 @@ def broadcasting_examples() -> dict:
     Returns:
         dict with different broadcast examples
     """
+    # API hints:
+    # - tensor + scalar -> broadcasts scalar to all elements
+    # - matrix + row_vec -> broadcasts row across all rows
+    # - matrix + col_vec -> broadcasts column across all columns
+    # - Broadcasting: smaller tensor is expanded to match larger tensor's shape
+    
     # TODO: Add a scalar to a tensor
     tensor = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32)
-    scalar_add = None  # Replace: tensor + 5
+    scalar_add = None
     
     # TODO: Add a row vector to a matrix (broadcasts over rows)
     matrix = torch.ones(3, 4)
     row_vec = torch.tensor([1, 2, 3, 4])
-    row_broadcast = None  # Replace: matrix + row_vec
+    row_broadcast = None
     
     # TODO: Add a column vector to a matrix (broadcasts over columns)
     col_vec = torch.tensor([[1], [2], [3]])  # Shape [3, 1]
-    col_broadcast = None  # Replace: matrix + col_vec
+    col_broadcast = None
     
-    # TODO: Outer product via broadcasting
-    # [3, 1] * [1, 4] = [3, 4]
+    # TODO: Outer product via broadcasting [3, 1] * [1, 4] = [3, 4]
     a = torch.tensor([[1], [2], [3]], dtype=torch.float32)  # [3, 1]
     b = torch.tensor([[1, 2, 3, 4]], dtype=torch.float32)    # [1, 4]
-    outer = None  # Replace: a * b
+    outer = None
     
     return {
         'scalar_add': scalar_add,
@@ -130,21 +147,29 @@ def reductions(t: torch.Tensor) -> dict:
     Returns:
         dict with various reductions
     """
+    # API hints:
+    # - tensor.sum() -> sum of all elements
+    # - tensor.mean() -> mean of all elements
+    # - tensor.sum(dim=0) -> sum along dimension 0 (rows)
+    # - tensor.sum(dim=1) -> sum along dimension 1 (columns)
+    # - tensor.max() -> maximum value
+    # - tensor.argmax() -> index of maximum value (flattened)
+    
     # TODO: Sum of all elements
-    total_sum = None  # Replace: t.sum()
+    total_sum = None
     
     # TODO: Mean of all elements
-    total_mean = None  # Replace: t.mean()
+    total_mean = None
     
     # TODO: Sum along rows (result shape: [num_cols])
-    row_sum = None  # Replace: t.sum(dim=0)
+    row_sum = None
     
     # TODO: Sum along columns (result shape: [num_rows])
-    col_sum = None  # Replace: t.sum(dim=1)
+    col_sum = None
     
     # TODO: Maximum value and its index
-    max_val = None  # Replace: t.max()
-    argmax = None   # Replace: t.argmax()
+    max_val = None
+    argmax = None
     
     return {
         'total_sum': total_sum,
@@ -167,20 +192,28 @@ def math_functions(t: torch.Tensor) -> dict:
     Returns:
         dict with various math function results
     """
+    # API hints:
+    # - torch.exp(t) -> element-wise exponential
+    # - torch.log(t) -> element-wise natural logarithm
+    # - torch.abs(t) -> element-wise absolute value
+    # - torch.sqrt(t) -> element-wise square root
+    # - torch.sin(t) -> element-wise sine
+    # - torch.clamp(t, min, max) -> clamp values to range
+    
     # TODO: Exponential
-    exp = None  # Replace: torch.exp(t)
+    exp = None
     
     # TODO: Natural logarithm (of abs + small epsilon to avoid log(0))
-    log = None  # Replace: torch.log(torch.abs(t) + 1e-8)
+    log = None
     
     # TODO: Square root (of abs)
-    sqrt = None  # Replace: torch.sqrt(torch.abs(t))
+    sqrt = None
     
     # TODO: Sine
-    sin = None  # Replace: torch.sin(t)
+    sin = None
     
     # TODO: Clamp to range [-1, 1]
-    clamped = None  # Replace: torch.clamp(t, -1, 1)
+    clamped = None
     
     return {
         'exp': exp,

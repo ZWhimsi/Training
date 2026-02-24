@@ -223,46 +223,16 @@ def batchnorm1d_forward(x: np.ndarray, gamma: np.ndarray, beta: np.ndarray,
         - gamma: Scale parameter
         - x: Original input
     """
-    # TODO: Implement batch normalization forward
-    # HINT:
-    # cache = {}
-    # 
-    # if training:
-    #     # Compute batch statistics
-    #     if x.ndim == 2:
-    #         mean = np.mean(x, axis=0)
-    #         var = np.var(x, axis=0)
-    #     else:  # (N, C, L)
-    #         mean = np.mean(x, axis=(0, 2))
-    #         var = np.var(x, axis=(0, 2))
-    #     
-    #     # Update running statistics
-    #     running_mean[:] = momentum * running_mean + (1 - momentum) * mean
-    #     running_var[:] = momentum * running_var + (1 - momentum) * var
-    # else:
-    #     mean = running_mean
-    #     var = running_var
-    # 
-    # std = np.sqrt(var + eps)
-    # 
-    # # Normalize
-    # if x.ndim == 2:
-    #     x_norm = (x - mean) / std
-    #     out = gamma * x_norm + beta
-    # else:
-    #     x_norm = (x - mean[None, :, None]) / std[None, :, None]
-    #     out = gamma[None, :, None] * x_norm + beta[None, :, None]
-    # 
-    # cache['x_norm'] = x_norm
-    # cache['mean'] = mean
-    # cache['var'] = var
-    # cache['std'] = std
-    # cache['gamma'] = gamma
-    # cache['x'] = x
-    # 
-    # return out, cache
+    # API hints:
+    # - Training: compute mean/var over batch (axis=0 for 2D, axis=(0,2) for 3D)
+    # - np.mean(x, axis=...), np.var(x, axis=...)
+    # - Update running stats: running_mean[:] = momentum * running + (1-momentum) * batch
+    # - Eval: use running_mean, running_var instead of batch stats
+    # - std = np.sqrt(var + eps) for numerical stability
+    # - x_norm = (x - mean) / std, then out = gamma * x_norm + beta
+    # - Return (out, cache) where cache stores values for backward
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -283,48 +253,15 @@ def batchnorm1d_backward(dy: np.ndarray, cache: dict, eps: float = 1e-5) -> Tupl
         dgamma: Gradient w.r.t. scale parameter
         dbeta: Gradient w.r.t. shift parameter
     """
-    # TODO: Implement batch normalization backward
-    # HINT:
-    # x_norm = cache['x_norm']
-    # std = cache['std']
-    # gamma = cache['gamma']
-    # x = cache['x']
-    # mean = cache['mean']
-    # 
-    # if x.ndim == 2:
-    #     N = x.shape[0]
-    #     
-    #     # Gradients for gamma and beta
-    #     dgamma = np.sum(dy * x_norm, axis=0)
-    #     dbeta = np.sum(dy, axis=0)
-    #     
-    #     # Gradient for normalized input
-    #     dx_norm = dy * gamma
-    #     
-    #     # Gradient for input (using the batch norm gradient formula)
-    #     dx = (1.0 / N) * (1.0 / std) * (
-    #         N * dx_norm 
-    #         - np.sum(dx_norm, axis=0) 
-    #         - x_norm * np.sum(dx_norm * x_norm, axis=0)
-    #     )
-    # else:  # (N, C, L)
-    #     N, C, L = x.shape
-    #     m = N * L  # Total samples per channel
-    #     
-    #     dgamma = np.sum(dy * x_norm, axis=(0, 2))
-    #     dbeta = np.sum(dy, axis=(0, 2))
-    #     
-    #     dx_norm = dy * gamma[None, :, None]
-    #     
-    #     dx = (1.0 / m) * (1.0 / std[None, :, None]) * (
-    #         m * dx_norm
-    #         - np.sum(dx_norm, axis=(0, 2), keepdims=True).transpose(1, 0, 2)
-    #         - x_norm * np.sum(dx_norm * x_norm, axis=(0, 2), keepdims=True).transpose(1, 0, 2)
-    #     )
-    # 
-    # return dx, dgamma, dbeta
+    # API hints:
+    # - dgamma = sum(dy * x_norm) over batch dimension
+    # - dbeta = sum(dy) over batch dimension
+    # - dx_norm = dy * gamma
+    # - dx formula: (1/N) * (1/std) * (N*dx_norm - sum(dx_norm) - x_norm*sum(dx_norm*x_norm))
+    # - This formula accounts for mean and variance dependencies on input
+    # - For 3D input, sum over axes (0, 2), m = N * L
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -353,25 +290,12 @@ class BatchNorm1d(Module):
     def __init__(self, num_features: int, eps: float = 1e-5, 
                  momentum: float = 0.1, affine: bool = True):
         """Initialize BatchNorm1d layer."""
-        # TODO: Initialize parameters and buffers
-        # HINT:
-        # self.num_features = num_features
-        # self.eps = eps
-        # self.momentum = momentum
-        # self.affine = affine
-        # self._training = True
-        # 
-        # # Learnable parameters
-        # if affine:
-        #     self.gamma = Tensor(np.ones(num_features))
-        #     self.beta = Tensor(np.zeros(num_features))
-        # else:
-        #     self.gamma = None
-        #     self.beta = None
-        # 
-        # # Running statistics (not parameters, but state)
-        # self.running_mean = np.zeros(num_features)
-        # self.running_var = np.ones(num_features)
+        # API hints:
+        # - gamma: Tensor of ones, shape (num_features,) - scale parameter
+        # - beta: Tensor of zeros, shape (num_features,) - shift parameter
+        # - running_mean: numpy array of zeros (not a Tensor, just state)
+        # - running_var: numpy array of ones (not a Tensor, just state)
+        # - If affine=False, gamma and beta are None
         
         self.num_features = num_features
         self.eps = eps
@@ -386,41 +310,14 @@ class BatchNorm1d(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply batch normalization."""
-        # TODO: Implement forward with gradient tracking
-        # HINT:
-        # gamma_data = self.gamma.data if self.gamma is not None else np.ones(self.num_features)
-        # beta_data = self.beta.data if self.beta is not None else np.zeros(self.num_features)
-        # 
-        # result = batchnorm1d_forward(
-        #     x.data, gamma_data, beta_data,
-        #     self.running_mean, self.running_var,
-        #     self._training, self.momentum, self.eps
-        # )
-        # 
-        # if result is None:
-        #     return None
-        # 
-        # out_data, cache = result
-        # 
-        # if self.affine:
-        #     out = Tensor(out_data, (x, self.gamma, self.beta), 'batchnorm1d')
-        # else:
-        #     out = Tensor(out_data, (x,), 'batchnorm1d')
-        # 
-        # def _backward():
-        #     backward_result = batchnorm1d_backward(out.grad, cache, self.eps)
-        #     if backward_result is None:
-        #         return
-        #     dx, dgamma, dbeta = backward_result
-        #     x.grad += dx
-        #     if self.affine:
-        #         self.gamma.grad += dgamma
-        #         self.beta.grad += dbeta
-        # 
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - batchnorm1d_forward(x.data, gamma, beta, running_mean, running_var, training, ...)
+        # - Returns (out_data, cache) tuple
+        # - Create Tensor with children including gamma, beta if affine
+        # - _backward: call batchnorm1d_backward(out.grad, cache, eps)
+        # - Accumulate gradients: x.grad += dx, gamma.grad += dgamma, beta.grad += dbeta
         
-        return None  # Replace with implementation
+        return None
     
     def parameters(self) -> List[Tensor]:
         """Return learnable parameters."""
@@ -465,39 +362,15 @@ def batchnorm2d_forward(x: np.ndarray, gamma: np.ndarray, beta: np.ndarray,
         out: Normalized output of shape (N, C, H, W)
         cache: Values needed for backward
     """
-    # TODO: Implement 2D batch normalization forward
-    # HINT:
-    # cache = {}
-    # N, C, H, W = x.shape
-    # 
-    # if training:
-    #     # Compute mean and var over (N, H, W) for each channel
-    #     mean = np.mean(x, axis=(0, 2, 3))  # (C,)
-    #     var = np.var(x, axis=(0, 2, 3))    # (C,)
-    #     
-    #     # Update running statistics
-    #     running_mean[:] = momentum * running_mean + (1 - momentum) * mean
-    #     running_var[:] = momentum * running_var + (1 - momentum) * var
-    # else:
-    #     mean = running_mean
-    #     var = running_var
-    # 
-    # std = np.sqrt(var + eps)
-    # 
-    # # Reshape for broadcasting: (C,) -> (1, C, 1, 1)
-    # x_norm = (x - mean[None, :, None, None]) / std[None, :, None, None]
-    # out = gamma[None, :, None, None] * x_norm + beta[None, :, None, None]
-    # 
-    # cache['x_norm'] = x_norm
-    # cache['mean'] = mean
-    # cache['var'] = var
-    # cache['std'] = std
-    # cache['gamma'] = gamma
-    # cache['x'] = x
-    # 
-    # return out, cache
+    # API hints:
+    # - For 2D: compute mean/var over (N, H, W), i.e., axis=(0, 2, 3)
+    # - mean, var shape: (C,) - one value per channel
+    # - Broadcasting: mean[None, :, None, None] to match (N, C, H, W)
+    # - x_norm = (x - mean) / std, out = gamma * x_norm + beta
+    # - Cache stores x_norm, mean, var, std, gamma, x for backward
+    # - Running stats updated during training only
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -518,33 +391,15 @@ def batchnorm2d_backward(dy: np.ndarray, cache: dict, eps: float = 1e-5) -> Tupl
         dgamma: Gradient w.r.t. scale (C,)
         dbeta: Gradient w.r.t. shift (C,)
     """
-    # TODO: Implement 2D batch normalization backward
-    # HINT:
-    # x_norm = cache['x_norm']
-    # std = cache['std']
-    # gamma = cache['gamma']
-    # x = cache['x']
-    # 
-    # N, C, H, W = x.shape
-    # m = N * H * W  # Total samples per channel
-    # 
-    # # Gradients for gamma and beta
-    # dgamma = np.sum(dy * x_norm, axis=(0, 2, 3))
-    # dbeta = np.sum(dy, axis=(0, 2, 3))
-    # 
-    # # Gradient for normalized input
-    # dx_norm = dy * gamma[None, :, None, None]
-    # 
-    # # Gradient for input
-    # dx = (1.0 / m) * (1.0 / std[None, :, None, None]) * (
-    #     m * dx_norm
-    #     - np.sum(dx_norm, axis=(0, 2, 3), keepdims=True).transpose(1, 0, 2, 3)
-    #     - x_norm * np.sum(dx_norm * x_norm, axis=(0, 2, 3), keepdims=True).transpose(1, 0, 2, 3)
-    # )
-    # 
-    # return dx, dgamma, dbeta
+    # API hints:
+    # - dgamma = sum(dy * x_norm) over (N, H, W), i.e., axis=(0, 2, 3)
+    # - dbeta = sum(dy) over axis=(0, 2, 3)
+    # - m = N * H * W (total samples per channel)
+    # - dx_norm = dy * gamma (with broadcasting)
+    # - dx formula uses batch norm gradient: (1/m) * (1/std) * (m*dx_norm - sum terms)
+    # - Requires careful broadcasting with [None, :, None, None] pattern
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -572,8 +427,12 @@ class BatchNorm2d(Module):
     def __init__(self, num_features: int, eps: float = 1e-5,
                  momentum: float = 0.1, affine: bool = True):
         """Initialize BatchNorm2d layer."""
-        # TODO: Initialize parameters and buffers
-        # HINT: Same structure as BatchNorm1d
+        # API hints:
+        # - Same structure as BatchNorm1d
+        # - gamma: Tensor(np.ones(num_features))
+        # - beta: Tensor(np.zeros(num_features))
+        # - running_mean: np.zeros(num_features)
+        # - running_var: np.ones(num_features)
         
         self.num_features = num_features
         self.eps = eps
@@ -588,10 +447,12 @@ class BatchNorm2d(Module):
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply 2D batch normalization."""
-        # TODO: Implement forward with gradient tracking
-        # HINT: Similar to BatchNorm1d but use batchnorm2d functions
+        # API hints:
+        # - batchnorm2d_forward(x.data, gamma, beta, running_mean, running_var, ...)
+        # - Same pattern as BatchNorm1d.forward but for 4D tensors
+        # - _backward uses batchnorm2d_backward(out.grad, cache, eps)
         
-        return None  # Replace with implementation
+        return None
     
     def parameters(self) -> List[Tensor]:
         """Return learnable parameters."""
@@ -644,45 +505,15 @@ class LayerNorm(Module):
         
         Normalizes over the last len(normalized_shape) dimensions.
         """
-        # TODO: Implement layer normalization
-        # HINT:
-        # # Determine axes to normalize over
-        # ndim = len(self.normalized_shape)
-        # axes = tuple(range(-ndim, 0))
-        # 
-        # # Compute statistics
-        # mean = np.mean(x.data, axis=axes, keepdims=True)
-        # var = np.var(x.data, axis=axes, keepdims=True)
-        # std = np.sqrt(var + self.eps)
-        # 
-        # # Normalize
-        # x_norm = (x.data - mean) / std
-        # out_data = self.gamma.data * x_norm + self.beta.data
-        # 
-        # out = Tensor(out_data, (x, self.gamma, self.beta), 'layernorm')
-        # 
-        # def _backward():
-        #     # Simplified backward (full derivation is complex)
-        #     dgamma = np.sum(out.grad * x_norm, axis=tuple(range(x.ndim - ndim)))
-        #     dbeta = np.sum(out.grad, axis=tuple(range(x.ndim - ndim)))
-        #     
-        #     # Input gradient
-        #     n = np.prod(self.normalized_shape)
-        #     dx_norm = out.grad * self.gamma.data
-        #     dx = (1.0 / n) * (1.0 / std) * (
-        #         n * dx_norm
-        #         - np.sum(dx_norm, axis=axes, keepdims=True)
-        #         - x_norm * np.sum(dx_norm * x_norm, axis=axes, keepdims=True)
-        #     )
-        #     
-        #     x.grad += dx
-        #     self.gamma.grad += dgamma
-        #     self.beta.grad += dbeta
-        # 
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - Unlike BatchNorm, normalizes over features (not batch)
+        # - axes = tuple(range(-ndim, 0)) for last ndim dimensions
+        # - np.mean(x, axis=axes, keepdims=True), np.var(x, axis=axes, keepdims=True)
+        # - x_norm = (x - mean) / std, out = gamma * x_norm + beta
+        # - Backward: similar formula to BatchNorm but over different axes
+        # - dgamma/dbeta sum over batch dims: axis=tuple(range(x.ndim - ndim))
         
-        return None  # Replace with implementation
+        return None
     
     def parameters(self) -> List[Tensor]:
         return [self.gamma, self.beta]

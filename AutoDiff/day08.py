@@ -97,14 +97,13 @@ class Value:
         Returns:
             Value representing -self
         """
-        # TODO: Implement forward pass
-        out = None  # Replace: Value(-self.data, (self,), 'neg')
+        # API hints:
+        # - Forward: Value(-self.data, (self,), 'neg')
+        # - Backward: d(-x)/dx = -1, so self.grad += -1 * out.grad
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # The gradient flows backward with a sign flip
-            # HINT: self.grad += -1 * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
@@ -120,33 +119,27 @@ class Value:
         Forward: out = self.data - other.data
         Backward: d(a-b)/da = 1, d(a-b)/db = -1
         
-        Note: You could implement this as self + (-other), but implementing
-        it directly teaches the gradient flow better.
-        
         Returns:
             Value representing self - other
         """
         other = other if isinstance(other, Value) else Value(other)
         
-        # TODO: Implement forward pass
-        out = None  # Replace: Value(self.data - other.data, (self, other), '-')
+        # API hints:
+        # - Forward: Value(self.data - other.data, (self, other), '-')
+        # - Backward: self.grad += 1 * out.grad, other.grad += -1 * out.grad
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # Gradient of minuend (self): +1 * out.grad
-            # Gradient of subtrahend (other): -1 * out.grad
-            # HINT: self.grad += out.grad
-            # HINT: other.grad += -out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
     
     def __rsub__(self, other):
         """Handle other - self when other is not a Value."""
-        # TODO: Implement reverse subtraction
-        # HINT: return Value(other) - self
-        return None  # Replace
+        # API hints:
+        # - Convert other to Value and subtract: Value(other) - self
+        return None
     
     # ========================================================================
     # Exercise 3: Power with Backward Pass (for division)
@@ -187,26 +180,23 @@ class Value:
         """
         other = other if isinstance(other, Value) else Value(other)
         
-        # TODO: Implement forward pass
-        out = None  # Replace: Value(self.data / other.data, (self, other), '/')
+        # API hints:
+        # - Forward: Value(self.data / other.data, (self, other), '/')
+        # - Backward: self.grad += (1/other.data) * out.grad
+        # - Backward: other.grad += (-self.data / other.data**2) * out.grad
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # For a/b:
-            # d(a/b)/da = 1/b
-            # d(a/b)/db = -a/b² = -a/(b*b)
-            # HINT: self.grad += (1 / other.data) * out.grad
-            # HINT: other.grad += (-self.data / (other.data ** 2)) * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
     
     def __rtruediv__(self, other):
         """Handle other / self when other is not a Value."""
-        # TODO: Implement reverse division
-        # HINT: return Value(other) / self
-        return None  # Replace
+        # API hints:
+        # - Convert other to Value and divide: Value(other) / self
+        return None
 
 
 # ============================================================================
@@ -227,16 +217,19 @@ def verify_subtraction_gradients():
     a = Value(5.0)
     b = Value(3.0)
     
-    # TODO: Compute a - b and backpropagate
-    c = None  # Replace: a - b
+    # API hints:
+    # - Compute c = a - b
+    # - Call c.backward() to compute gradients
+    # - Check: a.grad should be 1.0, b.grad should be -1.0
+    c = None
     if c is not None:
         c.backward()
     
     return {
         'a_grad': a.grad,
         'b_grad': b.grad,
-        'a_correct': None,  # Replace: abs(a.grad - 1.0) < 1e-6
-        'b_correct': None   # Replace: abs(b.grad - (-1.0)) < 1e-6
+        'a_correct': None,
+        'b_correct': None
     }
 
 
@@ -252,30 +245,29 @@ def verify_division_gradients():
         df/da = 1/b
         df/db = -a/b²
     
-    At a=6, b=2:
-        df/da = 1/2 = 0.5
-        df/db = -6/4 = -1.5
-    
     Returns:
         dict with results
     """
     a = Value(6.0)
     b = Value(2.0)
     
-    # TODO: Compute a / b and backpropagate
-    c = None  # Replace: a / b
+    # API hints:
+    # - Compute c = a / b
+    # - Call c.backward() to compute gradients
+    # - Expected: a.grad = 1/b = 0.5, b.grad = -a/b² = -1.5
+    c = None
     if c is not None:
         c.backward()
     
-    expected_a_grad = 0.5   # 1/b = 1/2
-    expected_b_grad = -1.5  # -a/b² = -6/4
+    expected_a_grad = 0.5
+    expected_b_grad = -1.5
     
     return {
         'result': c.data if c else None,
         'a_grad': a.grad,
         'b_grad': b.grad,
-        'a_correct': None,  # Replace: abs(a.grad - expected_a_grad) < 1e-6
-        'b_correct': None   # Replace: abs(b.grad - expected_b_grad) < 1e-6
+        'a_correct': None,
+        'b_correct': None
     }
 
 
@@ -289,34 +281,32 @@ def chain_rule_division():
     
     f(x) = (x + 1) / (x - 1) at x = 3
     
-    Using quotient rule:
-        f'(x) = [(x-1) * 1 - (x+1) * 1] / (x-1)²
-              = [(x-1) - (x+1)] / (x-1)²
-              = -2 / (x-1)²
-        
-        f'(3) = -2 / (3-1)² = -2/4 = -0.5
-    
     Returns:
         dict with result and gradient
     """
     x = Value(3.0)
     
-    # TODO: Compute (x + 1) / (x - 1) and backpropagate
-    numerator = None    # Replace: x + 1
-    denominator = None  # Replace: x - 1
-    f = None           # Replace: numerator / denominator
+    # API hints:
+    # - Build numerator = x + 1
+    # - Build denominator = x - 1
+    # - Compute f = numerator / denominator
+    # - Call f.backward() to get gradient
+    # - Expected: value = 2.0, gradient = -0.5
+    numerator = None
+    denominator = None
+    f = None
     
     if f is not None:
         f.backward()
     
-    expected_value = 2.0    # (3+1)/(3-1) = 4/2 = 2
-    expected_grad = -0.5    # -2/(3-1)² = -2/4 = -0.5
+    expected_value = 2.0
+    expected_grad = -0.5
     
     return {
         'value': f.data if f else None,
         'gradient': x.grad,
-        'value_correct': None,     # Replace: abs(f.data - expected_value) < 1e-6
-        'gradient_correct': None   # Replace: abs(x.grad - expected_grad) < 1e-6
+        'value_correct': None,
+        'gradient_correct': None
     }
 
 

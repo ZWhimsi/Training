@@ -69,9 +69,10 @@ def create_input_node(value, name=None):
     Returns:
         Node with value set and no operation
     """
-    # TODO: Create a node with the given value
-    # HINT: Node(value=value, op=None, inputs=[], name=name)
-    return None  # Replace
+    # API hints:
+    # - Use Node class constructor
+    # - Input nodes have: value=value, op=None, inputs=[], name=name
+    return None
 
 
 # ============================================================================
@@ -89,26 +90,33 @@ def create_add_node(a, b, name=None):
     Returns:
         Node with computed sum
     """
-    # TODO: Create node with value = a.value + b.value
-    # HINT: Node(value=a.value + b.value, op='add', inputs=[a, b], name=name)
-    return None  # Replace
+    # API hints:
+    # - Compute value: a.value + b.value
+    # - Set op='add', inputs=[a, b]
+    # - Use Node class constructor
+    return None
 
 
 def create_mul_node(a, b, name=None):
     """
     Create a node representing a * b.
     """
-    # TODO: Create multiplication node
-    return None  # Replace
+    # API hints:
+    # - Compute value: a.value * b.value
+    # - Set op='mul', inputs=[a, b]
+    # - Use Node class constructor
+    return None
 
 
 def create_pow_node(a, n, name=None):
     """
     Create a node representing a ** n (n is a constant).
     """
-    # TODO: Create power node
-    # Note: n is a scalar, not a Node
-    return None  # Replace
+    # API hints:
+    # - Compute value: a.value ** n (n is scalar, not Node)
+    # - Set op='pow', inputs=[a]
+    # - Use Node class constructor
+    return None
 
 
 # ============================================================================

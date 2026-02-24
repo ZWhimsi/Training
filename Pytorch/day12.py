@@ -52,19 +52,13 @@ def manual_dropout(x: torch.Tensor, p: float = 0.5, training: bool = True) -> to
     
     Returns:
         Output tensor with dropout applied (training) or unchanged (eval)
-    
-    TODO: Implement dropout
-    HINT:
-        if not training or p == 0:
-            return x
-        
-        # Create binary mask: 1 with probability (1-p), 0 with probability p
-        mask = (torch.rand_like(x) > p).float()
-        
-        # Scale to maintain expected value
-        return x * mask / (1 - p)
     """
-    return x  # Replace
+    # API hints:
+    # - torch.rand_like(x) -> random tensor same shape as x, values in [0, 1)
+    # - (tensor > p).float() -> binary mask as float tensor
+    # - Scaling: multiply by 1/(1-p) to maintain expected value
+    # - If not training or p==0, return x unchanged
+    return None
 
 
 # ============================================================================
@@ -77,21 +71,17 @@ class ManualDropout(nn.Module):
     """
     def __init__(self, p: float = 0.5):
         super().__init__()
-        """
-        TODO: Store dropout probability
-        HINT:
-            if p < 0 or p > 1:
-                raise ValueError("Dropout probability must be between 0 and 1")
-            self.p = p
-        """
-        self.p = 0.5  # Replace with validation
+        # API hints:
+        # - Validate p is in range [0, 1], raise ValueError if not
+        # - Store self.p for use in forward
+        self.p = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        TODO: Apply dropout based on training mode
-        HINT: return manual_dropout(x, self.p, self.training)
-        """
-        return x  # Replace
+        """Apply dropout based on training mode (self.training)."""
+        # API hints:
+        # - self.training -> bool indicating if module is in train mode
+        # - manual_dropout(x, self.p, self.training) -> apply dropout
+        return None
 
 
 # ============================================================================
@@ -112,19 +102,13 @@ def dropout2d(x: torch.Tensor, p: float = 0.5, training: bool = True) -> torch.T
     
     Returns:
         Output with some channels zeroed
-    
-    TODO: Implement channel-wise dropout
-    HINT:
-        if not training or p == 0:
-            return x
-        
-        # Create mask of shape (N, C, 1, 1) - same channel mask for all spatial locations
-        N, C, H, W = x.shape
-        mask = (torch.rand(N, C, 1, 1, device=x.device) > p).float()
-        
-        return x * mask / (1 - p)
     """
-    return x  # Replace
+    # API hints:
+    # - x.shape -> (N, C, H, W)
+    # - torch.rand(N, C, 1, 1, device=x.device) -> random per-channel mask
+    # - Mask shape (N, C, 1, 1) broadcasts across spatial dimensions
+    # - Scale by 1/(1-p) to maintain expected value
+    return None
 
 
 # ============================================================================
@@ -137,49 +121,37 @@ def compute_l2_regularization(model: nn.Module, weight_decay: float) -> torch.Te
     
     L2 penalty = (weight_decay / 2) * sum(w^2) for all weights
     
-    Note: In practice, PyTorch's optimizer handles this automatically
-    with the weight_decay parameter. This is for understanding.
-    
     Args:
         model: Neural network module
         weight_decay: L2 regularization strength
     
     Returns:
         L2 penalty term (scalar tensor)
-    
-    TODO: Compute L2 penalty
-    HINT:
-        l2_penalty = torch.tensor(0.0)
-        for param in model.parameters():
-            l2_penalty = l2_penalty + (param ** 2).sum()
-        return (weight_decay / 2) * l2_penalty
     """
-    return torch.tensor(0.0)  # Replace
+    # API hints:
+    # - model.parameters() -> iterate over all parameters
+    # - (param ** 2).sum() -> sum of squared values
+    # - torch.tensor(0.0) -> initialize accumulator
+    # - Formula: (weight_decay / 2) * sum(w^2)
+    return None
 
 
 def train_step_with_l2(model: nn.Module, x: torch.Tensor, y: torch.Tensor,
                        loss_fn: nn.Module, optimizer: torch.optim.Optimizer,
                        weight_decay: float) -> float:
     """
-    Training step with manual L2 regularization.
-    
-    TODO: Perform training step with L2 penalty added to loss
-    HINT:
-        optimizer.zero_grad()
-        
-        pred = model(x)
-        loss = loss_fn(pred, y)
-        
-        # Add L2 penalty
-        l2_penalty = compute_l2_regularization(model, weight_decay)
-        total_loss = loss + l2_penalty
-        
-        total_loss.backward()
-        optimizer.step()
-        
-        return total_loss.item()
+    Training step with manual L2 regularization added to loss.
     """
-    return 0.0  # Replace
+    # API hints:
+    # - optimizer.zero_grad() -> clear gradients
+    # - model(x) -> forward pass
+    # - loss_fn(pred, y) -> compute base loss
+    # - compute_l2_regularization(model, weight_decay) -> L2 penalty
+    # - total_loss = loss + l2_penalty
+    # - total_loss.backward() -> compute gradients
+    # - optimizer.step() -> update parameters
+    # - tensor.item() -> get Python scalar
+    return None
 
 
 # ============================================================================
@@ -191,8 +163,7 @@ def compute_l1_regularization(model: nn.Module, l1_lambda: float) -> torch.Tenso
     Compute L1 regularization penalty.
     
     L1 penalty = l1_lambda * sum(|w|) for all weights
-    
-    L1 regularization encourages sparsity (many weights become exactly zero).
+    L1 regularization encourages sparsity.
     
     Args:
         model: Neural network module
@@ -200,15 +171,13 @@ def compute_l1_regularization(model: nn.Module, l1_lambda: float) -> torch.Tenso
     
     Returns:
         L1 penalty term (scalar tensor)
-    
-    TODO: Compute L1 penalty
-    HINT:
-        l1_penalty = torch.tensor(0.0)
-        for param in model.parameters():
-            l1_penalty = l1_penalty + param.abs().sum()
-        return l1_lambda * l1_penalty
     """
-    return torch.tensor(0.0)  # Replace
+    # API hints:
+    # - model.parameters() -> iterate over parameters
+    # - param.abs().sum() -> sum of absolute values
+    # - torch.tensor(0.0) -> initialize accumulator
+    # - Formula: l1_lambda * sum(|w|)
+    return None
 
 
 # ============================================================================
@@ -221,17 +190,13 @@ def compute_elastic_net_penalty(model: nn.Module, l1_lambda: float,
     Compute Elastic Net penalty (combination of L1 and L2).
     
     Elastic Net = l1_lambda * |w| + (l2_lambda/2) * w^2
-    
-    This combines the sparsity-inducing property of L1 with
-    the weight shrinkage of L2.
-    
-    TODO: Compute combined penalty
-    HINT:
-        l1 = compute_l1_regularization(model, l1_lambda)
-        l2 = compute_l2_regularization(model, l2_lambda)
-        return l1 + l2
+    Combines sparsity-inducing L1 with weight shrinkage of L2.
     """
-    return torch.tensor(0.0)  # Replace
+    # API hints:
+    # - compute_l1_regularization(model, l1_lambda) -> L1 term
+    # - compute_l2_regularization(model, l2_lambda) -> L2 term
+    # - Return sum of both penalties
+    return None
 
 
 # ============================================================================
@@ -245,35 +210,25 @@ class RegularizedMLP(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int,
                  dropout_p: float = 0.5):
         super().__init__()
-        """
-        TODO: Create MLP with dropout after each hidden layer
-        HINT:
-            self.fc1 = nn.Linear(input_dim, hidden_dim)
-            self.dropout1 = nn.Dropout(p=dropout_p)
-            self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-            self.dropout2 = nn.Dropout(p=dropout_p)
-            self.fc3 = nn.Linear(hidden_dim, output_dim)
-            self.relu = nn.ReLU()
-        """
-        self.fc1 = None      # Replace
-        self.dropout1 = None # Replace
-        self.fc2 = None      # Replace
-        self.dropout2 = None # Replace
-        self.fc3 = None      # Replace
-        self.relu = None     # Replace
+        # API hints:
+        # - nn.Linear(in_features, out_features) -> fully connected layer
+        # - nn.Dropout(p=dropout_p) -> dropout layer
+        # - nn.ReLU() -> activation function
+        # - Pattern: fc -> relu -> dropout (after each hidden layer)
+        self.fc1 = None
+        self.dropout1 = None
+        self.fc2 = None
+        self.dropout2 = None
+        self.fc3 = None
+        self.relu = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        TODO: Forward pass with dropout
-        HINT:
-            x = self.relu(self.fc1(x))
-            x = self.dropout1(x)
-            x = self.relu(self.fc2(x))
-            x = self.dropout2(x)
-            x = self.fc3(x)
-            return x
-        """
-        return x  # Replace
+        """Forward pass: fc1 -> relu -> dropout -> fc2 -> relu -> dropout -> fc3."""
+        # API hints:
+        # - Apply relu after each hidden fc layer
+        # - Apply dropout after relu
+        # - No activation/dropout after final fc layer
+        return None
 
 
 # ============================================================================
@@ -294,24 +249,15 @@ def compare_dropout_behavior(model: nn.Module, x: torch.Tensor,
         Tuple of (train_outputs_variance, eval_output)
         - train_outputs_variance: Variance of outputs across runs (train mode)
         - eval_output: Single output in eval mode
-    
-    TODO: Run model multiple times in train mode and once in eval mode
-    HINT:
-        model.train()
-        train_outputs = []
-        for _ in range(num_runs):
-            out = model(x)
-            train_outputs.append(out)
-        train_outputs = torch.stack(train_outputs)
-        train_var = train_outputs.var(dim=0)
-        
-        model.eval()
-        with torch.no_grad():
-            eval_output = model(x)
-        
-        return train_var, eval_output
     """
-    return torch.zeros_like(x), x  # Replace
+    # API hints:
+    # - model.train() -> set to training mode (dropout active)
+    # - model.eval() -> set to eval mode (dropout inactive)
+    # - Run forward pass num_runs times in train mode
+    # - torch.stack(outputs) -> stack list of tensors
+    # - tensor.var(dim=0) -> variance along first dimension
+    # - torch.no_grad() -> disable gradient computation for eval
+    return None
 
 
 if __name__ == "__main__":

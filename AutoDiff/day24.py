@@ -333,8 +333,9 @@ class Sequential(Module):
         Args:
             *modules: Modules to add in sequence
         """
-        # TODO: Store modules in a list
-        # HINT: self._modules = list(modules)
+        # API hints:
+        # - list(modules) -> convert args tuple to list
+        # - self._modules -> store as instance attribute
         
         self._modules = None  # Replace
     
@@ -348,13 +349,12 @@ class Sequential(Module):
         Returns:
             Output tensor after passing through all modules
         """
-        # TODO: Implement sequential forward pass
-        # HINT:
-        # for module in self._modules:
-        #     x = module(x)
-        # return x
+        # API hints:
+        # - for module in self._modules: -> iterate modules
+        # - module(x) -> call module's forward
+        # - Chain: output of one becomes input of next
         
-        return None  # Replace
+        return None
     
     def parameters(self) -> List[Tensor]:
         """
@@ -363,12 +363,10 @@ class Sequential(Module):
         Returns:
             List of all parameter tensors
         """
-        # TODO: Collect parameters from all child modules
-        # HINT:
-        # params = []
-        # for module in self._modules:
-        #     params.extend(module.parameters())
-        # return params
+        # API hints:
+        # - module.parameters() -> get params from each module
+        # - list.extend(items) -> add multiple items to list
+        # - Iterate self._modules to collect all params
         
         return []  # Replace
     
@@ -415,31 +413,30 @@ class ModuleList(Module):
         Args:
             modules: List of modules (default: empty list)
         """
-        # TODO: Store modules
-        # HINT: self._modules = list(modules) if modules else []
+        # API hints:
+        # - list(modules) if modules else [] -> handle None
+        # - self._modules -> store module list
         
         self._modules = None  # Replace
     
     def append(self, module: Module):
         """Add a module to the end."""
-        # TODO: Implement append
-        # HINT: self._modules.append(module)
-        pass  # Replace
+        # API hints:
+        # - self._modules.append(module) -> add to list
+        pass
     
     def extend(self, modules: List[Module]):
         """Extend with a list of modules."""
-        # TODO: Implement extend
-        # HINT: self._modules.extend(modules)
-        pass  # Replace
+        # API hints:
+        # - self._modules.extend(modules) -> add multiple modules
+        pass
     
     def parameters(self) -> List[Tensor]:
         """Collect parameters from all modules."""
-        # TODO: Collect parameters
-        # HINT:
-        # params = []
-        # for module in self._modules:
-        #     params.extend(module.parameters())
-        # return params
+        # API hints:
+        # - module.parameters() -> get params from module
+        # - list.extend() -> add multiple items
+        # - Iterate self._modules
         
         return []  # Replace
     
@@ -487,8 +484,8 @@ class Residual(Module):
         Args:
             fn: The module F in x + F(x)
         """
-        # TODO: Store the function module
-        # HINT: self.fn = fn
+        # API hints:
+        # - self.fn = fn -> store the wrapped module
         
         self.fn = None  # Replace
     
@@ -498,10 +495,12 @@ class Residual(Module):
         
         Returns: x + fn(x)
         """
-        # TODO: Implement residual forward
-        # HINT: return x + self.fn(x)
+        # API hints:
+        # - self.fn(x) -> pass through wrapped module
+        # - x + result -> add skip connection
+        # - Formula: output = x + F(x)
         
-        return None  # Replace
+        return None
     
     def parameters(self) -> List[Tensor]:
         """Return parameters from wrapped module."""
@@ -529,17 +528,17 @@ class Lambda(Module):
         Args:
             fn: Function that takes Tensor and returns Tensor
         """
-        # TODO: Store the function
-        # HINT: self.fn = fn
+        # API hints:
+        # - self.fn = fn -> store the function
         
         self.fn = None  # Replace
     
     def forward(self, x: Tensor) -> Tensor:
         """Apply the function."""
-        # TODO: Call the function
-        # HINT: return self.fn(x)
+        # API hints:
+        # - self.fn(x) -> call stored function
         
-        return None  # Replace
+        return None
 
 
 # ============================================================================
@@ -568,21 +567,14 @@ class Flatten(Module):
         
         For typical use (batch, C, H, W) -> (batch, C*H*W)
         """
-        # TODO: Implement flatten
-        # HINT:
-        # shape = x.shape
-        # end = self.end_dim if self.end_dim >= 0 else len(shape) + self.end_dim + 1
-        # new_shape = shape[:self.start_dim] + (-1,) + shape[end:]
-        # result = x.data.reshape(new_shape)
-        # out = Tensor(result, (x,), 'flatten')
-        # 
-        # original_shape = x.shape
-        # def _backward():
-        #     x.grad += out.grad.reshape(original_shape)
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - x.shape -> get current shape
+        # - x.data.reshape(new_shape) -> reshape data
+        # - self.start_dim, self.end_dim -> dimension range
+        # - new_shape = shape[:start] + (-1,) + shape[end:]
+        # - Backward: reshape gradient back to original shape
         
-        return None  # Replace
+        return None
     
     def __repr__(self):
         return f"Flatten(start_dim={self.start_dim}, end_dim={self.end_dim})"
@@ -615,21 +607,14 @@ class Dropout(Module):
         Training: Zero random elements and scale by 1/(1-p)
         Inference: Pass through unchanged
         """
-        # TODO: Implement dropout
-        # HINT:
-        # if not self.training or self.p == 0:
-        #     return x
-        # 
-        # mask = np.random.binomial(1, 1-self.p, x.shape) / (1-self.p)
-        # result = x.data * mask
-        # out = Tensor(result, (x,), 'dropout')
-        # 
-        # def _backward():
-        #     x.grad += out.grad * mask
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - self.training -> check if in training mode
+        # - self.p -> dropout probability
+        # - np.random.binomial(1, 1-p, shape) -> generate mask
+        # - Scale by 1/(1-p) to maintain expected value
+        # - In eval mode, return input unchanged
         
-        return None  # Replace
+        return None
     
     def train(self):
         self.training = True

@@ -22,18 +22,17 @@ import triton.language as tl
 
 @triton.jit
 def sum_kernel(x_ptr, out_ptr, n, BLOCK: tl.constexpr):
-    """Sum all elements of a vector."""
-    offs = tl.arange(0, BLOCK)
-    mask = offs < n
+    """
+    Sum all elements of a vector.
+    """
+    # API hints:
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    # TODO: Load with 0 for out-of-bounds
-    x = None  # Replace: tl.load(x_ptr + offs, mask=mask, other=0.0)
-    
-    # TODO: Sum all elements
-    total = None  # Replace: tl.sum(x, axis=0)
-    
-    # Store result (single value)
-    tl.store(out_ptr, total)
+    # TODO: Implement sum kernel
+    pass
 
 
 def vector_sum(x: torch.Tensor) -> torch.Tensor:
@@ -51,23 +50,18 @@ def vector_sum(x: torch.Tensor) -> torch.Tensor:
 
 @triton.jit
 def row_sum_kernel(x_ptr, out_ptr, M, N, stride, BLOCK_N: tl.constexpr):
-    """Sum each row of a matrix."""
-    row = tl.program_id(0)
+    """
+    Sum each row of a matrix.
+    """
+    # API hints:
+    # - tl.program_id(0) -> row index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    if row >= M:
-        return
-    
-    cols = tl.arange(0, BLOCK_N)
-    mask = cols < N
-    
-    # TODO: Load row
-    row_data = None  # Replace: tl.load(x_ptr + row * stride + cols, mask=mask, other=0.0)
-    
-    # TODO: Sum the row
-    row_sum = None  # Replace: tl.sum(row_data, axis=0)
-    
-    # TODO: Store
-    tl.store(out_ptr + row, row_sum)
+    # TODO: Implement row sum kernel
+    pass
 
 
 def row_wise_sum(x: torch.Tensor) -> torch.Tensor:
@@ -85,20 +79,17 @@ def row_wise_sum(x: torch.Tensor) -> torch.Tensor:
 
 @triton.jit
 def mean_kernel(x_ptr, out_ptr, n, BLOCK: tl.constexpr):
-    """Compute mean of all elements."""
-    offs = tl.arange(0, BLOCK)
-    mask = offs < n
+    """
+    Compute mean of all elements.
+    """
+    # API hints:
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    x = tl.load(x_ptr + offs, mask=mask, other=0.0)
-    
-    # TODO: Compute sum
-    total = None  # Replace
-    
-    # TODO: Divide by n to get mean
-    # Note: n needs to be cast to float
-    mean = None  # Replace: total / n
-    
-    tl.store(out_ptr, mean)
+    # TODO: Implement mean kernel (sum / n)
+    pass
 
 
 def vector_mean(x: torch.Tensor) -> torch.Tensor:
@@ -116,22 +107,18 @@ def vector_mean(x: torch.Tensor) -> torch.Tensor:
 
 @triton.jit
 def variance_kernel(x_ptr, out_ptr, mean_val, n, BLOCK: tl.constexpr):
-    """Compute variance: E[(x - mean)²]"""
-    offs = tl.arange(0, BLOCK)
-    mask = offs < n
+    """
+    Compute variance: E[(x - mean)²]
+    """
+    # API hints:
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.where(mask, val, 0.0) -> zero out masked elements before sum
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    x = tl.load(x_ptr + offs, mask=mask, other=0.0)
-    
-    # TODO: Compute (x - mean)²
-    diff_sq = None  # Replace: (x - mean_val) ** 2
-    
-    # TODO: Apply mask before sum (zero out masked elements)
-    diff_sq = tl.where(mask, diff_sq, 0.0)
-    
-    # TODO: Sum and divide by n
-    var = None  # Replace: tl.sum(diff_sq, axis=0) / n
-    
-    tl.store(out_ptr, var)
+    # TODO: Implement variance kernel
+    pass
 
 
 def vector_variance(x: torch.Tensor) -> torch.Tensor:
@@ -150,19 +137,18 @@ def vector_variance(x: torch.Tensor) -> torch.Tensor:
 
 @triton.jit
 def partial_sum_kernel(x_ptr, partial_ptr, n, BLOCK: tl.constexpr):
-    """Each block computes a partial sum."""
-    pid = tl.program_id(0)
+    """
+    Each block computes a partial sum.
+    """
+    # API hints:
+    # - tl.program_id(0) -> block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    offs = pid * BLOCK + tl.arange(0, BLOCK)
-    mask = offs < n
-    
-    x = tl.load(x_ptr + offs, mask=mask, other=0.0)
-    
-    # TODO: Block sum
-    block_sum = None  # Replace: tl.sum(x, axis=0)
-    
-    # TODO: Store partial result
-    tl.store(partial_ptr + pid, block_sum)
+    # TODO: Implement partial sum kernel
+    pass
 
 
 def large_sum(x: torch.Tensor) -> torch.Tensor:

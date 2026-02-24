@@ -111,23 +111,17 @@ class Value:
         Forward: out = max(0, self.data)
         Backward: d(relu)/dx = 1 if x > 0 else 0
         
-        Note: At x=0, the derivative is technically undefined, but we
-        commonly use 0 for simplicity.
-        
         Returns:
             Value with ReLU applied
         """
-        # TODO: Implement forward pass
-        # HINT: Use max(0, self.data) or (self.data if self.data > 0 else 0)
-        out = None  # Replace: Value(max(0, self.data), (self,), 'relu')
+        # API hints:
+        # - Forward: Value(max(0, self.data), (self,), 'relu')
+        # - Backward: gradient is 1 if input > 0, else 0
+        # - self.grad += (1 if self.data > 0 else 0) * out.grad
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # Gradient passes through unchanged if input was positive
-            # Gradient is zero if input was negative or zero
-            # HINT: self.grad += (1.0 if self.data > 0 else 0.0) * out.grad
-            # Alternative: self.grad += (out.data > 0) * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
@@ -140,24 +134,21 @@ class Value:
         """
         Leaky ReLU: x if x > 0 else alpha * x
         
-        Forward: out = x if x > 0 else alpha * x
-        Backward: d(leaky_relu)/dx = 1 if x > 0 else alpha
-        
         Args:
             alpha: Slope for negative values (default 0.01)
         
         Returns:
             Value with Leaky ReLU applied
         """
-        # TODO: Implement forward pass
-        forward_val = None  # Replace: self.data if self.data > 0 else alpha * self.data
-        out = None  # Replace: Value(forward_val, (self,), 'leaky_relu')
+        # API hints:
+        # - Forward: self.data if self.data > 0 else alpha * self.data
+        # - Backward: gradient is 1 if input > 0, else alpha
+        # - self.grad += (1 if self.data > 0 else alpha) * out.grad
+        forward_val = None
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # HINT: grad_multiplier = 1.0 if self.data > 0 else alpha
-            # HINT: self.grad += grad_multiplier * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
@@ -176,14 +167,14 @@ class Value:
         Returns:
             Value with exp applied
         """
-        # TODO: Implement forward pass
-        out = None  # Replace: Value(math.exp(self.data), (self,), 'exp')
+        # API hints:
+        # - Forward: Value(math.exp(self.data), (self,), 'exp')
+        # - Backward: d(e^x)/dx = e^x = out.data
+        # - self.grad += out.data * out.grad
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # The derivative of e^x is e^x = out.data
-            # HINT: self.grad += out.data * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
@@ -199,21 +190,19 @@ class Value:
         Forward: out = 1 / (1 + e^(-self.data))
         Backward: d(sigmoid)/dx = sigmoid(x) * (1 - sigmoid(x))
         
-        Note: This elegant derivative makes sigmoid popular in neural networks!
-        
         Returns:
             Value with sigmoid applied
         """
-        # TODO: Implement forward pass
-        # HINT: s = 1 / (1 + math.exp(-self.data))
-        s = None  # Replace with sigmoid calculation
-        out = None  # Replace: Value(s, (self,), 'sigmoid')
+        # API hints:
+        # - Forward: s = 1 / (1 + math.exp(-self.data))
+        # - Create Value(s, (self,), 'sigmoid')
+        # - Backward: derivative = out.data * (1 - out.data)
+        # - self.grad += out.data * (1 - out.data) * out.grad
+        s = None
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # The derivative is sigmoid * (1 - sigmoid) = out.data * (1 - out.data)
-            # HINT: self.grad += out.data * (1 - out.data) * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
@@ -232,16 +221,16 @@ class Value:
         Returns:
             Value with tanh applied
         """
-        # TODO: Implement forward pass
-        # HINT: Use math.tanh or compute from exponentials
-        t = None  # Replace: math.tanh(self.data)
-        out = None  # Replace: Value(t, (self,), 'tanh')
+        # API hints:
+        # - Forward: t = math.tanh(self.data)
+        # - Create Value(t, (self,), 'tanh')
+        # - Backward: derivative = 1 - out.data²
+        # - self.grad += (1 - out.data**2) * out.grad
+        t = None
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # The derivative is 1 - tanh² = 1 - out.data²
-            # HINT: self.grad += (1 - out.data ** 2) * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
@@ -257,22 +246,17 @@ class Value:
         Forward: out = log(1 + e^x)
         Backward: d(softplus)/dx = e^x / (1 + e^x) = sigmoid(x)
         
-        Note: For numerical stability, use log(1 + e^x) directly for small x,
-        and x + log(1 + e^(-x)) for large x. We'll keep it simple here.
-        
         Returns:
             Value with softplus applied
         """
-        # TODO: Implement forward pass
-        # HINT: Use math.log(1 + math.exp(self.data))
-        out = None  # Replace: Value(math.log(1 + math.exp(self.data)), (self,), 'softplus')
+        # API hints:
+        # - Forward: Value(math.log(1 + math.exp(self.data)), (self,), 'softplus')
+        # - Backward: derivative = sigmoid(x) = 1 / (1 + math.exp(-self.data))
+        # - self.grad += sigmoid_val * out.grad
+        out = None
         
-        # TODO: Implement backward pass
         def _backward():
-            # derivative = sigmoid(x) = 1 / (1 + e^(-x))
-            # HINT: sigmoid_val = 1 / (1 + math.exp(-self.data))
-            # HINT: self.grad += sigmoid_val * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out

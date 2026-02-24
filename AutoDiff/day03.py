@@ -41,9 +41,10 @@ def partial_x_numerical(f, x, y, h=1e-5):
     Returns:
         Approximate ∂f/∂x at (x, y)
     """
-    # TODO: Implement partial with respect to x (y held constant)
-    # HINT: (f(x+h, y) - f(x-h, y)) / (2*h)
-    return None  # Replace
+    # API hints:
+    # - Central difference for partial: (f(x+h, y) - f(x-h, y)) / (2*h)
+    # - Keep y constant while varying x
+    return None
 
 
 # ============================================================================
@@ -54,9 +55,10 @@ def partial_y_numerical(f, x, y, h=1e-5):
     """
     Compute ∂f/∂y numerically using central difference.
     """
-    # TODO: Implement partial with respect to y (x held constant)
-    # HINT: (f(x, y+h) - f(x, y-h)) / (2*h)
-    return None  # Replace
+    # API hints:
+    # - Central difference for partial: (f(x, y+h) - f(x, y-h)) / (2*h)
+    # - Keep x constant while varying y
+    return None
 
 
 # ============================================================================
@@ -70,11 +72,13 @@ def gradient_numerical(f, x, y, h=1e-5):
     Returns:
         numpy array [∂f/∂x, ∂f/∂y]
     """
-    # TODO: Compute both partials and return as array
+    # API hints:
+    # - Use partial_x_numerical() and partial_y_numerical()
+    # - Return as np.array([df_dx, df_dy])
     df_dx = partial_x_numerical(f, x, y, h)
     df_dy = partial_y_numerical(f, x, y, h)
     
-    return None  # Replace: np.array([df_dx, df_dy])
+    return None
 
 
 # ============================================================================
@@ -85,14 +89,14 @@ def gradient_x2_plus_y2(x, y):
     """
     Compute gradient of f(x,y) = x² + y².
     
-    ∂f/∂x = 2x
-    ∂f/∂y = 2y
-    
     Returns:
-        numpy array [2x, 2y]
+        numpy array [∂f/∂x, ∂f/∂y]
     """
-    # TODO: Return the analytical gradient
-    return None  # Replace: np.array([2*x, 2*y])
+    # API hints:
+    # - ∂f/∂x: derivative of x² + y² w.r.t. x (treat y as constant)
+    # - ∂f/∂y: derivative of x² + y² w.r.t. y (treat x as constant)
+    # - Return as np.array([df_dx, df_dy])
+    return None
 
 
 # ============================================================================
@@ -102,12 +106,12 @@ def gradient_x2_plus_y2(x, y):
 def gradient_xy(x, y):
     """
     Compute gradient of f(x,y) = x * y.
-    
-    ∂f/∂x = y
-    ∂f/∂y = x
     """
-    # TODO: Return the analytical gradient
-    return None  # Replace: np.array([y, x])
+    # API hints:
+    # - ∂(x*y)/∂x: derivative treating y as constant
+    # - ∂(x*y)/∂y: derivative treating x as constant
+    # - Return as np.array([df_dx, df_dy])
+    return None
 
 
 # ============================================================================
@@ -117,13 +121,14 @@ def gradient_xy(x, y):
 def gradient_sin_cos(x, y):
     """
     Compute gradient of f(x,y) = sin(x) * cos(y).
-    
-    ∂f/∂x = cos(x) * cos(y)
-    ∂f/∂y = sin(x) * (-sin(y)) = -sin(x) * sin(y)
     """
-    # TODO: Return the analytical gradient
-    df_dx = None  # Replace: np.cos(x) * np.cos(y)
-    df_dy = None  # Replace: -np.sin(x) * np.sin(y)
+    # API hints:
+    # - ∂f/∂x: use product rule, d/dx(sin(x)) = cos(x)
+    # - ∂f/∂y: use product rule, d/dy(cos(y)) = -sin(y)
+    # - Use np.sin(), np.cos()
+    # - Return as np.array([df_dx, df_dy])
+    df_dx = None
+    df_dy = None
     
     return np.array([df_dx, df_dy]) if df_dx is not None else None
 
@@ -168,9 +173,6 @@ def gradient_descent_step(f, x, y, learning_rate=0.1):
     """
     Perform one step of gradient descent.
     
-    x_new = x - learning_rate * ∂f/∂x
-    y_new = y - learning_rate * ∂f/∂y
-    
     Returns:
         tuple (x_new, y_new)
     """
@@ -179,9 +181,12 @@ def gradient_descent_step(f, x, y, learning_rate=0.1):
     if grad is None:
         return x, y
     
-    # TODO: Update x and y in the direction of negative gradient
-    x_new = None  # Replace: x - learning_rate * grad[0]
-    y_new = None  # Replace: y - learning_rate * grad[1]
+    # API hints:
+    # - Gradient descent: move opposite to gradient direction
+    # - x_new = x - learning_rate * grad[0]
+    # - y_new = y - learning_rate * grad[1]
+    x_new = None
+    y_new = None
     
     return x_new, y_new
 

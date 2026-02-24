@@ -162,20 +162,12 @@ class MLAKVCache:
         self.seq_len = 0
         
         # TODO: Initialize cache tensors
-        # HINT:
-        #   # Compressed KV latent cache
-        #   self.c_kv = torch.zeros(
-        #       batch_size, max_seq_len, d_kv_latent,
-        #       device=device, dtype=dtype
-        #   )
-        #   
-        #   # RoPE key cache
-        #   self.k_rope = torch.zeros(
-        #       batch_size, max_seq_len, num_heads, rope_dim,
-        #       device=device, dtype=dtype
-        #   )
-        self.c_kv = None   # Replace
-        self.k_rope = None # Replace
+        # API hints:
+        # - torch.zeros(batch, max_seq_len, d_kv_latent, device=device, dtype=dtype)
+        # - torch.zeros(batch, max_seq_len, num_heads, rope_dim, device=device, dtype=dtype)
+        
+        self.c_kv = None
+        self.k_rope = None
     
     def update(self, c_kv_new: torch.Tensor, k_rope_new: torch.Tensor) -> int:
         """
@@ -187,18 +179,13 @@ class MLAKVCache:
         
         Returns:
             New sequence length
-        
-        TODO: Append to cache
-        HINT:
-            new_len = c_kv_new.shape[1]
-            
-            self.c_kv[:, self.seq_len:self.seq_len + new_len] = c_kv_new
-            self.k_rope[:, self.seq_len:self.seq_len + new_len] = k_rope_new
-            
-            self.seq_len += new_len
-            return self.seq_len
         """
-        return 0  # Replace
+        # API hints:
+        # - c_kv_new.shape[1] -> get new sequence length
+        # - self.c_kv[:, self.seq_len:self.seq_len + new_len] = c_kv_new -> append
+        # - self.seq_len += new_len -> update position
+        
+        return None
     
     def get(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -207,12 +194,12 @@ class MLAKVCache:
         Returns:
             c_kv: Cached latents (batch, seq_len, d_kv_latent)
             k_rope: Cached RoPE keys (batch, seq_len, num_heads, rope_dim)
-        
-        TODO: Return cached values
-        HINT:
-            return self.c_kv[:, :self.seq_len], self.k_rope[:, :self.seq_len]
         """
-        return None, None  # Replace
+        # API hints:
+        # - self.c_kv[:, :self.seq_len] -> slice to current length
+        # - self.k_rope[:, :self.seq_len] -> slice to current length
+        
+        return None
     
     def reset(self):
         """Reset cache to empty state."""
@@ -245,51 +232,31 @@ class MultiheadLatentAttention(nn.Module):
         self.scale = total_dim ** -0.5
         
         # TODO: Initialize all projection layers
-        # HINT:
-        #   # Query projections
-        #   if config.use_q_compression:
-        #       self.q_down = nn.Linear(config.d_model, config.d_q_latent, bias=False)
-        #       self.q_norm = RMSNorm(config.d_q_latent)
-        #       self.q_up = nn.Linear(config.d_q_latent, self.d_kv, bias=False)
-        #   else:
-        #       self.q_proj = nn.Linear(config.d_model, self.d_kv, bias=False)
-        #   
-        #   self.q_rope_proj = nn.Linear(config.d_model, config.num_heads * config.rope_dim, bias=False)
-        #   
-        #   # KV projections
-        #   self.kv_down = nn.Linear(config.d_model, config.d_kv_latent, bias=False)
-        #   self.kv_norm = RMSNorm(config.d_kv_latent)
-        #   self.k_up = nn.Linear(config.d_kv_latent, self.d_kv, bias=False)
-        #   self.v_up = nn.Linear(config.d_kv_latent, self.d_kv, bias=False)
-        #   self.k_rope_proj = nn.Linear(config.d_model, config.num_heads * config.rope_dim, bias=False)
-        #   
-        #   # Output projection
-        #   self.out_proj = nn.Linear(self.d_kv, config.d_model, bias=False)
-        #   
-        #   # Dropout
-        #   self.dropout = nn.Dropout(config.dropout)
-        #   
-        #   # RoPE frequencies
-        #   self.register_buffer('freqs_cis', 
-        #       precompute_freqs_cis(config.rope_dim, config.max_seq_len, config.rope_theta))
+        # API hints:
+        # - Query: nn.Linear for q_down, q_up, q_proj, q_rope_proj
+        # - RMSNorm(latent_dim) for q_norm, kv_norm
+        # - KV: nn.Linear for kv_down, k_up, v_up, k_rope_proj
+        # - Output: nn.Linear(d_kv, d_model, bias=False)
+        # - nn.Dropout(dropout) for dropout
+        # - self.register_buffer('freqs_cis', precompute_freqs_cis(...))
         
         # Query projections
-        self.q_down = None       # Replace (if using compression)
-        self.q_norm = None       # Replace (if using compression)
-        self.q_up = None         # Replace (if using compression)
-        self.q_proj = None       # Replace (if not using compression)
-        self.q_rope_proj = None  # Replace
+        self.q_down = None
+        self.q_norm = None
+        self.q_up = None
+        self.q_proj = None
+        self.q_rope_proj = None
         
         # KV projections
-        self.kv_down = None      # Replace
-        self.kv_norm = None      # Replace
-        self.k_up = None         # Replace
-        self.v_up = None         # Replace
-        self.k_rope_proj = None  # Replace
+        self.kv_down = None
+        self.kv_norm = None
+        self.k_up = None
+        self.v_up = None
+        self.k_rope_proj = None
         
         # Output
-        self.out_proj = None     # Replace
-        self.dropout = None      # Replace
+        self.out_proj = None
+        self.dropout = None
     
     def compute_q(self, x: torch.Tensor, start_pos: int = 0
                   ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -303,35 +270,15 @@ class MultiheadLatentAttention(nn.Module):
         Returns:
             q_content: (batch, num_heads, seq_len, head_dim)
             q_rope: (batch, num_heads, seq_len, rope_dim)
-        
-        TODO: Compute query components
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Content query
-            if self.config.use_q_compression:
-                c_q = self.q_down(x)
-                c_q = self.q_norm(c_q)
-                q = self.q_up(c_q)
-            else:
-                q = self.q_proj(x)
-            
-            q_content = q.view(batch, seq_len, self.num_heads, self.head_dim)
-            q_content = q_content.transpose(1, 2)  # (batch, heads, seq, head_dim)
-            
-            # RoPE query
-            q_rope = self.q_rope_proj(x)
-            q_rope = q_rope.view(batch, seq_len, self.num_heads, self.rope_dim)
-            q_rope = apply_rotary_emb(q_rope, self.freqs_cis[start_pos:start_pos + seq_len])
-            q_rope = q_rope.transpose(1, 2)  # (batch, heads, seq, rope_dim)
-            
-            return q_content, q_rope
         """
-        batch, seq_len, _ = x.shape
-        return (
-            torch.zeros(batch, self.num_heads, seq_len, self.head_dim),
-            torch.zeros(batch, self.num_heads, seq_len, self.rope_dim)
-        )  # Replace
+        # API hints:
+        # - If compression: q_down -> q_norm -> q_up
+        # - Else: q_proj directly
+        # - tensor.view(batch, seq_len, num_heads, head_dim).transpose(1, 2)
+        # - self.q_rope_proj(x) -> RoPE query
+        # - apply_rotary_emb(q_rope, self.freqs_cis[start_pos:start_pos + seq_len])
+        
+        return None
     
     def compute_kv(self, x: torch.Tensor, start_pos: int = 0
                    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -347,39 +294,16 @@ class MultiheadLatentAttention(nn.Module):
             k_content: (batch, num_heads, seq_len, head_dim)
             k_rope: For caching (batch, seq_len, num_heads, rope_dim)
             v: (batch, num_heads, seq_len, head_dim)
-        
-        TODO: Compute KV components
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Compress to latent
-            c_kv = self.kv_down(x)
-            c_kv = self.kv_norm(c_kv)
-            
-            # Reconstruct K content and V
-            k = self.k_up(c_kv)
-            v = self.v_up(c_kv)
-            
-            k_content = k.view(batch, seq_len, self.num_heads, self.head_dim)
-            k_content = k_content.transpose(1, 2)
-            
-            v = v.view(batch, seq_len, self.num_heads, self.head_dim)
-            v = v.transpose(1, 2)
-            
-            # RoPE K (keep in seq-first format for caching)
-            k_rope = self.k_rope_proj(x)
-            k_rope = k_rope.view(batch, seq_len, self.num_heads, self.rope_dim)
-            k_rope = apply_rotary_emb(k_rope, self.freqs_cis[start_pos:start_pos + seq_len])
-            
-            return c_kv, k_content, k_rope, v
         """
-        batch, seq_len, _ = x.shape
-        return (
-            torch.zeros(batch, seq_len, self.config.d_kv_latent),
-            torch.zeros(batch, self.num_heads, seq_len, self.head_dim),
-            torch.zeros(batch, seq_len, self.num_heads, self.rope_dim),
-            torch.zeros(batch, self.num_heads, seq_len, self.head_dim)
-        )  # Replace
+        # API hints:
+        # - self.kv_down(x) -> compress
+        # - self.kv_norm(c_kv) -> normalize
+        # - self.k_up(c_kv), self.v_up(c_kv) -> reconstruct K, V
+        # - tensor.view().transpose(1, 2) -> reshape for attention
+        # - self.k_rope_proj(x) -> RoPE key
+        # - apply_rotary_emb(k_rope, self.freqs_cis[...]) -> apply RoPE
+        
+        return None
     
     def reconstruct_kv_from_cache(self, c_kv: torch.Tensor, k_rope: torch.Tensor
                                    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -394,30 +318,13 @@ class MultiheadLatentAttention(nn.Module):
             k_content: (batch, num_heads, cache_len, head_dim)
             k_rope: (batch, num_heads, cache_len, rope_dim)
             v: (batch, num_heads, cache_len, head_dim)
-        
-        TODO: Reconstruct from cache
-        HINT:
-            batch, cache_len, _ = c_kv.shape
-            
-            k = self.k_up(c_kv)
-            v = self.v_up(c_kv)
-            
-            k_content = k.view(batch, cache_len, self.num_heads, self.head_dim)
-            k_content = k_content.transpose(1, 2)
-            
-            v = v.view(batch, cache_len, self.num_heads, self.head_dim)
-            v = v.transpose(1, 2)
-            
-            k_rope_out = k_rope.transpose(1, 2)
-            
-            return k_content, k_rope_out, v
         """
-        batch, cache_len, _ = c_kv.shape
-        return (
-            torch.zeros(batch, self.num_heads, cache_len, self.head_dim),
-            torch.zeros(batch, self.num_heads, cache_len, self.rope_dim),
-            torch.zeros(batch, self.num_heads, cache_len, self.head_dim)
-        )  # Replace
+        # API hints:
+        # - self.k_up(c_kv), self.v_up(c_kv) -> reconstruct from latent
+        # - tensor.view(batch, cache_len, num_heads, head_dim).transpose(1, 2)
+        # - k_rope.transpose(1, 2) -> convert k_rope to attention format
+        
+        return None
     
     def forward(
         self,
@@ -438,53 +345,19 @@ class MultiheadLatentAttention(nn.Module):
         Returns:
             output: (batch, seq_len, d_model)
             attn_weights: (batch, num_heads, seq_len, total_seq_len)
-        
-        TODO: Implement full forward
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Compute Q
-            q_content, q_rope = self.compute_q(x, start_pos)
-            
-            # Compute or retrieve KV
-            if cache is None:
-                # No cache - compute everything
-                _, k_content, k_rope_raw, v = self.compute_kv(x, start_pos)
-                k_rope = k_rope_raw.transpose(1, 2)
-            else:
-                # With cache
-                c_kv_new, _, k_rope_new, _ = self.compute_kv(x, start_pos)
-                cache.update(c_kv_new, k_rope_new)
-                
-                # Get all cached KV
-                c_kv_all, k_rope_all = cache.get()
-                k_content, k_rope, v = self.reconstruct_kv_from_cache(c_kv_all, k_rope_all)
-            
-            # Attention scores: content + position
-            scores_content = torch.matmul(q_content, k_content.transpose(-2, -1))
-            scores_rope = torch.matmul(q_rope, k_rope.transpose(-2, -1))
-            scores = (scores_content + scores_rope) * self.scale
-            
-            # Apply mask
-            if mask is not None:
-                scores = scores + mask
-            
-            # Softmax and apply to V
-            attn_weights = F.softmax(scores, dim=-1)
-            attn_weights = self.dropout(attn_weights)
-            
-            output = torch.matmul(attn_weights, v)
-            output = output.transpose(1, 2).reshape(batch, seq_len, self.d_kv)
-            output = self.out_proj(output)
-            
-            return output, attn_weights
         """
-        batch, seq_len, _ = x.shape
-        total_len = seq_len if cache is None else seq_len + (cache.seq_len if cache.c_kv is not None else 0)
-        return (
-            torch.zeros_like(x),
-            torch.zeros(batch, self.num_heads, seq_len, total_len)
-        )  # Replace
+        # API hints:
+        # - self.compute_q(x, start_pos) -> q_content, q_rope
+        # - self.compute_kv(x, start_pos) -> c_kv, k_content, k_rope, v
+        # - cache.update(c_kv_new, k_rope_new) -> update cache
+        # - cache.get() -> c_kv_all, k_rope_all
+        # - self.reconstruct_kv_from_cache(c_kv_all, k_rope_all) -> k_content, k_rope, v
+        # - torch.matmul(q_content, k_content.transpose(-2, -1)) -> content scores
+        # - (scores_content + scores_rope) * self.scale -> combined scores
+        # - F.softmax(scores, dim=-1) -> attention weights
+        # - self.out_proj(output) -> project to output dimension
+        
+        return None
 
 
 # ============================================================================
@@ -502,23 +375,16 @@ class MLATransformerBlock(nn.Module):
         self.config = config
         
         # TODO: Initialize block components
-        # HINT:
-        #   # Attention with pre-norm
-        #   self.attn_norm = RMSNorm(config.d_model)
-        #   self.attn = MultiheadLatentAttention(config)
-        #   
-        #   # FFN with pre-norm
-        #   self.ffn_norm = RMSNorm(config.d_model)
-        #   ffn_hidden = int(config.d_model * ffn_hidden_mult)
-        #   self.ffn = nn.Sequential(
-        #       nn.Linear(config.d_model, ffn_hidden, bias=False),
-        #       nn.GELU(),
-        #       nn.Linear(ffn_hidden, config.d_model, bias=False),
-        #   )
-        self.attn_norm = None  # Replace
-        self.attn = None       # Replace
-        self.ffn_norm = None   # Replace
-        self.ffn = None        # Replace
+        # API hints:
+        # - RMSNorm(config.d_model) -> normalization layers
+        # - MultiheadLatentAttention(config) -> attention module
+        # - nn.Sequential(nn.Linear, nn.GELU(), nn.Linear) -> FFN
+        # - ffn_hidden = int(config.d_model * ffn_hidden_mult)
+        
+        self.attn_norm = None
+        self.attn = None
+        self.ffn_norm = None
+        self.ffn = None
     
     def forward(
         self,
@@ -529,22 +395,15 @@ class MLATransformerBlock(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through transformer block.
-        
-        TODO: Implement transformer block
-        HINT:
-            # Attention with residual
-            normed = self.attn_norm(x)
-            attn_out, attn_weights = self.attn(normed, cache, start_pos, mask)
-            x = x + attn_out
-            
-            # FFN with residual
-            normed = self.ffn_norm(x)
-            x = x + self.ffn(normed)
-            
-            return x, attn_weights
         """
-        batch, seq_len, _ = x.shape
-        return x, torch.zeros(batch, self.config.num_heads, seq_len, seq_len)  # Replace
+        # API hints:
+        # - self.attn_norm(x) -> pre-norm for attention
+        # - self.attn(normed, cache, start_pos, mask) -> attention + cache
+        # - x = x + attn_out -> residual connection
+        # - self.ffn_norm(x) -> pre-norm for FFN
+        # - x = x + self.ffn(normed) -> FFN with residual
+        
+        return None
 
 
 # ============================================================================
@@ -563,13 +422,12 @@ class MLAModel(nn.Module):
         self.num_layers = num_layers
         
         # TODO: Initialize layers
-        # HINT:
-        #   self.layers = nn.ModuleList([
-        #       MLATransformerBlock(config) for _ in range(num_layers)
-        #   ])
-        #   self.final_norm = RMSNorm(config.d_model)
-        self.layers = None      # Replace
-        self.final_norm = None  # Replace
+        # API hints:
+        # - nn.ModuleList([MLATransformerBlock(config) for _ in range(num_layers)])
+        # - RMSNorm(config.d_model) -> final normalization
+        
+        self.layers = None
+        self.final_norm = None
     
     def forward(
         self,
@@ -590,20 +448,14 @@ class MLAModel(nn.Module):
         Returns:
             output: Final hidden states
             all_attn_weights: Dict of attention weights per layer
-        
-        TODO: Implement forward
-        HINT:
-            all_attn_weights = {}
-            
-            for i, layer in enumerate(self.layers):
-                cache = caches.get(i) if caches else None
-                x, attn = layer(x, cache, start_pos, mask)
-                all_attn_weights[i] = attn
-            
-            x = self.final_norm(x)
-            return x, all_attn_weights
         """
-        return x, {}  # Replace
+        # API hints:
+        # - for i, layer in enumerate(self.layers): -> iterate layers
+        # - caches.get(i) if caches else None -> get cache for layer
+        # - layer(x, cache, start_pos, mask) -> forward through layer
+        # - self.final_norm(x) -> final normalization
+        
+        return None
 
 
 # ============================================================================
@@ -628,45 +480,16 @@ def generate_with_mla(
     Returns:
         all_hidden_states: Hidden states for all positions
         caches: Final cache state
-    
-    TODO: Implement generation loop
-    HINT:
-        batch, prompt_len, d_model = prompt_embeds.shape
-        config = model.config
-        
-        # Initialize caches
-        caches = {
-            i: MLAKVCache(batch, prompt_len + max_new_tokens,
-                          config.d_kv_latent, config.num_heads, config.rope_dim,
-                          device=prompt_embeds.device, dtype=prompt_embeds.dtype)
-            for i in range(model.num_layers)
-        }
-        
-        # Create causal mask for prefill
-        prefill_mask = torch.triu(
-            torch.ones(prompt_len, prompt_len, device=prompt_embeds.device) * float('-inf'),
-            diagonal=1
-        ).unsqueeze(0).unsqueeze(0)
-        
-        # Prefill: process prompt
-        hidden, _ = model(prompt_embeds, caches, start_pos=0, mask=prefill_mask)
-        all_hidden = [hidden]
-        
-        # Decode: generate token by token
-        current_pos = prompt_len
-        current_hidden = hidden[:, -1:, :]  # Last token's hidden state
-        
-        for _ in range(max_new_tokens):
-            # Forward single token (no mask needed - attends to all previous)
-            next_hidden, _ = model(current_hidden, caches, start_pos=current_pos)
-            
-            all_hidden.append(next_hidden)
-            current_hidden = next_hidden
-            current_pos += 1
-        
-        return torch.cat(all_hidden, dim=1), caches
     """
-    return prompt_embeds, {}  # Replace
+    # API hints:
+    # - MLAKVCache(batch, max_len, d_kv_latent, num_heads, rope_dim, device, dtype)
+    # - torch.triu(torch.ones(...) * float('-inf'), diagonal=1) -> causal mask
+    # - model(prompt_embeds, caches, start_pos=0, mask=prefill_mask) -> prefill
+    # - hidden[:, -1:, :] -> last token's hidden state
+    # - model(current_hidden, caches, start_pos=current_pos) -> decode step
+    # - torch.cat(all_hidden, dim=1) -> concatenate all hidden states
+    
+    return None
 
 
 # ============================================================================
@@ -684,38 +507,15 @@ def compare_memory_usage(config: MLAConfig, seq_len: int, num_layers: int) -> di
     
     Returns:
         Dictionary with memory statistics
-    
-    TODO: Compute memory comparison
-    HINT:
-        d_kv = config.num_heads * config.head_dim
-        
-        # Standard attention: cache K and V
-        std_cache_per_layer = 2 * seq_len * d_kv  # K and V
-        std_total = num_layers * std_cache_per_layer
-        
-        # MLA: cache compressed latent + RoPE keys
-        mla_latent_per_layer = seq_len * config.d_kv_latent
-        mla_rope_per_layer = seq_len * config.num_heads * config.rope_dim
-        mla_cache_per_layer = mla_latent_per_layer + mla_rope_per_layer
-        mla_total = num_layers * mla_cache_per_layer
-        
-        # Compute at inference (reconstruction)
-        # MLA needs to reconstruct K, V from latent - adds compute
-        mla_compute_per_layer = seq_len * (config.d_kv_latent * d_kv * 2)  # K and V up projection
-        
-        return {
-            'standard_cache_elements': std_total,
-            'mla_cache_elements': mla_total,
-            'memory_reduction': std_total / mla_total,
-            'mla_recompute_flops_per_layer': mla_compute_per_layer
-        }
     """
-    return {
-        'standard_cache_elements': 0,
-        'mla_cache_elements': 0,
-        'memory_reduction': 0.0,
-        'mla_recompute_flops_per_layer': 0
-    }  # Replace
+    # API hints:
+    # - d_kv = config.num_heads * config.head_dim
+    # - std_cache_per_layer = 2 * seq_len * d_kv (K and V)
+    # - mla_latent_per_layer = seq_len * config.d_kv_latent
+    # - mla_rope_per_layer = seq_len * config.num_heads * config.rope_dim
+    # - memory_reduction = std_total / mla_total
+    
+    return None
 
 
 if __name__ == "__main__":

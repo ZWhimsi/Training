@@ -38,8 +38,9 @@ class Value:
         Returns:
             set of Value objects that are parents
         """
-        # TODO: Return the _prev set
-        return None  # Replace: self._prev
+        # API hints:
+        # - Return self._prev (the set of parent nodes)
+        return None
     
     def get_operation(self):
         """
@@ -48,8 +49,9 @@ class Value:
         Returns:
             string describing the operation (e.g., '+', '*')
         """
-        # TODO: Return the _op string
-        return None  # Replace: self._op
+        # API hints:
+        # - Return self._op (the operation string)
+        return None
     
     # ========================================================================
     # Exercise 2: Check if Leaf Node
@@ -64,8 +66,10 @@ class Value:
         Returns:
             True if leaf, False otherwise
         """
-        # TODO: Return True if no parents
-        return None  # Replace: len(self._prev) == 0
+        # API hints:
+        # - Check if _prev set is empty
+        # - Use len(self._prev) == 0
+        return None
     
     # ========================================================================
     # Exercise 3: Get All Ancestors
@@ -156,10 +160,13 @@ def build_expression():
     x = Value(2.0)
     y = Value(3.0)
     
-    # TODO: Build the expression
-    xy = None      # Replace: x * y
-    x_squared = None  # Replace: x ** 2
-    result = None  # Replace: xy + x_squared
+    # API hints:
+    # - xy = x * y (multiplication)
+    # - x_squared = x ** 2 (power)
+    # - result = xy + x_squared (addition)
+    xy = None
+    x_squared = None
+    result = None
     
     return {
         'x': x,
@@ -186,16 +193,17 @@ def verify_parents(nodes):
     """
     results = {}
     
-    # TODO: Check that x and y are leaf nodes
-    results['x_is_leaf'] = None  # Replace: nodes['x'].is_leaf()
-    results['y_is_leaf'] = None  # Replace: nodes['y'].is_leaf()
+    # API hints:
+    # - Use nodes['x'].is_leaf() to check if leaf
+    # - Use nodes['result'].get_parents() to get parent set
+    # - Use nodes['xy'].get_operation() to get operation string
+    results['x_is_leaf'] = None
+    results['y_is_leaf'] = None
     
-    # TODO: Check that result has xy and x_squared as parents
     if nodes['result'] is not None:
         parents = nodes['result'].get_parents()
         results['result_parent_count'] = len(parents) if parents else 0
     
-    # TODO: Check operations
     if nodes['xy'] is not None:
         results['xy_operation'] = nodes['xy'].get_operation()
     
@@ -219,10 +227,12 @@ def count_graph_nodes(output):
     if output is None:
         return 0
     
-    # TODO: Count output + all ancestors
+    # API hints:
+    # - Use output.get_all_ancestors() to get all ancestor nodes
+    # - Total count = 1 (output) + len(ancestors)
     ancestors = output.get_all_ancestors()
     
-    return None  # Replace: 1 + len(ancestors) if ancestors else 1
+    return None
 
 
 if __name__ == "__main__":

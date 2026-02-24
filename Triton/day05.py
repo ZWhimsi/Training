@@ -9,12 +9,6 @@ Learning objectives:
 - Work with multiple block size configurations
 - Use tl.constexpr for compile-time constants
 - Optimize block sizes for different operations
-
-Hints:
-- BLOCK_SIZE must be a power of 2 for many operations
-- Use triton.next_power_of_2() for automatic sizing
-- tl.constexpr means the value is known at compile time
-- Different block sizes suit different problems
 """
 
 import torch
@@ -39,14 +33,13 @@ def add_vectors_configurable(
     Vector addition with configurable block size.
     Try launching with different BLOCK_SIZE values!
     """
-    pid = tl.program_id(0)
-    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load, add, store
-    a = None  # Replace
-    b = None  # Replace
-    out = None  # Replace
+    # TODO: Implement vector add kernel
     pass
 
 
@@ -57,7 +50,12 @@ def add_vectors(a: torch.Tensor, b: torch.Tensor, block_size: int = 1024) -> tor
     n_elements = a.numel()
     
     grid = (triton.cdiv(n_elements, block_size),)
+    
+    # API hints:
+    # - kernel_name[grid](args..., BLOCK_SIZE=value) -> launch with constexpr
+    
     # TODO: Launch with specified block_size
+    pass
     
     return out
 
@@ -77,17 +75,14 @@ def partial_sum_kernel(
     """
     Phase 1: Each block computes a partial sum.
     """
-    pid = tl.program_id(0)
-    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    # TODO: Load with mask
-    x = None  # Replace
-    
-    # TODO: Compute block sum
-    block_sum = None  # Replace with tl.sum(x, axis=0)
-    
-    # TODO: Store partial sum (one per block)
+    # TODO: Implement partial sum kernel
     pass
 
 
@@ -101,16 +96,13 @@ def final_sum_kernel(
     """
     Phase 2: Sum all partial sums.
     """
-    offsets = tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_partials
+    # API hints:
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    # TODO: Load partial sums
-    partials = None  # Replace
-    
-    # TODO: Final sum
-    total = None  # Replace
-    
-    # TODO: Store final result
+    # TODO: Implement final sum kernel
     pass
 
 
@@ -123,15 +115,18 @@ def two_phase_sum(x: torch.Tensor) -> torch.Tensor:
     n_blocks = triton.cdiv(n_elements, BLOCK_SIZE)
     partial_sums = torch.empty(n_blocks, dtype=x.dtype, device=x.device)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    # - triton.next_power_of_2(n) -> next power of 2
+    
     # Phase 1: Partial sums
-    grid1 = (n_blocks,)
     # TODO: Launch partial_sum_kernel
+    pass
     
     # Phase 2: Final sum
     out = torch.empty(1, dtype=x.dtype, device=x.device)
-    BLOCK_SIZE_2 = triton.next_power_of_2(n_blocks)
-    grid2 = (1,)
     # TODO: Launch final_sum_kernel
+    pass
     
     return out
 
@@ -157,34 +152,16 @@ def transpose_kernel(
     
     Grid: (ceil(M/BLOCK_M), ceil(N/BLOCK_N))
     """
-    pid_m = tl.program_id(0)
-    pid_n = tl.program_id(1)
+    # API hints:
+    # - tl.program_id(0), tl.program_id(1) -> 2D block indices
+    # - tl.arange(start, end) -> create range
+    # - offs[:, None] * stride + offs[None, :] -> 2D indices
+    # - mask[:, None] & mask[None, :] -> 2D mask
+    # - tl.load(ptr + indices, mask=mask) -> load 2D block
+    # - tl.trans(block) -> transpose (or compute transposed indices)
+    # - tl.store(ptr + indices, value, mask=mask) -> store 2D block
     
-    # Block starting positions
-    block_m = pid_m * BLOCK_M
-    block_n = pid_n * BLOCK_N
-    
-    # Offsets within block
-    offs_m = block_m + tl.arange(0, BLOCK_M)
-    offs_n = block_n + tl.arange(0, BLOCK_N)
-    
-    # Masks
-    mask_m = offs_m < M
-    mask_n = offs_n < N
-    mask = mask_m[:, None] & mask_n[None, :]
-    
-    # TODO: Calculate input indices (row-major: m * stride + n)
-    in_indices = None  # Replace with offs_m[:, None] * stride_in_m + offs_n[None, :]
-    
-    # TODO: Load block
-    block = None  # Replace
-    
-    # TODO: Calculate output indices (transposed: n * stride + m)
-    # For transpose: out[n, m] = in[m, n]
-    out_indices = None  # Replace with offs_n[:, None] * stride_out_m + offs_m[None, :]
-    
-    # TODO: Store transposed block
-    # Note: need to transpose the mask too!
+    # TODO: Implement transpose kernel
     pass
 
 
@@ -199,7 +176,11 @@ def transpose(x: torch.Tensor) -> torch.Tensor:
     
     grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -219,18 +200,14 @@ def block_max_kernel(
     """
     Find max within each block.
     """
-    pid = tl.program_id(0)
-    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=-float('inf')) -> load with -inf default
+    # - tl.max(x, axis=0) -> max reduction
+    # - tl.store(ptr, value) -> store single value
     
-    # TODO: Load with very negative default for masked elements
-    # HINT: other=-float('inf')
-    x = None  # Replace
-    
-    # TODO: Block max
-    block_max = None  # Replace with tl.max(x, axis=0)
-    
-    # TODO: Store
+    # TODO: Implement block max kernel
     pass
 
 
@@ -244,7 +221,12 @@ def find_max(x: torch.Tensor) -> torch.Tensor:
     partial_maxes = torch.empty(n_blocks, dtype=x.dtype, device=x.device)
     
     grid = (n_blocks,)
+    
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch block_max_kernel
+    pass
     
     # Use PyTorch for final max (small tensor)
     return partial_maxes.max().unsqueeze(0)
@@ -267,26 +249,15 @@ def softmax_numerator_kernel(
     Compute exp(x - max) for one row.
     Grid: (n_rows,)
     """
-    row_idx = tl.program_id(0)
+    # API hints:
+    # - tl.program_id(axis) -> get row index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr) -> load single scalar
+    # - tl.load(ptr + offsets, mask=mask) -> load row
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # Load max for this row
-    row_max = tl.load(row_max_ptr + row_idx)
-    
-    # Column offsets
-    col_offs = tl.arange(0, BLOCK_SIZE)
-    mask = col_offs < n_cols
-    
-    # TODO: Calculate pointer to this row
-    row_ptr = None  # Replace with x_ptr + row_idx * n_cols
-    
-    # TODO: Load row
-    x = None  # Replace
-    
-    # TODO: Compute exp(x - max)
-    # HINT: out = tl.exp(x - row_max)
-    out = None  # Replace
-    
-    # TODO: Store
+    # TODO: Implement softmax numerator kernel
     pass
 
 
@@ -299,7 +270,11 @@ def softmax_numerator(x: torch.Tensor, row_maxes: torch.Tensor) -> torch.Tensor:
     BLOCK_SIZE = triton.next_power_of_2(n_cols)
     grid = (n_rows,)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 

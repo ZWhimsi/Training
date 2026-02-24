@@ -95,12 +95,12 @@ def swish(x: torch.Tensor) -> torch.Tensor:
     
     Returns:
         Swish-activated tensor
-    
-    TODO: Implement Swish
-    HINT:
-        return x * torch.sigmoid(x)
     """
-    return x  # Replace
+    # API hints:
+    # - torch.sigmoid(x) -> sigmoid function
+    # - x * torch.sigmoid(x) -> Swish activation
+    
+    return None
 
 
 class Swish(nn.Module):
@@ -145,15 +145,15 @@ class SwiGLUFFN(nn.Module):
         self.d_ffn = d_ffn
         
         # TODO: Create projections
-        # HINT:
-        #   self.W_gate = nn.Linear(d_model, d_ffn, bias=False)
-        #   self.W_up = nn.Linear(d_model, d_ffn, bias=False)
-        #   self.W_down = nn.Linear(d_ffn, d_model, bias=False)
-        #   self.dropout = nn.Dropout(dropout)
-        self.W_gate = None  # Replace
-        self.W_up = None    # Replace
-        self.W_down = None  # Replace
-        self.dropout = None # Replace
+        # API hints:
+        # - nn.Linear(d_model, d_ffn, bias=False) -> W_gate, W_up
+        # - nn.Linear(d_ffn, d_model, bias=False) -> W_down
+        # - nn.Dropout(dropout) -> dropout layer
+        
+        self.W_gate = None
+        self.W_up = None
+        self.W_down = None
+        self.dropout = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -164,25 +164,14 @@ class SwiGLUFFN(nn.Module):
         
         Returns:
             Output tensor (batch, seq_len, d_model)
-        
-        TODO: Implement SwiGLU FFN
-        HINT:
-            # Gate path: x -> W_gate -> Swish
-            gate = swish(self.W_gate(x))
-            
-            # Up path: x -> W_up
-            up = self.W_up(x)
-            
-            # Element-wise multiplication (gating)
-            hidden = gate * up
-            
-            # Down projection
-            hidden = self.dropout(hidden)
-            output = self.W_down(hidden)
-            
-            return output
         """
-        return x  # Replace
+        # API hints:
+        # - swish(self.W_gate(x)) -> gated path
+        # - self.W_up(x) -> up path
+        # - gate * up -> element-wise multiplication
+        # - self.W_down(self.dropout(hidden)) -> output
+        
+        return None
 
 
 # ============================================================================
@@ -212,9 +201,10 @@ class SwiGLUExpert(nn.Module):
         self.d_expert = d_expert
         
         # TODO: Create SwiGLU expert
-        # HINT:
-        #   self.ffn = SwiGLUFFN(d_model, d_expert, dropout)
-        self.ffn = None  # Replace
+        # API hints:
+        # - SwiGLUFFN(d_model, d_expert, dropout) -> SwiGLU feed-forward
+        
+        self.ffn = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -223,12 +213,11 @@ class SwiGLUExpert(nn.Module):
         
         Returns:
             Output of same shape
-        
-        TODO: Forward through SwiGLU
-        HINT:
-            return self.ffn(x)
         """
-        return x  # Replace
+        # API hints:
+        # - self.ffn(x) -> forward through SwiGLU FFN
+        
+        return None
 
 
 # ============================================================================
@@ -261,9 +250,10 @@ class DeepSeekRouter(nn.Module):
         self.noise_std = noise_std
         
         # TODO: Create router
-        # HINT:
-        #   self.gate = nn.Linear(d_model, num_experts, bias=False)
-        self.gate = None  # Replace
+        # API hints:
+        # - nn.Linear(d_model, num_experts, bias=False) -> router gate
+        
+        self.gate = None
     
     def forward(self, x: torch.Tensor, training: bool = True
                 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -278,34 +268,15 @@ class DeepSeekRouter(nn.Module):
             gates: Top-k gate weights (batch, seq_len, top_k)
             indices: Expert indices (batch, seq_len, top_k)
             router_logits: Full logits (batch, seq_len, num_experts)
-        
-        TODO: Implement routing
-        HINT:
-            # Compute logits
-            router_logits = self.gate(x)  # (batch, seq, num_experts)
-            
-            # Add noise during training for exploration
-            if training and self.noise_std > 0:
-                noise = torch.randn_like(router_logits) * self.noise_std
-                router_logits = router_logits + noise
-            
-            # Softmax over experts
-            router_probs = F.softmax(router_logits, dim=-1)
-            
-            # Top-k selection
-            top_k_probs, top_k_indices = torch.topk(router_probs, self.top_k, dim=-1)
-            
-            # Renormalize top-k probabilities
-            top_k_gates = top_k_probs / (top_k_probs.sum(dim=-1, keepdim=True) + 1e-9)
-            
-            return top_k_gates, top_k_indices, router_logits
         """
-        batch, seq_len, _ = x.shape
-        return (
-            torch.zeros(batch, seq_len, self.top_k),
-            torch.zeros(batch, seq_len, self.top_k, dtype=torch.long),
-            torch.zeros(batch, seq_len, self.num_experts)
-        )  # Replace
+        # API hints:
+        # - self.gate(x) -> router logits (batch, seq, num_experts)
+        # - torch.randn_like(tensor) * noise_std -> add noise
+        # - F.softmax(logits, dim=-1) -> softmax over experts
+        # - torch.topk(probs, top_k, dim=-1) -> top-k selection
+        # - top_k_probs / (top_k_probs.sum(dim=-1, keepdim=True) + 1e-9) -> renormalize
+        
+        return None
 
 
 # ============================================================================
@@ -341,24 +312,13 @@ class DeepSeekMoE(nn.Module):
         self.top_k = top_k
         
         # TODO: Create shared and routed experts
-        # HINT:
-        #   # Shared experts (always active)
-        #   self.shared_experts = nn.ModuleList([
-        #       SwiGLUExpert(d_model, d_expert, dropout)
-        #       for _ in range(num_shared_experts)
-        #   ])
-        #   
-        #   # Routed experts (sparsely active)
-        #   self.routed_experts = nn.ModuleList([
-        #       SwiGLUExpert(d_model, d_expert, dropout)
-        #       for _ in range(num_routed_experts)
-        #   ])
-        #   
-        #   # Router for routed experts
-        #   self.router = DeepSeekRouter(d_model, num_routed_experts, top_k)
-        self.shared_experts = None   # Replace
-        self.routed_experts = None   # Replace
-        self.router = None           # Replace
+        # API hints:
+        # - nn.ModuleList([SwiGLUExpert(...) for _ in range(n)]) -> expert lists
+        # - DeepSeekRouter(d_model, num_routed_experts, top_k) -> router
+        
+        self.shared_experts = None
+        self.routed_experts = None
+        self.router = None
     
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, dict]:
         """
@@ -370,50 +330,16 @@ class DeepSeekMoE(nn.Module):
         Returns:
             output: MoE output (batch, seq_len, d_model)
             aux_info: Dictionary with routing info for analysis
-        
-        TODO: Implement MoE with shared and routed experts
-        HINT:
-            batch, seq_len, d_model = x.shape
-            
-            # Shared experts (always active)
-            shared_output = torch.zeros_like(x)
-            for expert in self.shared_experts:
-                shared_output = shared_output + expert(x)
-            shared_output = shared_output / len(self.shared_experts)
-            
-            # Routed experts (sparse)
-            gates, indices, router_logits = self.router(x, self.training)
-            
-            routed_output = torch.zeros_like(x)
-            
-            for i, expert in enumerate(self.routed_experts):
-                # Find tokens routed to this expert
-                expert_mask = (indices == i).any(dim=-1)  # (batch, seq)
-                
-                if expert_mask.any():
-                    # Get gate weights for this expert
-                    expert_gates = torch.where(
-                        indices == i,
-                        gates,
-                        torch.zeros_like(gates)
-                    ).sum(dim=-1)  # (batch, seq)
-                    
-                    # Apply expert to all tokens (for simplicity) and weight
-                    expert_out = expert(x)
-                    routed_output = routed_output + expert_gates.unsqueeze(-1) * expert_out
-            
-            # Combine shared and routed
-            output = shared_output + routed_output
-            
-            aux_info = {
-                'router_logits': router_logits,
-                'selected_experts': indices,
-                'gate_weights': gates
-            }
-            
-            return output, aux_info
         """
-        return x, {}  # Replace
+        # API hints:
+        # - Loop over self.shared_experts, sum outputs, average
+        # - self.router(x, self.training) -> gates, indices, router_logits
+        # - (indices == i).any(dim=-1) -> mask for expert i
+        # - torch.where(condition, x, y) -> conditional selection
+        # - expert_gates.unsqueeze(-1) * expert_out -> weighted output
+        # - Return aux_info with router_logits, selected_experts, gate_weights
+        
+        return None
 
 
 # ============================================================================
@@ -466,28 +392,15 @@ class DeepSeekBlock(nn.Module):
         self.use_moe = use_moe
         
         # TODO: Create block components
-        # HINT:
-        #   # Attention (simplified - use standard attention for this exercise)
-        #   self.attn_norm = RMSNorm(config.d_model)
-        #   self.attn = nn.MultiheadAttention(
-        #       config.d_model, config.num_heads,
-        #       dropout=config.dropout, batch_first=True
-        #   )
-        #   
-        #   # FFN (MoE or dense SwiGLU)
-        #   self.ffn_norm = RMSNorm(config.d_model)
-        #   if use_moe:
-        #       self.ffn = DeepSeekMoE(
-        #           config.d_model, config.num_shared_experts,
-        #           config.num_routed_experts, config.top_k,
-        #           config.d_expert, config.dropout
-        #       )
-        #   else:
-        #       self.ffn = SwiGLUFFN(config.d_model, dropout=config.dropout)
-        self.attn_norm = None  # Replace
-        self.attn = None       # Replace
-        self.ffn_norm = None   # Replace
-        self.ffn = None        # Replace
+        # API hints:
+        # - RMSNorm(config.d_model) -> normalization layers
+        # - nn.MultiheadAttention(d_model, num_heads, dropout, batch_first=True)
+        # - DeepSeekMoE(...) for MoE, SwiGLUFFN(...) for dense
+        
+        self.attn_norm = None
+        self.attn = None
+        self.ffn_norm = None
+        self.ffn = None
     
     def forward(
         self,
@@ -504,26 +417,14 @@ class DeepSeekBlock(nn.Module):
         Returns:
             output: Block output
             aux_info: MoE routing info (if using MoE)
-        
-        TODO: Implement block forward
-        HINT:
-            # Pre-norm attention
-            normed = self.attn_norm(x)
-            attn_out, _ = self.attn(normed, normed, normed, attn_mask=mask)
-            x = x + attn_out
-            
-            # Pre-norm FFN
-            normed = self.ffn_norm(x)
-            if self.use_moe:
-                ffn_out, aux_info = self.ffn(normed)
-            else:
-                ffn_out = self.ffn(normed)
-                aux_info = {}
-            x = x + ffn_out
-            
-            return x, aux_info
         """
-        return x, {}  # Replace
+        # API hints:
+        # - self.attn_norm(x) -> pre-norm
+        # - self.attn(normed, normed, normed, attn_mask=mask) -> attention
+        # - x = x + attn_out -> residual connection
+        # - self.ffn(normed) -> returns (output, aux_info) for MoE
+        
+        return None
 
 
 # ============================================================================
@@ -553,14 +454,12 @@ class DeepSeekModel(nn.Module):
             moe_layers = list(range(1, num_layers))
         
         # TODO: Create layers
-        # HINT:
-        #   self.layers = nn.ModuleList([
-        #       DeepSeekBlock(config, use_moe=(i in moe_layers))
-        #       for i in range(num_layers)
-        #   ])
-        #   self.final_norm = RMSNorm(config.d_model)
-        self.layers = None      # Replace
-        self.final_norm = None  # Replace
+        # API hints:
+        # - nn.ModuleList([DeepSeekBlock(config, use_moe=(i in moe_layers)) for i in range(num_layers)])
+        # - RMSNorm(config.d_model) -> final normalization
+        
+        self.layers = None
+        self.final_norm = None
     
     def forward(
         self,
@@ -577,20 +476,13 @@ class DeepSeekModel(nn.Module):
         Returns:
             output: Final hidden states
             all_aux_info: List of aux info from each layer
-        
-        TODO: Implement forward
-        HINT:
-            all_aux_info = []
-            
-            for layer in self.layers:
-                x, aux_info = layer(x, mask)
-                all_aux_info.append(aux_info)
-            
-            x = self.final_norm(x)
-            
-            return x, all_aux_info
         """
-        return x, []  # Replace
+        # API hints:
+        # - for layer in self.layers: x, aux = layer(x, mask)
+        # - all_aux_info.append(aux_info) -> collect routing info
+        # - self.final_norm(x) -> final normalization
+        
+        return None
 
 
 # ============================================================================
@@ -607,33 +499,15 @@ def analyze_expert_usage(aux_info_list: List[dict], num_routed_experts: int) -> 
     
     Returns:
         Analysis dictionary
-    
-    TODO: Analyze routing patterns
-    HINT:
-        total_tokens = 0
-        expert_counts = torch.zeros(num_routed_experts)
-        
-        for aux in aux_info_list:
-            if 'selected_experts' in aux:
-                indices = aux['selected_experts']  # (batch, seq, top_k)
-                for i in range(num_routed_experts):
-                    expert_counts[i] += (indices == i).sum().item()
-                total_tokens += indices.numel()
-        
-        if total_tokens > 0:
-            expert_utilization = expert_counts / total_tokens
-            
-            return {
-                'expert_counts': expert_counts.tolist(),
-                'expert_utilization': expert_utilization.tolist(),
-                'max_utilization': expert_utilization.max().item(),
-                'min_utilization': expert_utilization.min().item(),
-                'load_imbalance': expert_utilization.max() / (expert_utilization.min() + 1e-9)
-            }
-        
-        return {}
     """
-    return {}  # Replace
+    # API hints:
+    # - torch.zeros(num_routed_experts) -> initialize expert counts
+    # - aux['selected_experts'] -> indices tensor (batch, seq, top_k)
+    # - (indices == i).sum().item() -> count tokens routed to expert i
+    # - expert_counts / total_tokens -> utilization ratio
+    # - Return dict with expert_counts, expert_utilization, load_imbalance
+    
+    return None
 
 
 def compute_activated_params(config: DeepSeekConfig, num_layers: int,
@@ -648,55 +522,16 @@ def compute_activated_params(config: DeepSeekConfig, num_layers: int,
     
     Returns:
         Parameter count dictionary
-    
-    TODO: Compute activated parameters
-    HINT:
-        if moe_layers is None:
-            moe_layers = list(range(1, num_layers))
-        
-        d_ffn = int(8 / 3 * config.d_model)
-        d_expert = config.d_expert or config.d_model * 4
-        
-        # Attention params (same for all layers with MLA)
-        attn_params = (
-            config.d_model * config.d_q_latent +  # q down
-            config.d_q_latent * config.num_heads * config.head_dim +  # q up
-            config.d_model * config.d_kv_latent +  # kv down
-            config.d_kv_latent * config.num_heads * config.head_dim * 2 +  # k/v up
-            config.num_heads * config.head_dim * config.d_model  # output
-        )
-        
-        # Dense SwiGLU FFN params
-        dense_ffn_params = 3 * config.d_model * d_ffn  # W_gate, W_up, W_down
-        
-        # MoE FFN params (activated per token)
-        expert_params = 3 * config.d_model * d_expert
-        shared_params = config.num_shared_experts * expert_params
-        routed_params = config.top_k * expert_params
-        moe_ffn_params = shared_params + routed_params
-        
-        # Total
-        total_attn = num_layers * attn_params
-        dense_layers = num_layers - len(moe_layers)
-        total_ffn = dense_layers * dense_ffn_params + len(moe_layers) * moe_ffn_params
-        
-        return {
-            'attention_params_per_layer': attn_params,
-            'dense_ffn_params_per_layer': dense_ffn_params,
-            'moe_activated_params_per_layer': moe_ffn_params,
-            'total_activated_params': total_attn + total_ffn,
-            'num_moe_layers': len(moe_layers),
-            'num_dense_layers': dense_layers
-        }
     """
-    return {
-        'attention_params_per_layer': 0,
-        'dense_ffn_params_per_layer': 0,
-        'moe_activated_params_per_layer': 0,
-        'total_activated_params': 0,
-        'num_moe_layers': 0,
-        'num_dense_layers': 0
-    }  # Replace
+    # API hints:
+    # - d_ffn = int(8 / 3 * config.d_model) -> SwiGLU hidden dim
+    # - d_expert = config.d_expert or config.d_model * 4
+    # - attn_params = sum of Q, K, V, O projection params
+    # - dense_ffn_params = 3 * d_model * d_ffn (W_gate, W_up, W_down)
+    # - expert_params = 3 * d_model * d_expert per expert
+    # - moe_ffn_params = shared_params + routed_params (top_k experts)
+    
+    return None
 
 
 if __name__ == "__main__":

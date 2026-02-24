@@ -29,15 +29,14 @@ def mse_loss_manual(pred: torch.Tensor, target: torch.Tensor,
         pred: Predictions
         target: Ground truth
         reduction: 'none', 'mean', or 'sum'
-    
-    TODO: Compute squared error and apply reduction
-    HINT: 
-        loss = (pred - target) ** 2
-        if reduction == 'mean': return loss.mean()
-        elif reduction == 'sum': return loss.sum()
-        else: return loss
     """
-    return None  # Replace
+    # API hints:
+    # - (pred - target) ** 2 -> element-wise squared error
+    # - tensor.mean() -> mean of all elements
+    # - tensor.sum() -> sum of all elements
+    # - Use if/elif to handle reduction modes
+    
+    return None
 
 
 # ============================================================================
@@ -53,14 +52,13 @@ def bce_loss_manual(pred: torch.Tensor, target: torch.Tensor,
         pred: Probabilities (0 to 1)
         target: Binary targets (0 or 1)
         reduction: 'none', 'mean', or 'sum'
-    
-    TODO: Implement BCE formula
-    HINT: 
-        eps = 1e-7  # Numerical stability
-        pred = torch.clamp(pred, eps, 1 - eps)
-        loss = -(target * torch.log(pred) + (1 - target) * torch.log(1 - pred))
     """
-    return None  # Replace
+    # API hints:
+    # - torch.clamp(pred, min, max) -> clamp for numerical stability
+    # - torch.log(x) -> element-wise natural log
+    # - Use small epsilon (1e-7) to avoid log(0)
+    
+    return None
 
 
 def bce_with_logits_manual(logits: torch.Tensor, target: torch.Tensor,
@@ -72,13 +70,13 @@ def bce_with_logits_manual(logits: torch.Tensor, target: torch.Tensor,
     
     This is more stable than sigmoid + BCE.
     """
-    # TODO: Implement stable BCE with logits
-    # HINT: 
-    # pos_part = F.relu(logits)
-    # neg_part = logits * target
-    # log_part = torch.log(1 + torch.exp(-torch.abs(logits)))
-    # loss = pos_part - neg_part + log_part
-    return None  # Replace
+    # API hints:
+    # - F.relu(logits) -> max(logits, 0)
+    # - torch.abs(logits) -> absolute value
+    # - torch.exp(x) -> element-wise exponential
+    # - torch.log(x) -> element-wise natural log
+    
+    return None
 
 
 # ============================================================================
@@ -97,13 +95,14 @@ def cross_entropy_manual(logits: torch.Tensor, target: torch.Tensor,
     Args:
         logits: (batch, num_classes) unnormalized scores
         target: (batch,) class indices
-    
-    TODO: Implement cross-entropy
-    HINT:
-        log_probs = F.log_softmax(logits, dim=-1)
-        loss = -log_probs.gather(dim=-1, index=target.unsqueeze(-1)).squeeze(-1)
     """
-    return None  # Replace
+    # API hints:
+    # - F.log_softmax(logits, dim=-1) -> log of softmax (stable)
+    # - tensor.gather(dim, index) -> gather values at indices
+    # - tensor.unsqueeze(-1) -> add dimension at end
+    # - tensor.squeeze(-1) -> remove dimension at end
+    
+    return None
 
 
 def cross_entropy_smooth(logits: torch.Tensor, target: torch.Tensor,
@@ -112,19 +111,18 @@ def cross_entropy_smooth(logits: torch.Tensor, target: torch.Tensor,
     """
     Cross-entropy with label smoothing.
     
-    Instead of hard labels [0, 0, 1, 0], use:
-    [(smoothing/n_classes), (smoothing/n_classes), (1-smoothing) + (smoothing/n_classes), ...]
+    Instead of hard labels [0, 0, 1, 0], use smoothed distribution.
     """
+    # API hints:
+    # - F.log_softmax(logits, dim=-1) -> log of softmax
+    # - torch.full_like(tensor, value) -> tensor filled with value
+    # - tensor.scatter_(dim, index, value) -> scatter values at indices (in-place)
+    # - (targets * log_probs).sum(dim=-1) -> weighted sum
+    
     n_classes = logits.shape[-1]
     log_probs = F.log_softmax(logits, dim=-1)
     
-    # TODO: Create smoothed targets and compute loss
-    # HINT:
-    # One-hot encoding with smoothing
-    # smooth_targets = torch.full_like(log_probs, smoothing / n_classes)
-    # smooth_targets.scatter_(-1, target.unsqueeze(-1), 1 - smoothing + smoothing / n_classes)
-    # loss = -(smooth_targets * log_probs).sum(dim=-1)
-    return None  # Replace
+    return None
 
 
 # ============================================================================
@@ -138,15 +136,13 @@ def huber_loss_manual(pred: torch.Tensor, target: torch.Tensor,
     
     L = 0.5 * (pred - target)²  if |pred - target| <= delta
     L = delta * (|pred - target| - 0.5 * delta)  otherwise
-    
-    TODO: Implement Huber loss
-    HINT:
-        diff = torch.abs(pred - target)
-        loss = torch.where(diff <= delta, 
-                          0.5 * diff ** 2,
-                          delta * (diff - 0.5 * delta))
     """
-    return None  # Replace
+    # API hints:
+    # - torch.abs(x) -> element-wise absolute value
+    # - torch.where(condition, x, y) -> select x where True, y where False
+    # - diff ** 2 -> element-wise square
+    
+    return None
 
 
 # ============================================================================
@@ -167,17 +163,13 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
     
     def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        """
-        TODO: Implement Focal Loss
+        # API hints:
+        # - F.cross_entropy(logits, target, reduction='none') -> per-sample CE loss
+        # - torch.exp(-ce_loss) -> probability of correct class
+        # - (1 - p) ** gamma -> focal weight
+        # - loss.mean() -> mean reduction
         
-        HINT:
-        ce_loss = F.cross_entropy(logits, target, reduction='none')
-        p = torch.exp(-ce_loss)  # Probability of correct class
-        focal_weight = self.alpha * (1 - p) ** self.gamma
-        loss = focal_weight * ce_loss
-        return loss.mean()
-        """
-        return None  # Replace
+        return None
 
 
 if __name__ == "__main__":

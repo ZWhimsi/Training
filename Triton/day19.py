@@ -53,16 +53,20 @@ def extract_block_kernel(
     global_m = row_start + local_m
     global_n = col_start + local_n
     
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Row-major: element at (i, j) is at offset i * N + j
+    
     mask_m = global_m < M
     mask_n = global_n < N
     mask = mask_m[:, None] & mask_n[None, :]
     
-    # TODO: Compute input offsets (row-major)
-    # HINT: input_offs = global_m[:, None] * N + global_n[None, :]
+    # TODO: Compute input offsets (row-major layout)
     input_offs = None  # Replace
     
-    # TODO: Load block
-    block = None  # Replace: tl.load(input_ptr + input_offs, mask=mask, other=0.0)
+    # TODO: Load block from input matrix
+    block = None  # Replace
     
     # Store to output (as contiguous block)
     output_offs = local_m[:, None] * BLOCK_N + local_n[None, :]
@@ -115,15 +119,19 @@ def block_add_kernel(
     
     offs = global_m[:, None] * N + global_n[None, :]
     
-    # TODO: Load blocks from a and b
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - Use + operator for element-wise addition
+    
+    # Load blocks from a and b
     a_block = tl.load(a_ptr + offs, mask=mask, other=0.0)
     b_block = tl.load(b_ptr + offs, mask=mask, other=0.0)
     
-    # TODO: Add blocks
-    result = None  # Replace: a_block + b_block
+    # TODO: Add blocks element-wise
+    result = None  # Replace
     
     # TODO: Store result
-    # HINT: tl.store(output_ptr + offs, result, mask=mask)
     pass  # Replace
 
 

@@ -9,15 +9,6 @@ Learning objectives:
 - Understand pointer arithmetic in Triton
 - Work with different data types
 - Handle memory alignment and coalescing basics
-
-Hints:
-- Pointers in Triton are like array indices
-- tl.load(ptr + offset) loads from memory at ptr + offset
-- Always use masks for bounds checking
-- Data types matter: float32, float16, int32, etc.
-
-Resources:
-- https://triton-lang.org/main/python-api/triton.language.html
 """
 
 import torch
@@ -60,23 +51,14 @@ def copy_kernel(
     
     This teaches the basic load/store pattern.
     """
-    # TODO: Get program ID
-    pid = None  # Replace
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range [start, end)
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Calculate offsets for this block
-    # HINT: offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    offsets = None  # Replace
-    
-    # TODO: Create mask for bounds checking
-    mask = None  # Replace
-    
-    # TODO: Load from source
-    # HINT: tl.load(src_ptr + offsets, mask=mask)
-    data = None  # Replace
-    
-    # TODO: Store to destination
-    # HINT: tl.store(dst_ptr + offsets, data, mask=mask)
-    pass  # Replace
+    # TODO: Implement copy kernel
+    pass
 
 
 def copy(src: torch.Tensor) -> torch.Tensor:
@@ -86,9 +68,12 @@ def copy(src: torch.Tensor) -> torch.Tensor:
     n_elements = src.numel()
     BLOCK_SIZE = 1024
     
+    # API hints:
+    # - triton.cdiv(n, d) -> ceiling division
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Calculate grid and launch kernel
-    grid = None  # Replace
-    # Launch kernel
+    pass
     
     return dst
 
@@ -108,14 +93,16 @@ def scaled_copy_kernel(
 ):
     """
     Copy with scaling: dst = src * scale
-    """
-    # TODO: Implement scaled copy
-    # Same pattern as copy, but multiply by scale before storing
-    pid = tl.program_id(0)
-    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
     
-    # TODO: Load, scale, store
+    Same pattern as copy, but multiply by scale before storing.
+    """
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
+    
+    # TODO: Implement scaled copy kernel
     pass
 
 
@@ -126,9 +113,12 @@ def scaled_copy(src: torch.Tensor, scale: float) -> torch.Tensor:
     n_elements = src.numel()
     BLOCK_SIZE = 1024
     
+    # API hints:
+    # - triton.cdiv(n, d) -> ceiling division
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel with scale parameter
-    grid = (triton.cdiv(n_elements, BLOCK_SIZE),)
-    # Launch kernel
+    pass
     
     return dst
 
@@ -151,20 +141,13 @@ def strided_load_kernel(
     
     If stride=2: dst[0]=src[0], dst[1]=src[2], dst[2]=src[4], ...
     """
-    pid = tl.program_id(0)
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # Output indices (where we write)
-    out_offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = out_offsets < n_output
-    
-    # TODO: Calculate source indices (multiply by stride)
-    # HINT: src_offsets = out_offsets * stride
-    src_offsets = None  # Replace
-    
-    # TODO: Load from strided positions
-    data = None  # Replace
-    
-    # TODO: Store to contiguous output
+    # TODO: Implement strided load kernel
     pass
 
 
@@ -175,9 +158,12 @@ def strided_load(src: torch.Tensor, stride: int) -> torch.Tensor:
     dst = torch.empty(n_output, dtype=src.dtype, device=src.device)
     BLOCK_SIZE = 1024
     
+    # API hints:
+    # - triton.cdiv(n, d) -> ceiling division
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
-    grid = (triton.cdiv(n_output, BLOCK_SIZE),)
-    # Launch kernel
+    pass
     
     return dst
 
@@ -197,21 +183,17 @@ def relu_kernel(
     """
     ReLU activation: out[i] = max(0, x[i])
     
-    This uses tl.where() for conditional operations.
+    This uses tl.where() or tl.maximum() for conditional operations.
     """
-    pid = tl.program_id(0)
-    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.maximum(a, b) -> element-wise maximum
+    # - tl.where(cond, a, b) -> select a where cond else b
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load input
-    x = None  # Replace
-    
-    # TODO: Apply ReLU using tl.where or tl.maximum
-    # HINT: tl.where(condition, value_if_true, value_if_false)
-    # HINT: Or use tl.maximum(x, 0.0)
-    output = None  # Replace
-    
-    # TODO: Store result
+    # TODO: Implement ReLU kernel
     pass
 
 
@@ -222,9 +204,12 @@ def relu(x: torch.Tensor) -> torch.Tensor:
     n_elements = x.numel()
     BLOCK_SIZE = 1024
     
+    # API hints:
+    # - triton.cdiv(n, d) -> ceiling division
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
-    grid = (triton.cdiv(n_elements, BLOCK_SIZE),)
-    # Launch kernel
+    pass
     
     return out
 
@@ -247,21 +232,14 @@ def add_relu_kernel(
     
     Kernel fusion reduces memory traffic by avoiding intermediate storage.
     """
-    pid = tl.program_id(0)
-    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+    # API hints:
+    # - tl.program_id(axis) -> get block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load from memory
+    # - tl.maximum(a, b) -> element-wise maximum
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    # TODO: Load both inputs
-    a = None  # Replace
-    b = None  # Replace
-    
-    # TODO: Add them
-    sum_ab = None  # Replace
-    
-    # TODO: Apply ReLU
-    output = None  # Replace
-    
-    # TODO: Store
+    # TODO: Implement fused add-ReLU kernel
     pass
 
 
@@ -273,9 +251,12 @@ def add_relu(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     n_elements = a.numel()
     BLOCK_SIZE = 1024
     
+    # API hints:
+    # - triton.cdiv(n, d) -> ceiling division
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
-    grid = (triton.cdiv(n_elements, BLOCK_SIZE),)
-    # Launch kernel
+    pass
     
     return out
 

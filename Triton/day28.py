@@ -84,9 +84,11 @@ def causal_attention_kernel(
         scores = tl.dot(q, tl.trans(k)) * scale
         
         # TODO: Apply causal mask within block
-        # scores[i, j] = -inf if offs_n[j] > offs_m[i]
-        # HINT: causal_mask = offs_n[None, :] > offs_m[:, None]
-        causal_mask = None  # Replace
+        # Set scores to -inf where key position > query position
+        # API hints:
+        # - Create boolean mask: offs_n[None, :] > offs_m[:, None]
+        # - tl.where(condition, true_val, false_val) -> conditional select
+        causal_mask = offs_n[None, :] > offs_m[:, None]  # placeholder, needs implementation
         scores = tl.where(causal_mask, float('-inf'), scores)
         
         # Update running max
@@ -111,10 +113,11 @@ def causal_attention_kernel(
     # Normalize
     output = acc / l[:, None]
     
-    # TODO: Store
+    # TODO: Store the computed output
+    # API hints:
+    # - tl.store(ptr + offsets, values, mask=mask) -> store with bounds checking
     o_offs = offs_m[:, None] * stride_Os + offs_d[None, :] * stride_Od
-    # HINT: tl.store(output_ptr + o_offs, output, mask=q_mask)
-    pass  # Replace
+    pass
 
 
 def causal_attention(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor) -> torch.Tensor:

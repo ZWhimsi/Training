@@ -29,12 +29,17 @@ class SimpleLayer(nn.Module):
     def __init__(self, in_features, out_features):
         super().__init__()
         
+        # API hints:
+        # - nn.Parameter(tensor) -> wraps tensor as learnable parameter
+        # - torch.randn(size) -> random tensor with normal distribution
+        # - Weight shape: [out_features, in_features]
+        # - Bias shape: [out_features]
+        
         # TODO: Create weight parameter [out_features, in_features]
-        # HINT: nn.Parameter(torch.randn(out_features, in_features))
-        self.weight = None  # Replace
+        self.weight = None
         
         # TODO: Create bias parameter [out_features]
-        self.bias = None  # Replace
+        self.bias = None
     
     def forward(self, x):
         """
@@ -46,9 +51,12 @@ class SimpleLayer(nn.Module):
         Returns:
             Output tensor [batch, out_features]
         """
+        # API hints:
+        # - x @ self.weight.T -> matrix multiplication with transposed weight
+        # - Add bias after matmul
+        
         # TODO: Compute linear transformation
-        # HINT: return x @ self.weight.T + self.bias
-        return None  # Replace
+        return None
 
 
 # ============================================================================
@@ -63,21 +71,29 @@ class TwoLayerNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
         
+        # API hints:
+        # - nn.Linear(in_features, out_features) -> fully connected layer
+        
         # TODO: Create first linear layer (input -> hidden)
-        self.fc1 = None  # Replace: nn.Linear(input_size, hidden_size)
+        self.fc1 = None
         
         # TODO: Create second linear layer (hidden -> output)
-        self.fc2 = None  # Replace: nn.Linear(hidden_size, output_size)
+        self.fc2 = None
     
     def forward(self, x):
         """
         Forward pass with ReLU activation between layers.
         """
+        # API hints:
+        # - torch.relu(tensor) or F.relu(tensor) -> ReLU activation
+        # - self.fc1(x) -> pass x through first layer
+        # - self.fc2(x) -> pass x through second layer
+        
         # TODO: First layer + ReLU
-        x = None  # Replace: torch.relu(self.fc1(x))
+        x = None
         
         # TODO: Second layer (no activation - raw output)
-        x = None  # Replace: self.fc2(x)
+        x = None
         
         return x
 
@@ -96,9 +112,13 @@ def count_parameters(model):
     Returns:
         Total number of parameters
     """
+    # API hints:
+    # - model.parameters() -> iterator over all parameters
+    # - param.numel() -> number of elements in parameter tensor
+    # - sum(generator) -> sum up values
+    
     # TODO: Sum up all parameter sizes
-    # HINT: sum(p.numel() for p in model.parameters())
-    return None  # Replace
+    return None
 
 
 # ============================================================================
@@ -112,15 +132,18 @@ def get_parameter_info(model):
     Returns:
         List of dicts with 'name', 'shape', 'requires_grad'
     """
+    # API hints:
+    # - model.named_parameters() -> iterator of (name, param) tuples
+    # - tuple(param.shape) -> parameter shape as tuple
+    # - param.requires_grad -> boolean
+    
     info = []
     
-    # TODO: Iterate over named_parameters
-    # HINT: for name, param in model.named_parameters():
     for name, param in model.named_parameters():
         info.append({
             'name': name,
-            'shape': None,  # Replace: tuple(param.shape)
-            'requires_grad': None  # Replace: param.requires_grad
+            'shape': None,
+            'requires_grad': None
         })
     
     return info
@@ -135,14 +158,15 @@ def create_sequential_net(input_size, hidden_size, output_size):
     Create a network using nn.Sequential.
     
     Returns:
-        nn.Sequential model
+        nn.Sequential model with Linear -> ReLU -> Linear
     """
-    # TODO: Create sequential model with:
-    # - Linear(input_size, hidden_size)
-    # - ReLU
-    # - Linear(hidden_size, output_size)
+    # API hints:
+    # - nn.Sequential(layer1, layer2, ...) -> sequential container
+    # - nn.Linear(in_features, out_features) -> linear layer
+    # - nn.ReLU() -> ReLU activation module
     
-    model = None  # Replace with nn.Sequential(...)
+    # TODO: Create sequential model
+    model = None
     
     return model
 
@@ -158,6 +182,11 @@ def test_forward_pass():
     Returns:
         dict with input shape, output shape, and output
     """
+    # API hints:
+    # - model(x) -> forward pass through model
+    # - tuple(tensor.shape) -> shape as tuple
+    # - tensor[0].tolist() -> first sample as Python list
+    
     model = TwoLayerNet(10, 20, 5)
     
     if model.fc1 is None:
@@ -167,7 +196,7 @@ def test_forward_pass():
     x = torch.randn(4, 10)  # Batch of 4, 10 features
     
     # TODO: Forward pass
-    output = None  # Replace: model(x)
+    output = None
     
     return {
         'input_shape': tuple(x.shape),

@@ -37,13 +37,17 @@ def sigmoid_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.exp(x) -> element-wise exponential
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     
-    # TODO: Compute sigmoid
-    # HINT: result = 1.0 / (1.0 + tl.exp(-x))
+    # TODO: Compute sigmoid: σ(x) = 1 / (1 + exp(-x))
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result
     pass  # Replace
 
 
@@ -76,14 +80,18 @@ def tanh_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.exp(x) -> element-wise exponential
+    # - Can use sigmoid identity: tanh(x) = 2 * sigmoid(2x) - 1
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     
-    # TODO: Compute tanh using the sigmoid identity
-    # HINT: result = 2.0 * (1.0 / (1.0 + tl.exp(-2.0 * x))) - 1.0
-    # Or use: tl.math.tanh(x) if available
+    # TODO: Compute tanh using the sigmoid identity or direct formula
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result
     pass  # Replace
 
 
@@ -117,13 +125,17 @@ def leaky_relu_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.where(condition, x, y) -> select x where condition is true, else y
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     
-    # TODO: Compute leaky ReLU
-    # HINT: result = tl.where(x > 0, x, negative_slope * x)
+    # TODO: Compute leaky ReLU: x if x > 0, else negative_slope * x
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result
     pass  # Replace
 
 
@@ -157,13 +169,18 @@ def elu_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.where(condition, x, y) -> select x where condition is true, else y
+    # - tl.exp(x) -> element-wise exponential
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     
-    # TODO: Compute ELU
-    # HINT: result = tl.where(x > 0, x, alpha * (tl.exp(x) - 1.0))
+    # TODO: Compute ELU: x if x > 0, else alpha * (exp(x) - 1)
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result
     pass  # Replace
 
 
@@ -197,13 +214,18 @@ def softplus_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.log(x) -> element-wise natural logarithm
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     
-    # TODO: Compute softplus
-    # HINT: result = (1.0 / beta) * tl.log(1.0 + tl.exp(beta * x))
+    # TODO: Compute softplus: (1/beta) * log(1 + exp(beta * x))
     result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result
     pass  # Replace
 
 
@@ -236,16 +258,21 @@ def mish_kernel(
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     
+    # API hints:
+    # - tl.load(ptr, mask=mask) -> load elements from memory
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.log(x) -> element-wise natural logarithm
+    
     x = tl.load(x_ptr + offsets, mask=mask)
     
-    # TODO: Compute mish
-    # Step 1: softplus = ln(1 + exp(x))
-    # Step 2: result = x * tanh(softplus)
-    softplus_x = tl.log(1.0 + tl.exp(x))
-    tanh_softplus = 2.0 * (1.0 / (1.0 + tl.exp(-2.0 * softplus_x))) - 1.0
-    result = None  # Replace: x * tanh_softplus
+    # TODO: Compute mish: x * tanh(softplus(x)) = x * tanh(ln(1 + exp(x)))
+    # Step 1: Compute softplus(x) = ln(1 + exp(x))
+    # Step 2: Compute tanh(softplus(x))
+    # Step 3: Compute x * tanh(softplus(x))
+    result = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result
     pass  # Replace
 
 

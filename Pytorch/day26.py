@@ -85,31 +85,14 @@ def calculate_kv_cache_size(
     
     Returns:
         Dictionary with cache size statistics
-    
-    TODO: Calculate cache sizes
-    HINT:
-        # Per-layer KV cache: K and V, each (batch, num_heads, seq_len, head_dim)
-        per_layer_kv = 2 * batch_size * num_heads * seq_len * head_dim * dtype_bytes
-        
-        # Total across all layers
-        total_bytes = num_layers * per_layer_kv
-        
-        # Convert to GB
-        total_gb = total_bytes / (1024 ** 3)
-        
-        return {
-            'per_layer_bytes': per_layer_kv,
-            'total_bytes': total_bytes,
-            'total_gb': total_gb,
-            'kv_dim': num_heads * head_dim
-        }
     """
-    return {
-        'per_layer_bytes': 0,
-        'total_bytes': 0,
-        'total_gb': 0.0,
-        'kv_dim': 0
-    }  # Replace
+    # API hints:
+    # - per_layer_kv = 2 * batch_size * num_heads * seq_len * head_dim * dtype_bytes
+    # - total_bytes = num_layers * per_layer_kv
+    # - total_gb = total_bytes / (1024 ** 3)
+    # - kv_dim = num_heads * head_dim
+    
+    return None
 
 
 def calculate_mla_cache_size(
@@ -133,28 +116,13 @@ def calculate_mla_cache_size(
     
     Returns:
         Dictionary with cache size statistics
-    
-    TODO: Calculate MLA cache sizes
-    HINT:
-        # Per-layer: only cache compressed latent (batch, seq_len, d_latent)
-        per_layer = batch_size * seq_len * d_latent * dtype_bytes
-        
-        total_bytes = num_layers * per_layer
-        total_gb = total_bytes / (1024 ** 3)
-        
-        return {
-            'per_layer_bytes': per_layer,
-            'total_bytes': total_bytes,
-            'total_gb': total_gb,
-            'latent_dim': d_latent
-        }
     """
-    return {
-        'per_layer_bytes': 0,
-        'total_bytes': 0,
-        'total_gb': 0.0,
-        'latent_dim': 0
-    }  # Replace
+    # API hints:
+    # - per_layer = batch_size * seq_len * d_latent * dtype_bytes
+    # - total_bytes = num_layers * per_layer
+    # - total_gb = total_bytes / (1024 ** 3)
+    
+    return None
 
 
 # ============================================================================
@@ -180,9 +148,10 @@ class DownProjection(nn.Module):
         self.d_latent = d_latent
         
         # TODO: Create down projection
-        # HINT:
-        #   self.down_proj = nn.Linear(d_model, d_latent, bias=False)
-        self.down_proj = None  # Replace
+        # API hints:
+        # - nn.Linear(d_model, d_latent, bias=False) -> linear without bias
+        
+        self.down_proj = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -193,12 +162,11 @@ class DownProjection(nn.Module):
         
         Returns:
             Compressed latent (batch, seq_len, d_latent)
-        
-        TODO: Apply down projection
-        HINT:
-            return self.down_proj(x)
         """
-        return x  # Replace
+        # API hints:
+        # - self.down_proj(x) -> apply linear transformation
+        
+        return None
 
 
 # ============================================================================
@@ -224,9 +192,10 @@ class UpProjection(nn.Module):
         self.d_output = d_output
         
         # TODO: Create up projection
-        # HINT:
-        #   self.up_proj = nn.Linear(d_latent, d_output, bias=False)
-        self.up_proj = None  # Replace
+        # API hints:
+        # - nn.Linear(d_latent, d_output, bias=False) -> linear without bias
+        
+        self.up_proj = None
     
     def forward(self, c: torch.Tensor) -> torch.Tensor:
         """
@@ -237,12 +206,11 @@ class UpProjection(nn.Module):
         
         Returns:
             Reconstructed output (batch, seq_len, d_output)
-        
-        TODO: Apply up projection
-        HINT:
-            return self.up_proj(c)
         """
-        return c  # Replace
+        # API hints:
+        # - self.up_proj(c) -> apply linear transformation
+        
+        return None
 
 
 # ============================================================================
@@ -282,16 +250,13 @@ class LowRankKVProjection(nn.Module):
         self.d_kv = num_heads * head_dim
         
         # TODO: Create down projection and separate up projections for K and V
-        # HINT:
-        #   # Shared down projection (compression)
-        #   self.down_proj = nn.Linear(d_model, d_latent, bias=False)
-        #   
-        #   # Separate up projections for K and V
-        #   self.up_proj_k = nn.Linear(d_latent, self.d_kv, bias=False)
-        #   self.up_proj_v = nn.Linear(d_latent, self.d_kv, bias=False)
-        self.down_proj = None   # Replace
-        self.up_proj_k = None   # Replace
-        self.up_proj_v = None   # Replace
+        # API hints:
+        # - nn.Linear(d_model, d_latent, bias=False) -> down projection
+        # - nn.Linear(d_latent, d_kv, bias=False) -> up projections for K and V
+        
+        self.down_proj = None
+        self.up_proj_k = None
+        self.up_proj_v = None
     
     def compress(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -302,12 +267,11 @@ class LowRankKVProjection(nn.Module):
         
         Returns:
             Compressed latent (batch, seq_len, d_latent)
-        
-        TODO: Apply down projection
-        HINT:
-            return self.down_proj(x)
         """
-        return x  # Replace
+        # API hints:
+        # - self.down_proj(x) -> apply compression
+        
+        return None
     
     def reconstruct_kv(self, c: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -319,26 +283,13 @@ class LowRankKVProjection(nn.Module):
         Returns:
             K: (batch, seq_len, num_heads, head_dim)
             V: (batch, seq_len, num_heads, head_dim)
-        
-        TODO: Reconstruct K and V from latent
-        HINT:
-            batch, seq_len, _ = c.shape
-            
-            # Reconstruct K and V
-            k = self.up_proj_k(c)  # (batch, seq, d_kv)
-            v = self.up_proj_v(c)  # (batch, seq, d_kv)
-            
-            # Reshape to (batch, seq, num_heads, head_dim)
-            k = k.view(batch, seq_len, self.num_heads, self.head_dim)
-            v = v.view(batch, seq_len, self.num_heads, self.head_dim)
-            
-            return k, v
         """
-        batch, seq_len = c.shape[:2]
-        return (
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim),
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim)
-        )  # Replace
+        # API hints:
+        # - self.up_proj_k(c) -> reconstruct K (batch, seq, d_kv)
+        # - self.up_proj_v(c) -> reconstruct V (batch, seq, d_kv)
+        # - tensor.view(batch, seq_len, num_heads, head_dim) -> reshape
+        
+        return None
     
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -351,19 +302,12 @@ class LowRankKVProjection(nn.Module):
             c: Compressed latent (for caching)
             K: Key tensor
             V: Value tensor
-        
-        TODO: Implement full forward pass
-        HINT:
-            c = self.compress(x)
-            k, v = self.reconstruct_kv(c)
-            return c, k, v
         """
-        batch, seq_len = x.shape[:2]
-        return (
-            torch.zeros(batch, seq_len, self.d_latent),
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim),
-            torch.zeros(batch, seq_len, self.num_heads, self.head_dim)
-        )  # Replace
+        # API hints:
+        # - c = self.compress(x) -> compress
+        # - k, v = self.reconstruct_kv(c) -> reconstruct
+        
+        return None
 
 
 # ============================================================================
@@ -387,44 +331,16 @@ def analyze_compression(
     
     Returns:
         Dictionary with compression statistics
-    
-    TODO: Compute compression metrics
-    HINT:
-        d_kv = num_heads * head_dim
-        
-        # Standard KV: store K and V
-        standard_cache_dim = 2 * d_kv  # Both K and V
-        
-        # MLA: store only compressed latent
-        mla_cache_dim = d_latent
-        
-        # Compression ratio
-        compression_ratio = standard_cache_dim / mla_cache_dim
-        
-        # Parameter comparison
-        # Standard: W_k (d_model, d_kv) + W_v (d_model, d_kv)
-        standard_params = 2 * d_model * d_kv
-        
-        # MLA: W_down (d_model, d_latent) + W_up_k (d_latent, d_kv) + W_up_v (d_latent, d_kv)
-        mla_params = d_model * d_latent + 2 * d_latent * d_kv
-        
-        return {
-            'standard_cache_dim': standard_cache_dim,
-            'mla_cache_dim': mla_cache_dim,
-            'compression_ratio': compression_ratio,
-            'standard_params': standard_params,
-            'mla_params': mla_params,
-            'param_overhead': mla_params / standard_params
-        }
     """
-    return {
-        'standard_cache_dim': 0,
-        'mla_cache_dim': 0,
-        'compression_ratio': 0.0,
-        'standard_params': 0,
-        'mla_params': 0,
-        'param_overhead': 0.0
-    }  # Replace
+    # API hints:
+    # - d_kv = num_heads * head_dim
+    # - standard_cache_dim = 2 * d_kv (K and V)
+    # - mla_cache_dim = d_latent
+    # - compression_ratio = standard_cache_dim / mla_cache_dim
+    # - standard_params = 2 * d_model * d_kv
+    # - mla_params = d_model * d_latent + 2 * d_latent * d_kv
+    
+    return None
 
 
 # ============================================================================
@@ -458,20 +374,16 @@ class BasicMLAAttention(nn.Module):
         self.scale = head_dim ** -0.5
         
         # TODO: Initialize projections
-        # HINT:
-        #   # Standard Q projection
-        #   self.W_q = nn.Linear(d_model, self.d_kv, bias=False)
-        #   
-        #   # Low-rank KV projections
-        #   self.kv_proj = LowRankKVProjection(d_model, d_latent, num_heads, head_dim)
-        #   
-        #   # Output projection
-        #   self.W_o = nn.Linear(self.d_kv, d_model, bias=False)
-        #   self.dropout = nn.Dropout(dropout)
-        self.W_q = None      # Replace
-        self.kv_proj = None  # Replace
-        self.W_o = None      # Replace
-        self.dropout = None  # Replace
+        # API hints:
+        # - nn.Linear(d_model, d_kv, bias=False) -> Q projection
+        # - LowRankKVProjection(d_model, d_latent, num_heads, head_dim) -> KV compression
+        # - nn.Linear(d_kv, d_model, bias=False) -> output projection
+        # - nn.Dropout(dropout) -> dropout layer
+        
+        self.W_q = None
+        self.kv_proj = None
+        self.W_o = None
+        self.dropout = None
     
     def forward(
         self, 
@@ -491,48 +403,18 @@ class BasicMLAAttention(nn.Module):
             output: Attention output (batch, seq_len, d_model)
             attn_weights: Attention weights
             new_cache: Updated latent cache (if use_cache=True)
-        
-        TODO: Implement MLA attention with caching
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Compute Q (standard projection)
-            q = self.W_q(x)  # (batch, seq, d_kv)
-            q = q.view(batch, seq_len, self.num_heads, self.head_dim)
-            q = q.transpose(1, 2)  # (batch, heads, seq, head_dim)
-            
-            # Compress KV
-            c, k, v = self.kv_proj(x)
-            
-            # Handle caching
-            if kv_cache is not None:
-                # Concatenate with cached latent
-                c = torch.cat([kv_cache, c], dim=1)
-                # Reconstruct K, V from full cached latent
-                k, v = self.kv_proj.reconstruct_kv(c)
-            
-            # Reshape K, V for attention
-            k = k.transpose(1, 2)  # (batch, heads, cache_len + seq, head_dim)
-            v = v.transpose(1, 2)
-            
-            # Attention
-            scores = torch.matmul(q, k.transpose(-2, -1)) * self.scale
-            attn_weights = F.softmax(scores, dim=-1)
-            attn_weights = self.dropout(attn_weights)
-            
-            output = torch.matmul(attn_weights, v)
-            output = output.transpose(1, 2).reshape(batch, seq_len, self.d_kv)
-            output = self.W_o(output)
-            
-            new_cache = c if use_cache else None
-            return output, attn_weights, new_cache
         """
-        batch, seq_len, _ = x.shape
-        return (
-            torch.zeros_like(x),
-            torch.zeros(batch, self.num_heads, seq_len, seq_len),
-            None
-        )  # Replace
+        # API hints:
+        # - self.W_q(x) -> query projection
+        # - tensor.view(batch, seq_len, num_heads, head_dim) -> reshape
+        # - tensor.transpose(1, 2) -> swap seq and heads dimensions
+        # - self.kv_proj(x) -> returns (c, k, v) compressed
+        # - torch.cat([kv_cache, c], dim=1) -> concat cached latent
+        # - self.kv_proj.reconstruct_kv(c) -> get K, V from latent
+        # - torch.matmul(q, k.transpose(-2, -1)) * self.scale -> attention scores
+        # - F.softmax(scores, dim=-1) -> attention weights
+        
+        return None
 
 
 # ============================================================================
@@ -558,40 +440,16 @@ def measure_reconstruction_error(
     
     Returns:
         Dictionary with reconstruction error metrics
-    
-    TODO: Compute reconstruction errors
-    HINT:
-        with torch.no_grad():
-            # Get low-rank K, V
-            c, k_lr, v_lr = kv_proj(x)
-            k_lr = k_lr.view(x.shape[0], x.shape[1], -1)  # Flatten heads
-            v_lr = v_lr.view(x.shape[0], x.shape[1], -1)
-            
-            # Get full-rank K, V (what standard attention would compute)
-            k_fr = F.linear(x, original_W_k)
-            v_fr = F.linear(x, original_W_v)
-            
-            # Compute errors
-            k_error = torch.norm(k_lr - k_fr) / torch.norm(k_fr)
-            v_error = torch.norm(v_lr - v_fr) / torch.norm(v_fr)
-            
-            # Cosine similarity (measures direction preservation)
-            k_cos = F.cosine_similarity(k_lr.flatten(), k_fr.flatten(), dim=0)
-            v_cos = F.cosine_similarity(v_lr.flatten(), v_fr.flatten(), dim=0)
-            
-            return {
-                'k_relative_error': k_error.item(),
-                'v_relative_error': v_error.item(),
-                'k_cosine_similarity': k_cos.item(),
-                'v_cosine_similarity': v_cos.item()
-            }
     """
-    return {
-        'k_relative_error': 0.0,
-        'v_relative_error': 0.0,
-        'k_cosine_similarity': 0.0,
-        'v_cosine_similarity': 0.0
-    }  # Replace
+    # API hints:
+    # - with torch.no_grad(): -> disable gradient computation
+    # - kv_proj(x) -> returns (c, k_lr, v_lr)
+    # - F.linear(x, weight) -> linear transformation with given weights
+    # - torch.norm(tensor) -> compute Frobenius norm
+    # - F.cosine_similarity(a.flatten(), b.flatten(), dim=0) -> cosine similarity
+    # - tensor.item() -> convert scalar tensor to Python number
+    
+    return None
 
 
 if __name__ == "__main__":

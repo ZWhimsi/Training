@@ -172,14 +172,17 @@ class Tensor:
         
         original_shape = self.shape
         
+        # API hints:
+        # - np.reshape(data, shape) -> reshape array
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: reshape back to original shape
+        # - np.reshape(grad, original_shape) -> restore shape
+        
         # TODO: Implement forward pass
-        # HINT: result = np.reshape(self.data, shape)
-        out = None  # Replace: Tensor(result, (self,), 'reshape')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Simply reshape gradient back to original shape
-            # HINT: self.grad += np.reshape(out.grad, original_shape)
             pass  # Replace
         
         out._backward = _backward
@@ -220,14 +223,16 @@ class Tensor:
             list(original_shape[end_dim + 1:])
         )
         
+        # API hints:
+        # - np.reshape(data, new_shape) -> flatten to computed shape
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: reshape back to original shape
+        
         # TODO: Implement forward pass
-        # HINT: result = np.reshape(self.data, new_shape)
-        out = None  # Replace: Tensor(result, (self,), 'flatten')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Reshape gradient back to original shape
-            # HINT: self.grad += np.reshape(out.grad, original_shape)
             pass  # Replace
         
         out._backward = _backward
@@ -256,14 +261,16 @@ class Tensor:
         """
         original_shape = self.shape
         
+        # API hints:
+        # - np.squeeze(data, axis=axis) -> remove size-1 dims
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: reshape back to original shape (with size-1 dims)
+        
         # TODO: Implement forward pass
-        # HINT: result = np.squeeze(self.data, axis=axis)
-        out = None  # Replace: Tensor(result, (self,), 'squeeze')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Reshape gradient back to include squeezed dimensions
-            # HINT: self.grad += np.reshape(out.grad, original_shape)
             pass  # Replace
         
         out._backward = _backward
@@ -293,14 +300,17 @@ class Tensor:
         """
         original_shape = self.shape
         
+        # API hints:
+        # - np.expand_dims(data, axis=axis) -> add size-1 dim
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: remove added dimension
+        # - np.squeeze(grad, axis=axis) -> remove the added dim
+        
         # TODO: Implement forward pass
-        # HINT: result = np.expand_dims(self.data, axis=axis)
-        out = None  # Replace: Tensor(result, (self,), 'unsqueeze')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Remove added dimension from gradient
-            # HINT: self.grad += np.squeeze(out.grad, axis=axis)
             pass  # Replace
         
         out._backward = _backward
@@ -360,15 +370,18 @@ class Tensor:
         
         original_shape = self.shape
         
+        # API hints:
+        # - np.broadcast_to(data, shape) -> broadcast to larger shape
+        # - .copy() -> copy since broadcast_to returns a view
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: sum over expanded dimensions
+        # - Tensor.unbroadcast(grad, shape) -> reduce to original shape
+        
         # TODO: Implement forward pass
-        # HINT: result = np.broadcast_to(self.data, final_shape)
-        # Note: Need to copy because broadcast_to returns a view
-        out = None  # Replace: Tensor(result.copy(), (self,), 'expand')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Sum gradient over expanded dimensions
-            # HINT: self.grad += Tensor.unbroadcast(out.grad, original_shape)
             pass  # Replace
         
         out._backward = _backward
@@ -400,14 +413,18 @@ class Tensor:
         # Compute inverse permutation
         inv_dims = np.argsort(dims)
         
+        # API hints:
+        # - np.transpose(data, dims) -> permute dimensions
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: permute with inverse permutation
+        # - np.argsort(dims) -> compute inverse permutation
+        # - np.transpose(grad, inv_dims) -> restore original order
+        
         # TODO: Implement forward pass
-        # HINT: result = np.transpose(self.data, dims)
-        out = None  # Replace: Tensor(result, (self,), 'permute')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Permute gradient back with inverse permutation
-            # HINT: self.grad += np.transpose(out.grad, inv_dims)
             pass  # Replace
         
         out._backward = _backward

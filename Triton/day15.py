@@ -51,15 +51,18 @@ def row_mean_kernel(
     col_offsets = tl.arange(0, BLOCK_SIZE)
     mask = col_offsets < n_cols
     
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.store(ptr, value) -> store scalar to memory
+    
     # Load row
     x = tl.load(input_ptr + row_start + col_offsets, mask=mask, other=0.0)
     
-    # TODO: Compute mean
-    # HINT: mean = tl.sum(x, axis=0) / n_cols
+    # TODO: Compute mean = sum(x) / n_cols
     mean = None  # Replace
     
-    # TODO: Store
-    # HINT: tl.store(output_ptr + row_idx, mean)
+    # TODO: Store mean for this row
     pass  # Replace
 
 
@@ -83,17 +86,22 @@ def row_var_kernel(
     col_offsets = tl.arange(0, BLOCK_SIZE)
     mask = col_offsets < n_cols
     
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.store(ptr, value) -> store scalar to memory
+    
     # Load row and mean
     x = tl.load(input_ptr + row_start + col_offsets, mask=mask, other=0.0)
     mean = tl.load(mean_ptr + row_idx)
     
-    # TODO: Compute variance
-    # HINT: diff = x - mean
-    # HINT: var = tl.sum(diff * diff, axis=0) / n_cols
+    # TODO: Compute difference from mean
     diff = None  # Replace
+    
+    # TODO: Compute variance = sum((x - mean)^2) / n_cols
     var = None  # Replace
     
-    # TODO: Store
+    # TODO: Store variance for this row
     pass  # Replace
 
 
@@ -123,28 +131,30 @@ def layer_norm_kernel(
     # Load input row
     x = tl.load(input_ptr + row_start + col_offsets, mask=mask, other=0.0)
     
-    # TODO: Compute mean
+    # API hints:
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.sqrt(x) -> element-wise square root
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    
+    # Compute mean
     mean = tl.sum(x, axis=0) / n_cols
     
-    # TODO: Compute variance
+    # Compute variance
     diff = x - mean
     var = tl.sum(diff * diff, axis=0) / n_cols
     
-    # TODO: Normalize
-    # HINT: x_norm = diff / tl.sqrt(var + eps)
+    # TODO: Normalize: x_norm = (x - mean) / sqrt(var + eps)
     x_norm = None  # Replace
     
-    # TODO: Load and apply affine transformation
-    # HINT: weight = tl.load(weight_ptr + col_offsets, mask=mask, other=1.0)
-    # HINT: bias = tl.load(bias_ptr + col_offsets, mask=mask, other=0.0)
+    # Load affine parameters
     weight = tl.load(weight_ptr + col_offsets, mask=mask, other=1.0)
     bias = tl.load(bias_ptr + col_offsets, mask=mask, other=0.0)
     
-    # TODO: output = x_norm * weight + bias
+    # TODO: Apply affine transformation: output = x_norm * weight + bias
     output = None  # Replace
     
-    # TODO: Store
-    # HINT: tl.store(output_ptr + row_start + col_offsets, output, mask=mask)
+    # TODO: Store result
     pass  # Replace
 
 
@@ -187,21 +197,26 @@ def rms_norm_kernel(
     col_offsets = tl.arange(0, BLOCK_SIZE)
     mask = col_offsets < n_cols
     
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.sqrt(x) -> element-wise square root
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    
     # Load input
     x = tl.load(input_ptr + row_start + col_offsets, mask=mask, other=0.0)
     
-    # TODO: Compute RMS (root mean square)
-    # HINT: rms = tl.sqrt(tl.sum(x * x, axis=0) / n_cols + eps)
+    # TODO: Compute RMS = sqrt(mean(x^2) + eps)
     rms = None  # Replace
     
-    # TODO: Normalize
-    x_norm = None  # Replace: x / rms
+    # TODO: Normalize: x_norm = x / rms
+    x_norm = None  # Replace
     
-    # TODO: Apply weight
+    # TODO: Apply weight scaling
     weight = tl.load(weight_ptr + col_offsets, mask=mask, other=1.0)
-    output = None  # Replace: x_norm * weight
+    output = None  # Replace
     
-    # TODO: Store
+    # TODO: Store result
     pass  # Replace
 
 

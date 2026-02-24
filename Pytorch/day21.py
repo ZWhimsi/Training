@@ -63,22 +63,17 @@ def xavier_uniform_(tensor, gain=1.0):
     Returns:
         tensor: The initialized tensor
     """
-    # TODO: Get fan_in and fan_out
-    # For 2D weight [out_features, in_features]: fan_in = in_features, fan_out = out_features
     if tensor.dim() < 2:
         raise ValueError("Xavier init requires at least 2D tensor")
     
     fan_in = tensor.shape[1]
     fan_out = tensor.shape[0]
     
-    # TODO: Compute bound 'a'
-    # HINT: a = gain * math.sqrt(6.0 / (fan_in + fan_out))
-    a = None  # Replace
-    
-    # TODO: Fill tensor with uniform values in [-a, a]
-    # HINT: tensor.uniform_(-a, a)
-    # Note: return tensor for convenience
-    
+    # TODO: Compute bound and fill tensor with uniform values
+    # API hints:
+    # - math.sqrt(6.0 / (fan_in + fan_out)) -> base bound
+    # - a = gain * bound -> scaled bound
+    # - tensor.uniform_(-a, a) -> fill in-place with uniform values
     return tensor
 
 
@@ -102,13 +97,11 @@ def xavier_normal_(tensor, gain=1.0):
     fan_in = tensor.shape[1]
     fan_out = tensor.shape[0]
     
-    # TODO: Compute standard deviation
-    # HINT: std = gain * math.sqrt(2.0 / (fan_in + fan_out))
-    std = None  # Replace
-    
-    # TODO: Fill tensor with normal values
-    # HINT: tensor.normal_(0, std)
-    
+    # TODO: Compute std and fill tensor with normal values
+    # API hints:
+    # - math.sqrt(2.0 / (fan_in + fan_out)) -> base std
+    # - std = gain * base_std -> scaled std
+    # - tensor.normal_(0, std) -> fill in-place with normal values
     return tensor
 
 
@@ -138,26 +131,13 @@ def kaiming_uniform_(tensor, a=0, mode='fan_in', nonlinearity='relu'):
     fan_in = tensor.shape[1]
     fan_out = tensor.shape[0]
     
-    # TODO: Select fan based on mode
-    fan = None  # Replace: fan_in if mode == 'fan_in' else fan_out
-    
-    # TODO: Calculate gain based on nonlinearity
-    # For ReLU: gain = sqrt(2)
-    # For Leaky ReLU: gain = sqrt(2 / (1 + a^2))
-    if nonlinearity == 'relu':
-        gain = None  # Replace: math.sqrt(2.0)
-    else:  # leaky_relu
-        gain = None  # Replace: math.sqrt(2.0 / (1 + a ** 2))
-    
-    # TODO: Calculate standard deviation and bound
-    # std = gain / sqrt(fan)
-    # bound = sqrt(3) * std
-    std = None  # Replace
-    bound = None  # Replace
-    
-    # TODO: Fill tensor
-    # HINT: tensor.uniform_(-bound, bound)
-    
+    # TODO: Select fan, compute gain, std, bound, and fill tensor
+    # API hints:
+    # - fan = fan_in if mode == 'fan_in' else fan_out
+    # - gain = math.sqrt(2.0) for relu, math.sqrt(2.0 / (1 + a**2)) for leaky_relu
+    # - std = gain / math.sqrt(fan)
+    # - bound = math.sqrt(3.0) * std
+    # - tensor.uniform_(-bound, bound) -> fill in-place
     return tensor
 
 
@@ -183,21 +163,12 @@ def kaiming_normal_(tensor, a=0, mode='fan_in', nonlinearity='relu'):
     fan_in = tensor.shape[1]
     fan_out = tensor.shape[0]
     
-    # TODO: Select fan
-    fan = None  # Replace: fan_in if mode == 'fan_in' else fan_out
-    
-    # TODO: Calculate gain
-    if nonlinearity == 'relu':
-        gain = None  # Replace: math.sqrt(2.0)
-    else:
-        gain = None  # Replace: math.sqrt(2.0 / (1 + a ** 2))
-    
-    # TODO: Calculate std = gain / sqrt(fan)
-    std = None  # Replace
-    
-    # TODO: Fill tensor
-    # HINT: tensor.normal_(0, std)
-    
+    # TODO: Select fan, compute gain and std, fill tensor
+    # API hints:
+    # - fan = fan_in if mode == 'fan_in' else fan_out
+    # - gain = math.sqrt(2.0) for relu, math.sqrt(2.0 / (1 + a**2)) for leaky_relu
+    # - std = gain / math.sqrt(fan)
+    # - tensor.normal_(0, std) -> fill in-place with normal values
     return tensor
 
 
@@ -225,38 +196,15 @@ def orthogonal_(tensor, gain=1.0):
     rows = tensor.shape[0]
     cols = tensor.numel() // rows
     
-    # TODO: Create random matrix
-    # HINT: flat = torch.randn(rows, cols)
-    flat = None  # Replace
-    
-    if flat is None:
-        return tensor
-    
-    # TODO: Compute QR decomposition
-    # HINT: q, r = torch.linalg.qr(flat)
-    # Q is orthogonal: Q @ Q^T = I
-    q = None  # Replace
-    r = None  # Replace
-    
-    if q is None:
-        return tensor
-    
-    # TODO: Make Q have positive diagonal in R (for uniqueness)
-    # HINT: d = torch.diag(r, 0)
-    #       ph = d.sign()
-    #       q *= ph
-    d = torch.diag(r, 0)
-    ph = d.sign()
-    q = q * ph
-    
-    # TODO: Apply gain and reshape
-    # HINT: q = q * gain
-    #       tensor.view_as(tensor).copy_(q.view_as(tensor))
-    q = q * gain
-    
-    with torch.no_grad():
-        tensor.view(rows, cols).copy_(q)
-    
+    # TODO: Create orthogonal matrix using QR decomposition
+    # API hints:
+    # - torch.randn(rows, cols) -> random matrix
+    # - torch.linalg.qr(flat) -> QR decomposition, returns (Q, R)
+    # - torch.diag(r, 0) -> diagonal of R
+    # - d.sign() -> sign of diagonal elements
+    # - q * ph -> ensure consistent sign
+    # - q * gain -> apply gain
+    # - tensor.view(rows, cols).copy_(q) -> copy to tensor
     return tensor
 
 
@@ -300,14 +248,10 @@ def truncated_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
     Returns:
         tensor: The initialized tensor
     """
-    # TODO: Fill with normal values
-    # HINT: tensor.normal_(mean, std)
-    
-    # TODO: Clamp values outside truncation bounds
-    # Values outside [mean + a*std, mean + b*std] get clamped
-    # For proper truncated normal, you'd resample, but clamp is simpler
-    # HINT: tensor.clamp_(mean + a * std, mean + b * std)
-    
+    # TODO: Fill with normal values and clamp to truncation bounds
+    # API hints:
+    # - tensor.normal_(mean, std) -> fill with normal values
+    # - tensor.clamp_(mean + a * std, mean + b * std) -> clamp to bounds
     return tensor
 
 
@@ -331,26 +275,16 @@ def init_transformer_weights(module, d_model, num_layers=None):
         d_model: Model dimension
         num_layers: Number of layers (for residual scaling)
     """
-    if isinstance(module, nn.Linear):
-        # TODO: Xavier initialization for linear layers
-        # HINT: xavier_normal_(module.weight)
-        pass  # Replace
-        
-        # TODO: Zero initialization for biases
-        if module.bias is not None:
-            pass  # Replace: zeros_(module.bias)
-    
-    elif isinstance(module, nn.Embedding):
-        # TODO: Normal initialization scaled by sqrt(1/d_model)
-        # HINT: normal_(module.weight, mean=0.0, std=math.sqrt(1.0/d_model))
-        pass  # Replace
-    
-    elif isinstance(module, nn.LayerNorm):
-        # TODO: gamma=1, beta=0 (usually default)
-        if module.weight is not None:
-            pass  # Replace: ones_(module.weight)
-        if module.bias is not None:
-            pass  # Replace: zeros_(module.bias)
+    # TODO: Initialize based on module type
+    # API hints:
+    # - isinstance(module, nn.Linear) -> check if linear layer
+    # - xavier_normal_(module.weight) -> Xavier init for linear
+    # - zeros_(module.bias) -> zero init for biases
+    # - isinstance(module, nn.Embedding) -> check if embedding
+    # - normal_(module.weight, mean=0.0, std=math.sqrt(1.0/d_model)) -> embedding init
+    # - isinstance(module, nn.LayerNorm) -> check if layer norm
+    # - ones_(module.weight), zeros_(module.bias) -> layer norm init
+    pass
 
 
 def init_gpt_weights(module, n_layer, n_embd):
@@ -360,18 +294,14 @@ def init_gpt_weights(module, n_layer, n_embd):
     - Embeddings and linear: N(0, 0.02)
     - Residual projections: N(0, 0.02/sqrt(2*n_layer))
     """
-    if isinstance(module, nn.Linear):
-        # TODO: Normal initialization with std=0.02
-        # HINT: module.weight.data.normal_(mean=0.0, std=0.02)
-        pass  # Replace
-        
-        if module.bias is not None:
-            pass  # Replace: module.bias.data.zero_()
-    
-    elif isinstance(module, nn.Embedding):
-        # TODO: Same for embeddings
-        # HINT: module.weight.data.normal_(mean=0.0, std=0.02)
-        pass  # Replace
+    # TODO: Initialize based on module type
+    # API hints:
+    # - isinstance(module, nn.Linear) -> check if linear layer
+    # - module.weight.data.normal_(mean=0.0, std=0.02) -> normal init
+    # - module.bias.data.zero_() -> zero init for biases
+    # - isinstance(module, nn.Embedding) -> check if embedding
+    # - For residual projections: std = 0.02 / math.sqrt(2 * n_layer)
+    pass
 
 
 # ============================================================================

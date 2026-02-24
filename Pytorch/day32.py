@@ -189,23 +189,13 @@ def compute_lm_loss(logits: torch.Tensor, labels: torch.Tensor,
     
     Returns:
         Scalar loss value
-    
-    TODO: Implement LM loss computation
-    HINT:
-        # Shift logits and labels
-        shift_logits = logits[..., :-1, :].contiguous()
-        shift_labels = labels[..., 1:].contiguous()
-        
-        # Flatten for cross entropy
-        loss = F.cross_entropy(
-            shift_logits.view(-1, shift_logits.size(-1)),
-            shift_labels.view(-1),
-            ignore_index=ignore_index
-        )
-        
-        return loss
     """
-    return torch.tensor(0.0)  # Replace
+    # API hints:
+    # - logits[..., :-1, :].contiguous() -> shift logits
+    # - labels[..., 1:].contiguous() -> shift labels
+    # - F.cross_entropy(logits.view(-1, vocab), labels.view(-1), ignore_index)
+    
+    return None
 
 
 def compute_loss_with_mask(logits: torch.Tensor, labels: torch.Tensor,
@@ -220,28 +210,15 @@ def compute_loss_with_mask(logits: torch.Tensor, labels: torch.Tensor,
     
     Returns:
         Average loss over valid tokens only
-    
-    TODO: Implement masked loss
-    HINT:
-        shift_logits = logits[..., :-1, :].contiguous()
-        shift_labels = labels[..., 1:].contiguous()
-        shift_mask = attention_mask[..., 1:].contiguous()
-        
-        # Compute per-token loss
-        loss_per_token = F.cross_entropy(
-            shift_logits.view(-1, shift_logits.size(-1)),
-            shift_labels.view(-1),
-            reduction='none'
-        )
-        loss_per_token = loss_per_token.view(shift_labels.shape)
-        
-        # Mask and average
-        masked_loss = loss_per_token * shift_mask
-        loss = masked_loss.sum() / shift_mask.sum()
-        
-        return loss
     """
-    return torch.tensor(0.0)  # Replace
+    # API hints:
+    # - shift_logits = logits[..., :-1, :], shift_labels = labels[..., 1:]
+    # - shift_mask = attention_mask[..., 1:].contiguous()
+    # - F.cross_entropy(..., reduction='none') -> per-token loss
+    # - loss_per_token.view(shift_labels.shape) -> reshape
+    # - (loss_per_token * shift_mask).sum() / shift_mask.sum() -> masked avg
+    
+    return None
 
 
 # ============================================================================
@@ -265,22 +242,15 @@ def get_lr_scheduler(optimizer, warmup_steps: int, max_steps: int,
     
     Returns:
         LambdaLR scheduler
-    
-    TODO: Implement scheduler
-    HINT:
-        def lr_lambda(step):
-            if step < warmup_steps:
-                # Linear warmup
-                return step / warmup_steps
-            else:
-                # Cosine decay
-                progress = (step - warmup_steps) / (max_steps - warmup_steps)
-                cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
-                return min_lr_ratio + (1 - min_lr_ratio) * cosine_decay
-        
-        return LambdaLR(optimizer, lr_lambda)
     """
-    return LambdaLR(optimizer, lambda step: 1.0)  # Replace
+    # API hints:
+    # - if step < warmup_steps: return step / warmup_steps -> linear warmup
+    # - progress = (step - warmup_steps) / (max_steps - warmup_steps)
+    # - cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
+    # - return min_lr_ratio + (1 - min_lr_ratio) * cosine_decay
+    # - LambdaLR(optimizer, lr_lambda) -> create scheduler
+    
+    return None
 
 
 def visualize_lr_schedule(warmup_steps: int, max_steps: int, 
@@ -288,21 +258,14 @@ def visualize_lr_schedule(warmup_steps: int, max_steps: int,
     """
     Generate LR values for visualization.
     
-    TODO: Return list of LR values for each step
-    HINT:
-        # Create dummy optimizer
-        dummy = torch.nn.Linear(1, 1)
-        optimizer = AdamW([dummy.weight], lr=base_lr)
-        scheduler = get_lr_scheduler(optimizer, warmup_steps, max_steps)
-        
-        lrs = []
-        for _ in range(max_steps):
-            lrs.append(optimizer.param_groups[0]['lr'])
-            scheduler.step()
-        
-        return lrs
     """
-    return [base_lr] * max_steps  # Replace
+    # API hints:
+    # - dummy = torch.nn.Linear(1, 1) -> create dummy layer
+    # - optimizer = AdamW([dummy.weight], lr=base_lr)
+    # - scheduler = get_lr_scheduler(optimizer, warmup_steps, max_steps)
+    # - lrs.append(optimizer.param_groups[0]['lr']); scheduler.step()
+    
+    return None
 
 
 # ============================================================================
@@ -323,36 +286,17 @@ def training_step(model: nn.Module, optimizer: torch.optim.Optimizer,
     
     Returns:
         Loss value as float
-    
-    TODO: Implement training step
-    HINT:
-        model.train()
-        
-        input_ids = batch['input_ids']
-        attention_mask = batch.get('attention_mask')
-        
-        # Forward pass
-        logits = model(input_ids)
-        
-        # Compute loss
-        if attention_mask is not None:
-            loss = compute_loss_with_mask(logits, input_ids, attention_mask)
-        else:
-            loss = compute_lm_loss(logits, input_ids)
-        
-        # Backward pass
-        loss.backward()
-        
-        # Gradient clipping
-        torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-        
-        # Optimizer step
-        optimizer.step()
-        optimizer.zero_grad()
-        
-        return loss.item()
     """
-    return 0.0  # Replace
+    # API hints:
+    # - model.train() -> set to training mode
+    # - logits = model(input_ids) -> forward pass
+    # - compute_lm_loss(logits, input_ids) or compute_loss_with_mask(...)
+    # - loss.backward() -> backward pass
+    # - torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+    # - optimizer.step(); optimizer.zero_grad() -> update weights
+    # - loss.item() -> return scalar
+    
+    return None
 
 
 def training_step_with_accumulation(
@@ -372,36 +316,15 @@ def training_step_with_accumulation(
     
     Returns:
         Average loss across micro-batches
-    
-    TODO: Implement gradient accumulation
-    HINT:
-        model.train()
-        total_loss = 0.0
-        num_batches = len(batches)
-        
-        for batch in batches:
-            input_ids = batch['input_ids']
-            
-            # Forward
-            logits = model(input_ids)
-            loss = compute_lm_loss(logits, input_ids)
-            
-            # Scale loss by accumulation steps
-            scaled_loss = loss / num_batches
-            scaled_loss.backward()
-            
-            total_loss += loss.item()
-        
-        # Clip gradients after accumulation
-        torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-        
-        # Single optimizer step
-        optimizer.step()
-        optimizer.zero_grad()
-        
-        return total_loss / num_batches
     """
-    return 0.0  # Replace
+    # API hints:
+    # - model.train() -> training mode
+    # - for batch in batches: forward + loss + (loss / num_batches).backward()
+    # - torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+    # - optimizer.step(); optimizer.zero_grad() -> single update
+    # - total_loss / num_batches -> average loss
+    
+    return None
 
 
 # ============================================================================
@@ -418,10 +341,9 @@ def sample_greedy(logits: torch.Tensor) -> torch.Tensor:
     Returns:
         Token indices (batch,)
     
-    TODO: Implement greedy sampling
-    HINT: return logits.argmax(dim=-1)
+    This is a reference implementation - not an exercise.
     """
-    return logits.argmax(dim=-1)  # This one is already correct!
+    return logits.argmax(dim=-1)
 
 
 def sample_temperature(logits: torch.Tensor, temperature: float) -> torch.Tensor:
@@ -435,15 +357,13 @@ def sample_temperature(logits: torch.Tensor, temperature: float) -> torch.Tensor
     Returns:
         Sampled token indices (batch,)
     
-    TODO: Implement temperature sampling
-    HINT:
-        if temperature <= 0:
-            return sample_greedy(logits)
-        
-        probs = F.softmax(logits / temperature, dim=-1)
-        return torch.multinomial(probs, num_samples=1).squeeze(-1)
     """
-    return sample_greedy(logits)  # Replace
+    # API hints:
+    # - if temperature <= 0: return sample_greedy(logits)
+    # - F.softmax(logits / temperature, dim=-1) -> scaled probabilities
+    # - torch.multinomial(probs, num_samples=1).squeeze(-1) -> sample
+    
+    return None
 
 
 def sample_top_k(logits: torch.Tensor, k: int, 
@@ -459,23 +379,15 @@ def sample_top_k(logits: torch.Tensor, k: int,
     Returns:
         Sampled token indices (batch,)
     
-    TODO: Implement top-k sampling
-    HINT:
-        if k <= 0:
-            return sample_temperature(logits, temperature)
-        
-        # Get top-k logits and indices
-        top_k_logits, top_k_indices = torch.topk(logits, k, dim=-1)
-        
-        # Sample from top-k
-        probs = F.softmax(top_k_logits / temperature, dim=-1)
-        sampled_idx = torch.multinomial(probs, num_samples=1).squeeze(-1)
-        
-        # Map back to vocab indices
-        batch_indices = torch.arange(logits.size(0), device=logits.device)
-        return top_k_indices[batch_indices, sampled_idx]
     """
-    return sample_greedy(logits)  # Replace
+    # API hints:
+    # - if k <= 0: return sample_temperature(logits, temperature)
+    # - torch.topk(logits, k, dim=-1) -> (top_k_logits, top_k_indices)
+    # - F.softmax(top_k_logits / temperature, dim=-1) -> probs
+    # - torch.multinomial(probs, num_samples=1).squeeze(-1) -> sampled_idx
+    # - top_k_indices[batch_indices, sampled_idx] -> map back to vocab
+    
+    return None
 
 
 def sample_top_p(logits: torch.Tensor, p: float,
@@ -491,36 +403,18 @@ def sample_top_p(logits: torch.Tensor, p: float,
     Returns:
         Sampled token indices (batch,)
     
-    TODO: Implement top-p sampling
-    HINT:
-        if p >= 1.0:
-            return sample_temperature(logits, temperature)
-        
-        # Apply temperature
-        logits = logits / temperature
-        
-        # Sort by probability
-        sorted_logits, sorted_indices = torch.sort(logits, descending=True, dim=-1)
-        probs = F.softmax(sorted_logits, dim=-1)
-        cumulative_probs = torch.cumsum(probs, dim=-1)
-        
-        # Find cutoff
-        sorted_mask = cumulative_probs <= p
-        sorted_mask[..., 1:] = sorted_mask[..., :-1].clone()
-        sorted_mask[..., 0] = True  # Always include top token
-        
-        # Mask out tokens beyond threshold
-        sorted_logits[~sorted_mask] = float('-inf')
-        
-        # Sample
-        probs = F.softmax(sorted_logits, dim=-1)
-        sampled_idx = torch.multinomial(probs, num_samples=1).squeeze(-1)
-        
-        # Map back
-        batch_indices = torch.arange(logits.size(0), device=logits.device)
-        return sorted_indices[batch_indices, sampled_idx]
     """
-    return sample_greedy(logits)  # Replace
+    # API hints:
+    # - if p >= 1.0: return sample_temperature(logits, temperature)
+    # - logits / temperature -> apply temperature
+    # - torch.sort(logits, descending=True, dim=-1) -> sorted_logits, sorted_indices
+    # - torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1) -> cumulative probs
+    # - sorted_mask = cumulative_probs <= p -> find cutoff
+    # - sorted_logits[~sorted_mask] = float('-inf') -> mask beyond threshold
+    # - torch.multinomial(F.softmax(sorted_logits), 1) -> sample
+    # - sorted_indices[batch_indices, sampled_idx] -> map back
+    
+    return None
 
 
 # ============================================================================
@@ -543,42 +437,16 @@ def generate(model: nn.Module,
     
     Returns:
         Generated token IDs (batch, prompt_len + new_tokens)
-    
-    TODO: Implement autoregressive generation
-    HINT:
-        model.eval()
-        
-        if device is None:
-            device = next(model.parameters()).device
-        
-        generated = prompt_ids.to(device)
-        
-        for _ in range(config.max_new_tokens):
-            # Get logits for last position
-            logits = model(generated)
-            next_logits = logits[:, -1, :]  # (batch, vocab)
-            
-            # Sample next token
-            if not config.do_sample:
-                next_token = sample_greedy(next_logits)
-            elif config.top_p < 1.0:
-                next_token = sample_top_p(next_logits, config.top_p, config.temperature)
-            elif config.top_k > 0:
-                next_token = sample_top_k(next_logits, config.top_k, config.temperature)
-            else:
-                next_token = sample_temperature(next_logits, config.temperature)
-            
-            # Append to sequence
-            generated = torch.cat([generated, next_token.unsqueeze(1)], dim=1)
-            
-            # Check for EOS
-            if config.eos_token_id is not None:
-                if (next_token == config.eos_token_id).all():
-                    break
-        
-        return generated
     """
-    return prompt_ids  # Replace
+    # API hints:
+    # - model.eval() -> eval mode
+    # - device = next(model.parameters()).device
+    # - logits = model(generated); next_logits = logits[:, -1, :]
+    # - sample_greedy/sample_temperature/sample_top_k/sample_top_p based on config
+    # - torch.cat([generated, next_token.unsqueeze(1)], dim=1) -> append
+    # - if (next_token == eos_token_id).all(): break -> check EOS
+    
+    return None
 
 
 # ============================================================================
@@ -602,19 +470,12 @@ class Trainer:
         self.device = device
         
         # TODO: Initialize optimizer and scheduler
-        # HINT:
-        #   self.optimizer = AdamW(
-        #       model.parameters(),
-        #       lr=config.learning_rate,
-        #       betas=(config.beta1, config.beta2),
-        #       eps=config.eps,
-        #       weight_decay=config.weight_decay
-        #   )
-        #   self.scheduler = get_lr_scheduler(
-        #       self.optimizer, config.warmup_steps, config.max_steps
-        #   )
-        self.optimizer = None  # Replace
-        self.scheduler = None  # Replace
+        # API hints:
+        # - AdamW(model.parameters(), lr=lr, betas=(b1, b2), eps=eps, weight_decay=wd)
+        # - get_lr_scheduler(optimizer, warmup_steps, max_steps)
+        
+        self.optimizer = None
+        self.scheduler = None
         
         self.global_step = 0
         self.total_loss = 0.0
@@ -622,56 +483,29 @@ class Trainer:
     def train_step(self, batch: Dict[str, torch.Tensor]) -> float:
         """
         Single training step.
-        
-        TODO: Implement training step
-        HINT:
-            self.model.train()
-            
-            input_ids = batch['input_ids'].to(self.device)
-            
-            # Forward
-            logits = self.model(input_ids)
-            loss = compute_lm_loss(logits, input_ids)
-            
-            # Backward
-            self.optimizer.zero_grad()
-            loss.backward()
-            
-            # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(
-                self.model.parameters(), 
-                self.config.gradient_clip
-            )
-            
-            # Step
-            self.optimizer.step()
-            self.scheduler.step()
-            
-            self.global_step += 1
-            
-            return loss.item()
         """
-        return 0.0  # Replace
+        # API hints:
+        # - self.model.train() -> training mode
+        # - logits = self.model(input_ids.to(self.device))
+        # - loss = compute_lm_loss(logits, input_ids)
+        # - self.optimizer.zero_grad(); loss.backward()
+        # - torch.nn.utils.clip_grad_norm_(params, gradient_clip)
+        # - self.optimizer.step(); self.scheduler.step()
+        # - self.global_step += 1; return loss.item()
+        
+        return None
     
     def evaluate(self, eval_batches: List[Dict[str, torch.Tensor]]) -> float:
         """
         Evaluate model on validation data.
-        
-        TODO: Implement evaluation
-        HINT:
-            self.model.eval()
-            total_loss = 0.0
-            
-            with torch.no_grad():
-                for batch in eval_batches:
-                    input_ids = batch['input_ids'].to(self.device)
-                    logits = self.model(input_ids)
-                    loss = compute_lm_loss(logits, input_ids)
-                    total_loss += loss.item()
-            
-            return total_loss / len(eval_batches)
         """
-        return 0.0  # Replace
+        # API hints:
+        # - self.model.eval() -> eval mode
+        # - with torch.no_grad(): -> no gradient computation
+        # - for batch: logits = model(input_ids); loss = compute_lm_loss(...)
+        # - total_loss / len(eval_batches) -> average loss
+        
+        return None
     
     def train(self, train_batches: List[Dict[str, torch.Tensor]],
               eval_batches: Optional[List[Dict[str, torch.Tensor]]] = None,
@@ -679,32 +513,15 @@ class Trainer:
         """
         Full training loop.
         
-        TODO: Implement training loop with logging
-        HINT:
-            history = {'train_loss': [], 'eval_loss': [], 'learning_rate': []}
-            
-            for epoch in range(num_epochs):
-                epoch_loss = 0.0
-                
-                for i, batch in enumerate(train_batches):
-                    loss = self.train_step(batch)
-                    epoch_loss += loss
-                    
-                    if self.global_step % self.config.log_interval == 0:
-                        avg_loss = epoch_loss / (i + 1)
-                        lr = self.optimizer.param_groups[0]['lr']
-                        print(f"Step {self.global_step}: loss={avg_loss:.4f}, lr={lr:.2e}")
-                        history['train_loss'].append(avg_loss)
-                        history['learning_rate'].append(lr)
-                    
-                    if eval_batches and self.global_step % self.config.eval_interval == 0:
-                        eval_loss = self.evaluate(eval_batches)
-                        print(f"  Eval loss: {eval_loss:.4f}")
-                        history['eval_loss'].append(eval_loss)
-            
-            return history
         """
-        return {'train_loss': [], 'eval_loss': [], 'learning_rate': []}  # Replace
+        # API hints:
+        # - history = {'train_loss': [], 'eval_loss': [], 'learning_rate': []}
+        # - for epoch in range(num_epochs): for batch: loss = self.train_step(batch)
+        # - if step % log_interval == 0: log and append to history
+        # - if eval_batches and step % eval_interval == 0: self.evaluate(...)
+        # - self.optimizer.param_groups[0]['lr'] -> current LR
+        
+        return None
 
 
 # ============================================================================
@@ -716,11 +533,11 @@ def compute_perplexity(loss: float) -> float:
     Compute perplexity from cross-entropy loss.
     
     Perplexity = exp(loss)
-    
-    TODO: Implement perplexity calculation
-    HINT: return math.exp(loss)
     """
-    return 0.0  # Replace
+    # API hints:
+    # - math.exp(loss) -> perplexity
+    
+    return None
 
 
 def count_tokens_per_second(model: nn.Module, batch_size: int, seq_len: int,
@@ -728,33 +545,17 @@ def count_tokens_per_second(model: nn.Module, batch_size: int, seq_len: int,
     """
     Benchmark model throughput.
     
-    TODO: Measure tokens per second
-    HINT:
-        model.eval()
-        model.to(device)
-        
-        input_ids = torch.randint(0, 1000, (batch_size, seq_len), device=device)
-        
-        # Warmup
-        for _ in range(3):
-            _ = model(input_ids)
-        
-        if device == 'cuda':
-            torch.cuda.synchronize()
-        
-        start = time.time()
-        for _ in range(num_runs):
-            _ = model(input_ids)
-        
-        if device == 'cuda':
-            torch.cuda.synchronize()
-        
-        elapsed = time.time() - start
-        total_tokens = batch_size * seq_len * num_runs
-        
-        return total_tokens / elapsed
     """
-    return 0.0  # Replace
+    # API hints:
+    # - model.eval(); model.to(device)
+    # - input_ids = torch.randint(0, 1000, (batch_size, seq_len), device=device)
+    # - Warmup: for _ in range(3): model(input_ids)
+    # - torch.cuda.synchronize() if device == 'cuda'
+    # - start = time.time(); for _ in range(num_runs): model(input_ids)
+    # - total_tokens = batch_size * seq_len * num_runs
+    # - return total_tokens / elapsed
+    
+    return None
 
 
 def estimate_memory_usage(model: nn.Module, batch_size: int, seq_len: int,
@@ -762,40 +563,16 @@ def estimate_memory_usage(model: nn.Module, batch_size: int, seq_len: int,
     """
     Estimate memory usage for training.
     
-    TODO: Compute memory estimates
-    HINT:
-        # Model parameters
-        param_memory = sum(p.numel() * dtype_bytes for p in model.parameters())
-        
-        # Gradients (same size as parameters)
-        grad_memory = param_memory
-        
-        # Optimizer states (2x for Adam: momentum + variance)
-        optimizer_memory = param_memory * 2
-        
-        # Activations (rough estimate)
-        # For each layer: batch * seq * hidden
-        d_model = model.d_model if hasattr(model, 'd_model') else 512
-        num_layers = len(model.layers) if hasattr(model, 'layers') else 4
-        activation_memory = batch_size * seq_len * d_model * num_layers * dtype_bytes
-        
-        total = param_memory + grad_memory + optimizer_memory + activation_memory
-        
-        return {
-            'parameters_mb': param_memory / (1024**2),
-            'gradients_mb': grad_memory / (1024**2),
-            'optimizer_mb': optimizer_memory / (1024**2),
-            'activations_mb': activation_memory / (1024**2),
-            'total_mb': total / (1024**2)
-        }
     """
-    return {
-        'parameters_mb': 0.0,
-        'gradients_mb': 0.0,
-        'optimizer_mb': 0.0,
-        'activations_mb': 0.0,
-        'total_mb': 0.0
-    }  # Replace
+    # API hints:
+    # - param_memory = sum(p.numel() * dtype_bytes for p in model.parameters())
+    # - grad_memory = param_memory (same size)
+    # - optimizer_memory = param_memory * 2 (Adam: momentum + variance)
+    # - d_model = model.d_model; num_layers = len(model.layers)
+    # - activation_memory = batch_size * seq_len * d_model * num_layers * dtype_bytes
+    # - total / (1024**2) -> convert to MB
+    
+    return None
 
 
 # ============================================================================

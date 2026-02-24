@@ -25,20 +25,25 @@ def relu_manual(x: torch.Tensor) -> torch.Tensor:
     """
     Implement ReLU manually: f(x) = max(0, x)
     
-    TODO: Return x where x > 0, else 0
-    HINT: torch.clamp(x, min=0) or torch.maximum(x, torch.zeros_like(x))
+    Returns x where x > 0, else 0
     """
-    return None  # Replace
+    # API hints:
+    # - torch.clamp(x, min=value) -> clamps all values to be >= min
+    # - torch.maximum(a, b) -> element-wise maximum
+    # - torch.zeros_like(x) -> tensor of zeros with same shape as x
+    
+    return None
 
 
 def leaky_relu_manual(x: torch.Tensor, negative_slope: float = 0.01) -> torch.Tensor:
     """
     Implement Leaky ReLU: f(x) = x if x > 0 else negative_slope * x
-    
-    TODO: Use torch.where for conditional
-    HINT: torch.where(x > 0, x, negative_slope * x)
     """
-    return None  # Replace
+    # API hints:
+    # - torch.where(condition, x, y) -> select x where True, y where False
+    # - x > 0 -> boolean tensor
+    
+    return None
 
 
 # ============================================================================
@@ -51,15 +56,16 @@ def gelu_manual(x: torch.Tensor) -> torch.Tensor:
     
     GELU(x) = x * Φ(x) where Φ is the CDF of standard normal.
     Approximation: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x³)))
-    
-    TODO: Implement the approximation
-    HINT: Use torch.tanh and math.sqrt(2.0 / math.pi)
     """
-    # Constants
+    # API hints:
+    # - math.sqrt(2.0 / math.pi) -> constant sqrt(2/π)
+    # - torch.tanh(x) -> hyperbolic tangent
+    # - x ** 3 -> element-wise cube
+    
     sqrt_2_over_pi = math.sqrt(2.0 / math.pi)
     
     # TODO: Implement GELU approximation
-    return None  # Replace
+    return None
 
 
 # ============================================================================
@@ -69,11 +75,12 @@ def gelu_manual(x: torch.Tensor) -> torch.Tensor:
 def sigmoid_manual(x: torch.Tensor) -> torch.Tensor:
     """
     Implement sigmoid: σ(x) = 1 / (1 + exp(-x))
-    
-    TODO: Implement sigmoid
-    HINT: 1.0 / (1.0 + torch.exp(-x))
     """
-    return None  # Replace
+    # API hints:
+    # - torch.exp(x) -> element-wise exponential
+    # - 1.0 / tensor -> element-wise division
+    
+    return None
 
 
 def hard_sigmoid(x: torch.Tensor) -> torch.Tensor:
@@ -82,8 +89,10 @@ def hard_sigmoid(x: torch.Tensor) -> torch.Tensor:
     
     f(x) = clamp((x + 3) / 6, 0, 1)
     """
-    # TODO: Implement hard sigmoid
-    return None  # Replace
+    # API hints:
+    # - torch.clamp(x, min, max) -> clamp values to range [min, max]
+    
+    return None
 
 
 # ============================================================================
@@ -94,15 +103,14 @@ def softmax_manual(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
     """
     Implement softmax: softmax(x_i) = exp(x_i) / sum(exp(x_j))
     
-    Numerically stable version subtracts max first.
-    
-    TODO: Implement stable softmax
-    HINT: 
-        1. x_max = x.max(dim=dim, keepdim=True).values
-        2. x_exp = torch.exp(x - x_max)
-        3. return x_exp / x_exp.sum(dim=dim, keepdim=True)
+    Use numerically stable version (subtract max first).
     """
-    return None  # Replace
+    # API hints:
+    # - x.max(dim=dim, keepdim=True).values -> max along dimension
+    # - torch.exp(x) -> element-wise exponential
+    # - x.sum(dim=dim, keepdim=True) -> sum along dimension
+    
+    return None
 
 
 def log_softmax_manual(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
@@ -112,8 +120,12 @@ def log_softmax_manual(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
     More stable than log(softmax(x)) computed separately.
     log_softmax(x) = x - max(x) - log(sum(exp(x - max(x))))
     """
-    # TODO: Implement log_softmax
-    return None  # Replace
+    # API hints:
+    # - x.max(dim=dim, keepdim=True).values -> max along dimension
+    # - torch.log(x) -> element-wise natural log
+    # - torch.exp(x) -> element-wise exponential
+    
+    return None
 
 
 # ============================================================================
@@ -128,8 +140,11 @@ def silu_manual(x: torch.Tensor) -> torch.Tensor:
     
     Used in EfficientNet, LLaMA, and many modern architectures.
     """
-    # TODO: Implement SiLU
-    return None  # Replace
+    # API hints:
+    # - torch.sigmoid(x) -> element-wise sigmoid
+    # - x * y -> element-wise multiplication
+    
+    return None
 
 
 # ============================================================================
@@ -143,10 +158,13 @@ class Mish(nn.Module):
     softplus(x) = ln(1 + exp(x))
     """
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # TODO: Implement Mish
-        # HINT: softplus = torch.log(1 + torch.exp(x))
-        #       return x * torch.tanh(softplus)
-        return None  # Replace
+        # API hints:
+        # - torch.log(x) -> element-wise natural log
+        # - torch.exp(x) -> element-wise exponential
+        # - torch.tanh(x) -> element-wise hyperbolic tangent
+        # - F.softplus(x) -> softplus activation (alternative)
+        
+        return None
 
 
 if __name__ == "__main__":

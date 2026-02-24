@@ -341,24 +341,15 @@ class Optimizer:
             params: Parameters to optimize (iterable or list of dicts)
             defaults: Default hyperparameters
         """
-        # TODO: Initialize param_groups list
-        # HINT:
-        # self.defaults = defaults
-        # self.param_groups = []
-        # 
-        # params = list(params)  # Materialize iterator
-        # if len(params) == 0:
-        #     raise ValueError("optimizer got empty parameter list")
-        # 
-        # # Check if params is list of dicts (parameter groups) or list of Tensors
-        # if isinstance(params[0], dict):
-        #     for group in params:
-        #         self.add_param_group(group)
-        # else:
-        #     self.add_param_group({'params': params})
+        # API hints:
+        # - list(params) -> materialize iterator
+        # - isinstance(params[0], dict) -> check if param groups
+        # - self.add_param_group(group) -> add each group
+        # - self.param_groups -> list of parameter group dicts
+        # - self.defaults -> default hyperparameters
         
         self.defaults = defaults
-        self.param_groups = []  # Replace with initialization
+        self.param_groups = []  # Replace
     
     def add_param_group(self, param_group: Dict):
         """
@@ -367,18 +358,12 @@ class Optimizer:
         Args:
             param_group: Dict with 'params' key and optional hyperparameters
         """
-        # TODO: Add parameter group with default values
-        # HINT:
-        # params = list(param_group['params'])
-        # param_group['params'] = params
-        # 
-        # # Fill in missing values from defaults
-        # for key, value in self.defaults.items():
-        #     param_group.setdefault(key, value)
-        # 
-        # self.param_groups.append(param_group)
+        # API hints:
+        # - list(param_group['params']) -> materialize params
+        # - param_group.setdefault(key, value) -> fill missing from defaults
+        # - self.param_groups.append(param_group) -> add to list
         
-        pass  # Replace
+        pass
     
     def zero_grad(self):
         """
@@ -386,13 +371,12 @@ class Optimizer:
         
         Called before each forward pass to prevent gradient accumulation.
         """
-        # TODO: Zero gradients for all parameters
-        # HINT:
-        # for group in self.param_groups:
-        #     for p in group['params']:
-        #         p.zero_grad()
+        # API hints:
+        # - self.param_groups -> iterate groups
+        # - group['params'] -> list of parameters in group
+        # - p.zero_grad() -> reset gradient to zero
         
-        pass  # Replace
+        pass
     
     def step(self):
         """
@@ -436,14 +420,12 @@ class SGD(Optimizer):
             params: Parameters to optimize
             lr: Learning rate
         """
-        # TODO: Initialize with lr as default
-        # HINT:
-        # if lr < 0.0:
-        #     raise ValueError(f"Invalid learning rate: {lr}")
-        # defaults = {'lr': lr}
-        # super().__init__(params, defaults)
+        # API hints:
+        # - Validate: lr >= 0.0
+        # - defaults = {'lr': lr} -> default hyperparameters
+        # - super().__init__(params, defaults) -> call parent
         
-        pass  # Replace with initialization
+        pass
     
     def step(self):
         """
@@ -452,15 +434,13 @@ class SGD(Optimizer):
         For each parameter θ:
             θ = θ - lr * θ.grad
         """
-        # TODO: Implement SGD update
-        # HINT:
-        # for group in self.param_groups:
-        #     lr = group['lr']
-        #     for p in group['params']:
-        #         if p.grad is not None:
-        #             p.data -= lr * p.grad
+        # API hints:
+        # - self.param_groups -> iterate groups
+        # - group['lr'] -> learning rate for group
+        # - p.data -= lr * p.grad -> update rule
+        # - Formula: θ = θ - lr * ∇L(θ)
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -489,19 +469,14 @@ def create_optimizer_with_param_groups(model: Module, base_lr: float) -> SGD:
             {'params': layer2_params, 'lr': base_lr}
         ]
     """
-    # TODO: Create optimizer with different lr per layer
-    # HINT:
-    # layer1_params = list(model.layer1.parameters())
-    # layer2_params = list(model.layer2.parameters())
-    # 
-    # param_groups = [
-    #     {'params': layer1_params, 'lr': base_lr * 0.1},  # Lower lr for layer1
-    #     {'params': layer2_params, 'lr': base_lr}         # Base lr for layer2
-    # ]
-    # 
-    # return SGD(param_groups, lr=base_lr)
+    # API hints:
+    # - model.layer1.parameters() -> get params from layer1
+    # - model.layer2.parameters() -> get params from layer2
+    # - list(...) -> materialize iterator
+    # - param_groups = [{'params': [...], 'lr': ...}, ...]
+    # - SGD(param_groups, lr=base_lr) -> create optimizer
     
-    return None  # Replace
+    return None
 
 
 # ============================================================================
@@ -535,24 +510,13 @@ def train_step(model: Module, optimizer: Optimizer,
     Returns:
         Loss value as float
     """
-    # TODO: Implement training step
-    # HINT:
-    # # 1. Clear gradients from previous iteration
-    # optimizer.zero_grad()
-    # 
-    # # 2. Forward pass
-    # pred = model(x)
-    # 
-    # # 3. Compute loss
-    # loss = mse_loss(pred, y)
-    # 
-    # # 4. Backward pass - compute gradients
-    # loss.backward()
-    # 
-    # # 5. Update parameters
-    # optimizer.step()
-    # 
-    # return float(loss.data)
+    # API hints:
+    # - optimizer.zero_grad() -> clear gradients
+    # - model(x) -> forward pass
+    # - mse_loss(pred, y) -> compute loss
+    # - loss.backward() -> compute gradients
+    # - optimizer.step() -> update parameters
+    # - float(loss.data) -> return scalar loss
     
     return 0.0  # Replace
 
@@ -573,15 +537,11 @@ def train_loop(model: Module, optimizer: Optimizer,
     Returns:
         List of loss values per epoch
     """
-    # TODO: Implement training loop
-    # HINT:
-    # losses = []
-    # for epoch in range(epochs):
-    #     x = Tensor(X)
-    #     y = Tensor(Y)
-    #     loss = train_step(model, optimizer, x, y)
-    #     losses.append(loss)
-    # return losses
+    # API hints:
+    # - range(epochs) -> iterate epochs
+    # - Tensor(X), Tensor(Y) -> convert numpy to Tensor
+    # - train_step(model, optimizer, x, y) -> single step
+    # - losses.append(loss) -> track loss history
     
     return []  # Replace
 
@@ -629,15 +589,11 @@ class SGDWithState(Optimizer):
         Returns:
             Dict containing param_groups and state
         """
-        # TODO: Implement state dict generation
-        # HINT:
-        # return {
-        #     'step_count': self._step_count,
-        #     'param_groups': [
-        #         {k: v for k, v in group.items() if k != 'params'}
-        #         for group in self.param_groups
-        #     ]
-        # }
+        # API hints:
+        # - self._step_count -> current iteration
+        # - self.param_groups -> list of group dicts
+        # - Exclude 'params' key (can't serialize objects)
+        # - {k: v for k, v in group.items() if k != 'params'}
         
         return {}  # Replace
     
@@ -648,15 +604,12 @@ class SGDWithState(Optimizer):
         Args:
             state_dict: State dictionary from state_dict()
         """
-        # TODO: Implement state dict loading
-        # HINT:
-        # self._step_count = state_dict.get('step_count', 0)
-        # 
-        # for group, saved_group in zip(self.param_groups, state_dict['param_groups']):
-        #     for key, value in saved_group.items():
-        #         group[key] = value
+        # API hints:
+        # - state_dict.get('step_count', 0) -> get with default
+        # - zip(self.param_groups, state_dict['param_groups'])
+        # - Update group dict with saved values
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================

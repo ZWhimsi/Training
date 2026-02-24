@@ -31,20 +31,27 @@ def create_tensors():
     Returns:
         dict with keys: 'from_list', 'zeros', 'ones', 'random', 'range'
     """
+    # API hints:
+    # - torch.tensor(data) -> creates tensor from Python list/array
+    # - torch.zeros(*size) -> tensor filled with zeros
+    # - torch.ones(*size, dtype=dtype) -> tensor filled with ones
+    # - torch.randn(*size) -> tensor with random normal values
+    # - torch.arange(start, end, step) -> 1D tensor with range of values
+    
     # TODO: Create a tensor from a Python list [1, 2, 3, 4, 5]
-    from_list = None  # Replace with torch.tensor([1, 2, 3, 4, 5])
+    from_list = None
     
     # TODO: Create a 3x4 tensor of zeros
-    zeros = None  # Replace with torch.zeros(3, 4)
+    zeros = None
     
     # TODO: Create a 2x3 tensor of ones with dtype float32
-    ones = None  # Replace with torch.ones(2, 3, dtype=torch.float32)
+    ones = None
     
     # TODO: Create a 5x5 tensor of random normal values
-    random = None  # Replace with torch.randn(5, 5)
+    random = None
     
-    # TODO: Create a tensor with values 0, 2, 4, 6, 8 (use torch.arange)
-    range_tensor = None  # Replace with torch.arange(0, 10, 2)
+    # TODO: Create a tensor with values 0, 2, 4, 6, 8
+    range_tensor = None
     
     return {
         'from_list': from_list,
@@ -66,20 +73,27 @@ def get_tensor_properties(t: torch.Tensor) -> dict:
     Returns:
         dict with keys: 'shape', 'dtype', 'device', 'ndim', 'numel'
     """
+    # API hints:
+    # - tensor.shape -> torch.Size object (convert with tuple())
+    # - tensor.dtype -> data type (e.g., torch.float32)
+    # - tensor.device -> device location (convert with str())
+    # - tensor.ndim -> number of dimensions (int)
+    # - tensor.numel() -> total number of elements (int)
+    
     # TODO: Get the tensor's shape (as a tuple)
-    shape = None  # Replace with tuple(t.shape)
+    shape = None
     
     # TODO: Get the data type
-    dtype = None  # Replace with t.dtype
+    dtype = None
     
     # TODO: Get the device (cpu or cuda)
-    device = None  # Replace with str(t.device)
+    device = None
     
     # TODO: Get number of dimensions
-    ndim = None  # Replace with t.ndim
+    ndim = None
     
     # TODO: Get total number of elements
-    numel = None  # Replace with t.numel()
+    numel = None
     
     return {
         'shape': shape,
@@ -104,17 +118,24 @@ def tensor_indexing(t: torch.Tensor) -> dict:
     Returns:
         dict with keys: 'first_row', 'last_col', 'top_left_2x2', 'every_other_row'
     """
+    # API hints:
+    # - tensor[i] -> select row i
+    # - tensor[:, j] -> select column j
+    # - tensor[start:end, start:end] -> slice rows and columns
+    # - tensor[::step] -> select every step-th row
+    # - negative indices (-1) select from end
+    
     # TODO: Get the first row
-    first_row = None  # Replace with t[0]
+    first_row = None
     
     # TODO: Get the last column
-    last_col = None  # Replace with t[:, -1]
+    last_col = None
     
     # TODO: Get the top-left 2x2 submatrix
-    top_left_2x2 = None  # Replace with t[:2, :2]
+    top_left_2x2 = None
     
     # TODO: Get every other row (0, 2, 4, ...)
-    every_other_row = None  # Replace with t[::2]
+    every_other_row = None
     
     return {
         'first_row': first_row,
@@ -138,17 +159,22 @@ def reshape_tensors(t: torch.Tensor) -> dict:
     Returns:
         dict with keys: 'as_3x4', 'as_2x6', 'as_flat', 'with_batch_dim'
     """
+    # API hints:
+    # - tensor.reshape(*shape) -> returns tensor with new shape
+    # - tensor.flatten() -> returns 1D tensor
+    # - tensor.unsqueeze(dim) -> adds dimension at position dim
+    
     # TODO: Reshape to 3x4
-    as_3x4 = None  # Replace with t.reshape(3, 4)
+    as_3x4 = None
     
     # TODO: Reshape to 2x6
-    as_2x6 = None  # Replace with t.reshape(2, 6)
+    as_2x6 = None
     
     # TODO: Flatten to 1D
-    as_flat = None  # Replace with t.flatten()
+    as_flat = None
     
     # TODO: Add a batch dimension at the front (1, 12)
-    with_batch_dim = None  # Replace with t.unsqueeze(0)
+    with_batch_dim = None
     
     return {
         'as_3x4': as_3x4,
@@ -169,18 +195,25 @@ def device_operations():
     Returns:
         dict with keys: 'cpu_tensor', 'gpu_tensor' (or None if no GPU), 'back_to_cpu'
     """
+    # API hints:
+    # - torch.randn(*size) -> random tensor on CPU by default
+    # - torch.cuda.is_available() -> check if GPU is available
+    # - tensor.to(device) -> move tensor to device ('cuda' or 'cpu')
+    # - tensor.cuda() -> shorthand for tensor.to('cuda')
+    # - tensor.cpu() -> shorthand for tensor.to('cpu')
+    
     # TODO: Create a tensor on CPU
-    cpu_tensor = None  # Replace with torch.randn(3, 3)
+    cpu_tensor = None
     
     # TODO: Move to GPU if available, else keep on CPU
     if torch.cuda.is_available():
-        gpu_tensor = None  # Replace with cpu_tensor.to('cuda')
+        gpu_tensor = None
     else:
         gpu_tensor = None
     
     # TODO: Move back to CPU
     if gpu_tensor is not None:
-        back_to_cpu = None  # Replace with gpu_tensor.to('cpu')
+        back_to_cpu = None
     else:
         back_to_cpu = cpu_tensor
     

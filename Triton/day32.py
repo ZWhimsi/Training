@@ -50,20 +50,26 @@ def _online_softmax_update(
     """
     Update online softmax statistics.
     
+    Compute the updated max and sum-of-exponentials when processing a new block.
+    When the max changes, previous exponential sums must be rescaled.
+    
     Returns: (m_updated, l_updated, scale_prev, scale_new)
     """
-    # TODO: Compute updated max
-    m_updated = tl.maximum(m_prev, m_new)
+    # API hints:
+    # - tl.maximum(a, b) -> element-wise maximum
+    # - tl.exp(x) -> element-wise exponential
+    # - Online softmax update formula:
+    #   m_updated = max(m_prev, m_new)
+    #   scale_prev = exp(m_prev - m_updated)  # rescale old sum
+    #   scale_new = exp(m_new - m_updated)    # rescale new sum
+    #   l_updated = scale_prev * l_prev + scale_new * l_new
     
-    # TODO: Compute scaling factors for old and new sums
-    # When max changes, we need to rescale the exponentials
-    scale_prev = tl.exp(m_prev - m_updated)
-    scale_new = tl.exp(m_new - m_updated)
+    # TODO: Implement online softmax update
+    # 1. Compute updated max from previous and new block maxes
+    # 2. Compute scaling factors for both old and new sums
+    # 3. Compute updated sum using the scaling factors
     
-    # TODO: Compute updated sum
-    l_updated = scale_prev * l_prev + scale_new * l_new
-    
-    return m_updated, l_updated, scale_prev, scale_new
+    return None, None, None, None
 
 
 # ============================================================================
@@ -137,38 +143,54 @@ def flash_attn_fwd_kernel(
         v = tl.load(v_ptrs, mask=k_mask, other=0.0)
         
         # TODO: Compute attention scores: S = Q @ K^T * scale
-        # HINT: s = tl.dot(q, tl.trans(k)) * scale
-        s = None  # Replace
+        # API hints:
+        # - tl.dot(a, b) -> matrix multiply two blocks
+        # - tl.trans(x) -> transpose a block
+        # - Scores shape should be [BLOCK_M, BLOCK_N]
         
-        # TODO: Mask out invalid positions
-        s_mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
-        s = tl.where(s_mask, s, float('-inf'))
+        s = None  # Exercise: compute scaled attention scores
+        
+        # TODO: Mask out invalid positions (set invalid to -inf)
+        # API hints:
+        # - tl.where(condition, x, y) -> select x where true, y where false
+        # - Create mask: (offs_m[:, None] < M) & (offs_n[None, :] < N)
+        
+        pass  # Exercise: apply mask to scores
         
         # TODO: Compute block-wise max and sum for softmax
-        m_block = tl.max(s, axis=1)
-        s_shifted = s - m_block[:, None]
-        p = tl.exp(s_shifted)
-        p = tl.where(s_mask, p, 0.0)
-        l_block = tl.sum(p, axis=1)
+        # API hints:
+        # - tl.max(x, axis=1) -> row-wise maximum
+        # - tl.exp(x) -> element-wise exponential
+        # - tl.sum(x, axis=1) -> row-wise sum
+        # - Shifted softmax: exp(s - max(s)) for numerical stability
         
-        # TODO: Update online softmax
-        m_new = tl.maximum(m, m_block)
-        scale_old = tl.exp(m - m_new)
-        scale_new = tl.exp(m_block - m_new)
-        l_new = scale_old * l + scale_new * l_block
+        pass  # Exercise: compute m_block, p (attention weights), l_block
         
-        # TODO: Update output
-        # o = (scale_old * l * o + scale_new * p @ v) / l_new
-        o = (scale_old[:, None] * l[:, None] * o + scale_new[:, None] * tl.dot(p.to(v.dtype), v)) / l_new[:, None]
+        # TODO: Update online softmax state
+        # API hints:
+        # - tl.maximum(a, b) -> element-wise max
+        # - tl.exp(x) -> exponential for rescaling
+        # - Update formula: m_new = max(m, m_block)
+        #   scale_old = exp(m - m_new), scale_new = exp(m_block - m_new)
+        #   l_new = scale_old * l + scale_new * l_block
         
-        # Update state
-        m = m_new
-        l = l_new
+        pass  # Exercise: update m, l using online softmax
+        
+        # TODO: Update output accumulator
+        # API hints:
+        # - tl.dot(a, b) -> matrix multiply
+        # - Accumulate: o = (scale_old * l * o + scale_new * p @ v) / l_new
+        # - Use broadcasting: scale[:, None] for [BLOCK_M] -> [BLOCK_M, 1]
+        
+        pass  # Exercise: update output accumulator o
     
-    # TODO: Store output
-    o_ptrs = O_block_ptr + offs_m[:, None] * stride_om + offs_d[None, :] * stride_ok
-    o_mask = (offs_m[:, None] < M) & (offs_d[None, :] < D)
-    tl.store(o_ptrs, o.to(O_ptr.dtype.element_ty), mask=o_mask)
+    # TODO: Store output to global memory
+    # API hints:
+    # - tl.store(ptr, value, mask=mask) -> store with masking
+    # - Compute output pointers similar to Q loading
+    # - Convert output dtype: o.to(O_ptr.dtype.element_ty)
+    
+    pass  # Exercise: store output block to O_ptr
 
 
 def flash_attention_forward(Q, K, V):

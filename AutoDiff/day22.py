@@ -248,18 +248,16 @@ class Linear:
         self.in_features = in_features
         self.out_features = out_features
         
-        # TODO: Initialize weight with Xavier/Glorot initialization
-        # HINT:
-        # Xavier init: scale = sqrt(2.0 / (fan_in + fan_out))
-        # weight = np.random.randn(out_features, in_features) * scale
-        # self.weight = Tensor(weight)
+        # API hints:
+        # - np.sqrt(value) -> square root
+        # - np.random.randn(rows, cols) -> random normal values
+        # - Xavier init scale = sqrt(2.0 / (fan_in + fan_out))
+        # - Weight shape: (out_features, in_features)
+        # - Tensor(data) -> create tensor from numpy array
+        # - np.zeros(size) -> create zero array for bias
         
         self.weight = None  # Replace
-        
-        # TODO: Initialize bias to zeros (if bias=True)
-        # HINT: self.bias = Tensor(np.zeros(out_features)) if bias else None
-        
-        self.bias = None  # Replace (even if bias=False, this is just placeholder)
+        self.bias = None    # Replace (None if bias=False)
         self.use_bias = bias
     
     def __call__(self, x: Tensor) -> Tensor:
@@ -284,11 +282,11 @@ class Linear:
             x = Tensor(x.data.reshape(1, -1), requires_grad=x.requires_grad)
             squeeze_output = True
         
-        # TODO: Implement forward pass
-        # HINT:
-        # out = x @ self.weight.T  # (batch, in) @ (in, out) = (batch, out)
-        # if self.use_bias:
-        #     out = out + self.bias
+        # API hints:
+        # - x @ self.weight.T -> matrix multiplication (batch, in) @ (in, out)
+        # - tensor.T -> transpose
+        # - out + self.bias -> add bias (broadcasts)
+        # - Formula: y = xW^T + b
         
         out = None  # Replace
         
@@ -329,14 +327,15 @@ class LinearKaiming:
         self.out_features = out_features
         self.use_bias = bias
         
-        # TODO: Implement Kaiming initialization
-        # HINT:
-        # scale = np.sqrt(2.0 / in_features)
-        # weight = np.random.randn(out_features, in_features) * scale
-        # self.weight = Tensor(weight)
+        # API hints:
+        # - Kaiming init scale = sqrt(2.0 / fan_in)
+        # - np.sqrt(value) -> square root
+        # - np.random.randn(rows, cols) * scale -> scaled random init
+        # - Tensor(data) -> create tensor
+        # - np.zeros(size) -> zero array for bias
         
         self.weight = None  # Replace
-        self.bias = None    # Replace: Tensor(np.zeros(out_features)) if bias else None
+        self.bias = None    # Replace
     
     def __call__(self, x: Tensor) -> Tensor:
         return self.forward(x)
@@ -346,10 +345,11 @@ class LinearKaiming:
         if x.data.ndim == 1:
             x = Tensor(x.data.reshape(1, -1))
         
-        # TODO: Implement forward
-        out = None  # Replace: x @ self.weight.T + self.bias (if bias)
+        # API hints:
+        # - x @ self.weight.T -> matrix multiplication
+        # - out + self.bias -> add bias if present
         
-        return out
+        return None
     
     def parameters(self) -> List[Tensor]:
         if self.use_bias and self.bias is not None:
@@ -373,10 +373,12 @@ class LinearNoBias:
         self.in_features = in_features
         self.out_features = out_features
         
-        # TODO: Initialize weight only
-        # HINT: Xavier initialization
-        scale = np.sqrt(2.0 / (in_features + out_features))
-        self.weight = None  # Replace: Tensor(np.random.randn(out_features, in_features) * scale)
+        # API hints:
+        # - Xavier scale = sqrt(2.0 / (in_features + out_features))
+        # - np.random.randn(out_features, in_features) * scale
+        # - Tensor(data) -> create weight tensor
+        
+        self.weight = None  # Replace
     
     def __call__(self, x: Tensor) -> Tensor:
         return self.forward(x)
@@ -386,8 +388,11 @@ class LinearNoBias:
         if x.data.ndim == 1:
             x = Tensor(x.data.reshape(1, -1))
         
-        # TODO: y = xW^T (no bias)
-        return None  # Replace: x @ self.weight.T
+        # API hints:
+        # - x @ self.weight.T -> matrix multiplication
+        # - Formula: y = xW^T (no bias term)
+        
+        return None
     
     def parameters(self) -> List[Tensor]:
         return [self.weight] if self.weight is not None else []
@@ -410,13 +415,13 @@ class MLP:
     def __init__(self, input_size: int, hidden_sizes: List[int], output_size: int):
         self.layers = []
         
-        # TODO: Build layers
-        # HINT:
-        # sizes = [input_size] + hidden_sizes + [output_size]
-        # for i in range(len(sizes) - 1):
-        #     self.layers.append(Linear(sizes[i], sizes[i+1]))
+        # API hints:
+        # - sizes = [input_size] + hidden_sizes + [output_size]
+        # - Linear(in_size, out_size) -> create linear layer
+        # - self.layers.append(layer) -> add to layer list
+        # - Loop: for i in range(len(sizes) - 1)
         
-        pass  # Replace with layer construction
+        pass
     
     def __call__(self, x: Tensor) -> Tensor:
         return self.forward(x)
@@ -427,14 +432,14 @@ class MLP:
         
         Applies ReLU after each layer except the last.
         """
-        # TODO: Implement forward pass
-        # HINT:
-        # for i, layer in enumerate(self.layers[:-1]):
-        #     x = layer(x).relu()
-        # x = self.layers[-1](x)  # No activation on output
-        # return x
+        # API hints:
+        # - self.layers[:-1] -> all layers except last
+        # - self.layers[-1] -> last layer (no activation)
+        # - layer(x) -> forward through layer
+        # - tensor.relu() -> apply ReLU activation
+        # - Pattern: hidden layers get ReLU, output layer doesn't
         
-        return None  # Replace
+        return None
     
     def parameters(self) -> List[Tensor]:
         """Return all parameters from all layers."""
@@ -469,24 +474,12 @@ def numerical_gradient(f, x: Tensor, eps: float = 1e-5) -> np.ndarray:
     """
     grad = np.zeros_like(x.data)
     
-    # TODO: Implement numerical gradient computation
-    # HINT:
-    # for idx in np.ndindex(x.shape):
-    #     old_val = x.data[idx]
-    #     
-    #     # f(x + eps)
-    #     x.data[idx] = old_val + eps
-    #     loss_plus = f(Tensor(x.data)).data
-    #     
-    #     # f(x - eps)
-    #     x.data[idx] = old_val - eps
-    #     loss_minus = f(Tensor(x.data)).data
-    #     
-    #     # Gradient
-    #     grad[idx] = (loss_plus - loss_minus) / (2 * eps)
-    #     
-    #     # Restore
-    #     x.data[idx] = old_val
+    # API hints:
+    # - np.ndindex(x.shape) -> iterate over all indices
+    # - x.data[idx] -> access/modify element at index
+    # - f(Tensor(x.data)).data -> evaluate function, get scalar result
+    # - Formula: grad[idx] = (f(x+eps) - f(x-eps)) / (2*eps)
+    # - Central difference is more accurate than forward difference
     
     return grad
 

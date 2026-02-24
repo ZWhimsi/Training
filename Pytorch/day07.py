@@ -38,17 +38,13 @@ class SGD_Manual:
                 param.grad.zero_()
     
     def step(self):
-        """
-        Perform one optimization step.
+        """Perform one optimization step."""
+        # API hints:
+        # - torch.no_grad() -> context manager to disable gradient tracking
+        # - param.grad -> gradient tensor
+        # - param -= value -> in-place subtraction
         
-        TODO: Update each parameter
-        HINT: 
-        with torch.no_grad():
-            for param in self.params:
-                if param.grad is not None:
-                    param -= self.lr * param.grad
-        """
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -75,16 +71,13 @@ class SGD_Momentum:
                 param.grad.zero_()
     
     def step(self):
-        """
-        TODO: Update with momentum
-        HINT:
-        with torch.no_grad():
-            for i, param in enumerate(self.params):
-                if param.grad is not None:
-                    self.v[i] = self.momentum * self.v[i] + param.grad
-                    param -= self.lr * self.v[i]
-        """
-        pass  # Replace
+        """Perform one optimization step with momentum."""
+        # API hints:
+        # - torch.no_grad() -> context manager to disable gradient tracking
+        # - self.v[i] = momentum * self.v[i] + grad -> update velocity
+        # - param -= lr * velocity -> apply velocity
+        
+        pass
 
 
 # ============================================================================
@@ -119,21 +112,15 @@ class Adam_Manual:
                 param.grad.zero_()
     
     def step(self):
-        """
-        TODO: Implement Adam update
-        HINT:
-        self.t += 1
-        with torch.no_grad():
-            for i, param in enumerate(self.params):
-                if param.grad is not None:
-                    g = param.grad
-                    self.m[i] = self.beta1 * self.m[i] + (1 - self.beta1) * g
-                    self.v[i] = self.beta2 * self.v[i] + (1 - self.beta2) * g * g
-                    m_hat = self.m[i] / (1 - self.beta1 ** self.t)
-                    v_hat = self.v[i] / (1 - self.beta2 ** self.t)
-                    param -= self.lr * m_hat / (torch.sqrt(v_hat) + self.eps)
-        """
-        pass  # Replace
+        """Perform one Adam optimization step."""
+        # API hints:
+        # - self.t += 1 -> increment timestep
+        # - torch.no_grad() -> disable gradient tracking
+        # - g * g -> element-wise square of gradient
+        # - torch.sqrt(v_hat) -> element-wise square root
+        # - Bias correction: m_hat = m / (1 - beta1 ** t)
+        
+        pass
 
 
 # ============================================================================
@@ -153,14 +140,13 @@ class StepLRScheduler:
         self.base_lr = optimizer.lr
     
     def step(self):
-        """
-        TODO: Update learning rate if needed
-        HINT:
-        self.epoch += 1
-        if self.epoch % self.step_size == 0:
-            self.optimizer.lr *= self.gamma
-        """
-        pass  # Replace
+        """Update learning rate based on epoch."""
+        # API hints:
+        # - self.epoch += 1 -> increment epoch counter
+        # - self.epoch % self.step_size == 0 -> check if step_size epochs passed
+        # - self.optimizer.lr *= self.gamma -> decay learning rate
+        
+        pass
     
     def get_lr(self):
         return self.optimizer.lr

@@ -103,8 +103,14 @@ def flash_attn_fwd_v2_kernel(
         
         # Add bias if present
         if has_bias:
-            # Simplified: assume bias is (seq_len, seq_len)
-            pass  # TODO: Load and add bias
+            # TODO: Load and add attention bias to scores
+            # API hints:
+            # - bias_ptr points to attention bias tensor
+            # - Load bias for positions [offs_m, offs_n]
+            # - tl.load(ptr + offsets, mask=mask, other=0.0)
+            # - Add loaded bias to qk scores: qk = qk + bias
+            
+            pass  # Exercise: load and add attention bias
         
         # Causal mask
         if CAUSAL:

@@ -326,13 +326,12 @@ def clip_grad_value_(parameters: Iterator[Parameter],
         clip_grad_value_(model.parameters(), clip_value=1.0)
         optimizer.step()
     """
-    # TODO: Implement gradient clipping by value
-    # HINT:
-    # for p in parameters:
-    #     if p.grad is not None:
-    #         np.clip(p.grad, -clip_value, clip_value, out=p.grad)
+    # API hints:
+    # - for p in parameters -> iterate params
+    # - p.grad -> access gradient
+    # - np.clip(arr, -value, value, out=arr) -> clamp in-place
     
-    pass  # Replace
+    pass
 
 
 # ============================================================================
@@ -361,29 +360,13 @@ def clip_grad_norm_(parameters: Union[Iterator[Parameter], List[Parameter]],
         total_norm = clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
     """
-    # TODO: Implement gradient clipping by norm
-    # HINT:
-    # parameters = list(parameters)  # Materialize iterator
-    # 
-    # # Calculate total norm
-    # if norm_type == float('inf'):
-    #     total_norm = max(np.max(np.abs(p.grad)) 
-    #                      for p in parameters if p.grad is not None)
-    # else:
-    #     total_norm = 0.0
-    #     for p in parameters:
-    #         if p.grad is not None:
-    #             total_norm += np.sum(np.abs(p.grad) ** norm_type)
-    #     total_norm = total_norm ** (1.0 / norm_type)
-    # 
-    # # Clip if necessary
-    # clip_coef = max_norm / (total_norm + 1e-6)
-    # if clip_coef < 1.0:
-    #     for p in parameters:
-    #         if p.grad is not None:
-    #             p.grad *= clip_coef
-    # 
-    # return float(total_norm)
+    # API hints:
+    # - list(parameters) -> materialize iterator
+    # - For L2: total_norm = sqrt(Σ||g||²)
+    # - For inf: total_norm = max(abs(g))
+    # - clip_coef = max_norm / (total_norm + eps)
+    # - if clip_coef < 1: scale all grads by clip_coef
+    # - Formula: g *= (max_norm / total_norm)
     
     return 0.0  # Replace
 
@@ -409,12 +392,11 @@ def l1_regularization(parameters: Iterator[Parameter],
     Returns:
         Regularization loss term
     """
-    # TODO: Implement L1 regularization
-    # HINT:
-    # reg_loss = Tensor(np.array(0.0))
-    # for p in parameters:
-    #     reg_loss = reg_loss + Tensor(np.abs(p.data).sum())
-    # return reg_loss * lambda_l1
+    # API hints:
+    # - np.abs(p.data).sum() -> sum of absolute values
+    # - Tensor(np.array(0.0)) -> initialize accumulator
+    # - reg_loss + Tensor(...) -> accumulate
+    # - Formula: L1 = λ * Σ|θ|
     
     return Tensor(np.array(0.0))  # Replace
 
@@ -430,13 +412,11 @@ def apply_l1_gradient_(parameters: Iterator[Parameter],
         parameters: Model parameters
         lambda_l1: Regularization strength
     """
-    # TODO: Implement L1 gradient application
-    # HINT:
-    # for p in parameters:
-    #     if p.grad is not None:
-    #         p.grad += lambda_l1 * np.sign(p.data)
+    # API hints:
+    # - np.sign(p.data) -> sign of parameter values
+    # - p.grad += λ * sign(θ) -> add to gradient
     
-    pass  # Replace
+    pass
 
 
 # ============================================================================
@@ -460,12 +440,10 @@ def l2_regularization(parameters: Iterator[Parameter],
     Returns:
         Regularization loss term
     """
-    # TODO: Implement L2 regularization
-    # HINT:
-    # reg_loss = Tensor(np.array(0.0))
-    # for p in parameters:
-    #     reg_loss = reg_loss + Tensor((p.data ** 2).sum())
-    # return reg_loss * (lambda_l2 / 2)
+    # API hints:
+    # - (p.data ** 2).sum() -> sum of squared values
+    # - Tensor(np.array(0.0)) -> initialize accumulator
+    # - Formula: L2 = (λ/2) * Σθ²
     
     return Tensor(np.array(0.0))  # Replace
 
@@ -483,13 +461,10 @@ def apply_l2_gradient_(parameters: Iterator[Parameter],
         parameters: Model parameters
         lambda_l2: Regularization strength
     """
-    # TODO: Implement L2 gradient application
-    # HINT:
-    # for p in parameters:
-    #     if p.grad is not None:
-    #         p.grad += lambda_l2 * p.data
+    # API hints:
+    # - p.grad += λ * p.data -> add weight decay gradient
     
-    pass  # Replace
+    pass
 
 
 # ============================================================================
@@ -558,62 +533,26 @@ class SGD(Optimizer):
     def __init__(self, params, lr: float, momentum: float = 0.0,
                  weight_decay: float = 0.0, decoupled: bool = False):
         """Initialize SGD with weight decay."""
-        # TODO: Initialize SGD
-        # HINT:
-        # if lr < 0.0:
-        #     raise ValueError(f"Invalid learning rate: {lr}")
-        # defaults = {
-        #     'lr': lr,
-        #     'momentum': momentum,
-        #     'weight_decay': weight_decay,
-        #     'decoupled': decoupled
-        # }
-        # super().__init__(params, defaults)
+        # API hints:
+        # - Validate: lr >= 0.0
+        # - defaults = {'lr': lr, 'momentum': ..., 'weight_decay': ..., 'decoupled': ...}
+        # - super().__init__(params, defaults)
         
-        pass  # Replace with initialization
+        pass
     
     def step(self):
         """
         Perform SGD step with optional momentum and weight decay.
         """
-        # TODO: Implement SGD step with weight decay
-        # HINT:
-        # for group in self.param_groups:
-        #     lr = group['lr']
-        #     momentum = group['momentum']
-        #     weight_decay = group['weight_decay']
-        #     decoupled = group['decoupled']
-        #     
-        #     for p in group['params']:
-        #         if p.grad is None:
-        #             continue
-        #         
-        #         grad = p.grad.copy()  # Don't modify original
-        #         
-        #         # L2 regularization (if not decoupled)
-        #         if weight_decay != 0 and not decoupled:
-        #             grad = grad + weight_decay * p.data
-        #         
-        #         # Momentum
-        #         if momentum != 0:
-        #             param_id = id(p)
-        #             if param_id not in self.state:
-        #                 self.state[param_id] = {'velocity': np.zeros_like(p.data)}
-        #             
-        #             v = self.state[param_id]['velocity']
-        #             v[:] = momentum * v + grad
-        #             update = v
-        #         else:
-        #             update = grad
-        #         
-        #         # Apply update
-        #         p.data -= lr * update
-        #         
-        #         # Decoupled weight decay (after momentum)
-        #         if weight_decay != 0 and decoupled:
-        #             p.data -= lr * weight_decay * p.data
+        # API hints:
+        # - grad = p.grad.copy() -> don't modify original
+        # - L2 (coupled): grad += weight_decay * p.data
+        # - Momentum: v = momentum * v + grad; update = v
+        # - No momentum: update = grad
+        # - p.data -= lr * update
+        # - Decoupled: p.data -= lr * weight_decay * p.data (after update)
         
-        pass  # Replace
+        pass
 
 
 # ============================================================================
@@ -648,15 +587,13 @@ class Dropout(Module):
         Args:
             p: Dropout probability (0 to 1)
         """
-        # TODO: Initialize Dropout
-        # HINT:
-        # super().__init__()
-        # if p < 0 or p > 1:
-        #     raise ValueError(f"Invalid dropout probability: {p}")
-        # self.p = p
+        # API hints:
+        # - super().__init__()
+        # - Validate: 0 <= p <= 1
+        # - self.p = p
         
         super().__init__()
-        self.p = 0.5  # Replace with initialization
+        self.p = 0.5  # Replace
     
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -665,24 +602,12 @@ class Dropout(Module):
         Training: Zero p% of elements, scale by 1/(1-p)
         Eval: Pass through unchanged
         """
-        # TODO: Implement dropout forward
-        # HINT:
-        # if not self.training or self.p == 0:
-        #     return x
-        # 
-        # # Generate mask: 1 with prob (1-p), 0 with prob p
-        # mask = (np.random.random(x.shape) > self.p).astype(np.float64)
-        # 
-        # # Scale by 1/(1-p) to maintain expected value
-        # scale = 1.0 / (1.0 - self.p)
-        # 
-        # out = Tensor(x.data * mask * scale, (x,), 'dropout')
-        # 
-        # def _backward():
-        #     x.grad += out.grad * mask * scale
-        # out._backward = _backward
-        # 
-        # return out
+        # API hints:
+        # - self.training -> check if in training mode
+        # - if not training or p==0: return x unchanged
+        # - mask = (np.random.random(shape) > p).astype(np.float64)
+        # - scale = 1.0 / (1.0 - p) -> maintain expected value
+        # - Backward: x.grad += out.grad * mask * scale
         
         return x  # Replace
     
@@ -722,59 +647,15 @@ def train_with_regularization(model: Module, optimizer: Optimizer,
     Returns:
         Dict with losses, grad_norms, and sparsity metrics
     """
-    # TODO: Implement training loop with regularization
-    # HINT:
-    # history = {
-    #     'losses': [],
-    #     'reg_losses': [],
-    #     'grad_norms': [],
-    #     'weight_norms': []
-    # }
-    # 
-    # for epoch in range(epochs):
-    #     optimizer.zero_grad()
-    #     
-    #     x = Tensor(X)
-    #     y = Tensor(Y)
-    #     
-    #     # Forward pass
-    #     pred = model(x)
-    #     data_loss = mse_loss(pred, y)
-    #     
-    #     # Regularization
-    #     params = list(model.parameters())
-    #     reg_loss = Tensor(np.array(0.0))
-    #     
-    #     if lambda_l1 > 0:
-    #         reg_loss = reg_loss + l1_regularization(iter(params), lambda_l1)
-    #     
-    #     if lambda_l2 > 0:
-    #         reg_loss = reg_loss + l2_regularization(iter(params), lambda_l2)
-    #     
-    #     # Total loss
-    #     loss = data_loss + reg_loss
-    #     
-    #     # Backward pass
-    #     loss.backward()
-    #     
-    #     # Gradient clipping
-    #     if clip_norm is not None:
-    #         grad_norm = clip_grad_norm_(model.parameters(), clip_norm)
-    #     else:
-    #         grad_norm = sum(np.sum(p.grad ** 2) for p in params) ** 0.5
-    #     
-    #     # Update
-    #     optimizer.step()
-    #     
-    #     # Record metrics
-    #     history['losses'].append(float(data_loss.data))
-    #     history['reg_losses'].append(float(reg_loss.data))
-    #     history['grad_norms'].append(grad_norm)
-    #     
-    #     weight_norm = sum(np.sum(p.data ** 2) for p in params) ** 0.5
-    #     history['weight_norms'].append(weight_norm)
-    # 
-    # return history
+    # API hints:
+    # - history = {'losses': [], 'reg_losses': [], 'grad_norms': [], 'weight_norms': []}
+    # - optimizer.zero_grad() -> clear gradients
+    # - mse_loss(pred, y) -> data loss
+    # - l1_regularization(...), l2_regularization(...) -> reg terms
+    # - loss.backward() -> compute gradients
+    # - clip_grad_norm_(...) -> optional clipping
+    # - optimizer.step() -> update params
+    # - Track metrics per epoch
     
     return {}  # Replace
 

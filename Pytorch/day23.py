@@ -71,18 +71,17 @@ def create_kv_cache(batch_size: int, num_kv_heads: int, max_seq_len: int,
     
     Returns:
         KVCache with pre-allocated zero tensors
-    
-    TODO: Create the cache tensors
-    HINT:
-        k_cache = torch.zeros(batch_size, num_kv_heads, max_seq_len, head_dim, device=device)
-        v_cache = torch.zeros(batch_size, num_kv_heads, max_seq_len, head_dim, device=device)
-        return KVCache(k_cache=k_cache, v_cache=v_cache, seq_len=0)
     """
+    # TODO: Create the cache tensors
+    # API hints:
+    # - torch.zeros(batch_size, num_kv_heads, max_seq_len, head_dim, device=device) -> K cache
+    # - torch.zeros(batch_size, num_kv_heads, max_seq_len, head_dim, device=device) -> V cache
+    # - return KVCache(k_cache=k_cache, v_cache=v_cache, seq_len=0)
     return KVCache(
         k_cache=torch.zeros(1),
         v_cache=torch.zeros(1),
         seq_len=0
-    )  # Replace
+    )
 
 
 def update_kv_cache(cache: KVCache, new_k: torch.Tensor, 
@@ -97,21 +96,15 @@ def update_kv_cache(cache: KVCache, new_k: torch.Tensor,
     
     Returns:
         Updated cache with new entries appended
-    
-    TODO: Append new K, V to cache
-    HINT:
-        new_seq_len = new_k.size(2)
-        start_pos = cache.seq_len
-        end_pos = start_pos + new_seq_len
-        
-        # Write new values to cache at correct positions
-        cache.k_cache[:, :, start_pos:end_pos, :] = new_k
-        cache.v_cache[:, :, start_pos:end_pos, :] = new_v
-        cache.seq_len = end_pos
-        
-        return cache
     """
-    return cache  # Replace
+    # TODO: Append new K, V to cache at correct positions
+    # API hints:
+    # - new_k.size(2) -> get new sequence length
+    # - start_pos = cache.seq_len, end_pos = start_pos + new_seq_len
+    # - cache.k_cache[:, :, start_pos:end_pos, :] = new_k -> write to cache
+    # - cache.v_cache[:, :, start_pos:end_pos, :] = new_v -> write to cache
+    # - cache.seq_len = end_pos -> update length
+    return cache
 
 
 def get_cached_kv(cache: KVCache) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -123,14 +116,12 @@ def get_cached_kv(cache: KVCache) -> Tuple[torch.Tensor, torch.Tensor]:
     
     Returns:
         (k, v) tensors of shape (batch, num_kv_heads, seq_len, head_dim)
-    
-    TODO: Slice cache to valid length
-    HINT:
-        k = cache.k_cache[:, :, :cache.seq_len, :]
-        v = cache.v_cache[:, :, :cache.seq_len, :]
-        return k, v
     """
-    return cache.k_cache, cache.v_cache  # Replace
+    # TODO: Slice cache to valid length
+    # API hints:
+    # - cache.k_cache[:, :, :cache.seq_len, :] -> get valid K entries
+    # - cache.v_cache[:, :, :cache.seq_len, :] -> get valid V entries
+    return cache.k_cache, cache.v_cache
 
 
 # ============================================================================
@@ -162,15 +153,14 @@ class CachedAttention(nn.Module):
         self.scale = self.head_dim ** -0.5
         
         # TODO: Create projection layers
-        # HINT:
-        #   self.W_q = nn.Linear(d_model, num_heads * self.head_dim, bias=False)
-        #   self.W_k = nn.Linear(d_model, num_kv_heads * self.head_dim, bias=False)
-        #   self.W_v = nn.Linear(d_model, num_kv_heads * self.head_dim, bias=False)
-        #   self.W_o = nn.Linear(d_model, d_model, bias=False)
-        self.W_q = None  # Replace
-        self.W_k = None  # Replace
-        self.W_v = None  # Replace
-        self.W_o = None  # Replace
+        # API hints:
+        # - nn.Linear(d_model, num_heads * head_dim, bias=False) -> Q projection
+        # - nn.Linear(d_model, num_kv_heads * head_dim, bias=False) -> K, V projections
+        # - nn.Linear(d_model, d_model, bias=False) -> output projection
+        self.W_q = None
+        self.W_k = None
+        self.W_v = None
+        self.W_o = None
     
     def _repeat_kv(self, x: torch.Tensor) -> torch.Tensor:
         """Repeat KV heads to match query heads."""
@@ -195,51 +185,26 @@ class CachedAttention(nn.Module):
         Returns:
             output: (batch, seq_len, d_model)
             cache: Updated KV cache
-        
-        TODO: Implement cached attention
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Project current input to Q, K, V
-            q = self.W_q(x).view(batch, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-            k = self.W_k(x).view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-            v = self.W_v(x).view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-            
-            # Update cache
-            if cache is not None:
-                cache = update_kv_cache(cache, k, v)
-                k_full, v_full = get_cached_kv(cache)
-            else:
-                # Create new cache
-                cache = KVCache(k_cache=k, v_cache=v, seq_len=seq_len)
-                k_full, v_full = k, v
-            
-            # Repeat KV for GQA
-            k_full = self._repeat_kv(k_full)
-            v_full = self._repeat_kv(v_full)
-            
-            # Compute attention
-            scores = torch.matmul(q, k_full.transpose(-2, -1)) * self.scale
-            
-            if mask is not None:
-                scores = scores.masked_fill(mask == 0, float('-inf'))
-            
-            attn = F.softmax(scores, dim=-1)
-            output = torch.matmul(attn, v_full)
-            
-            # Reshape and project
-            output = output.transpose(1, 2).reshape(batch, seq_len, self.d_model)
-            output = self.W_o(output)
-            
-            return output, cache
         """
+        # TODO: Implement cached attention
+        # API hints:
+        # - self.W_q(x), self.W_k(x), self.W_v(x) -> project to Q, K, V
+        # - tensor.view(batch, seq, num_heads, head_dim).transpose(1, 2) -> reshape
+        # - update_kv_cache(cache, k, v) -> update cache with new K, V
+        # - get_cached_kv(cache) -> get full K, V from cache
+        # - self._repeat_kv(k_full) -> repeat KV for GQA
+        # - torch.matmul(q, k.transpose(-2, -1)) * self.scale -> attention scores
+        # - F.softmax(scores, dim=-1) -> attention weights
+        # - torch.matmul(attn, v) -> weighted sum
+        # - output.transpose(1, 2).reshape(batch, seq, d_model) -> reshape
+        # - self.W_o(output) -> output projection
         batch, seq_len, _ = x.shape
         dummy_cache = KVCache(
             k_cache=torch.zeros(batch, self.num_kv_heads, 1, self.head_dim),
             v_cache=torch.zeros(batch, self.num_kv_heads, 1, self.head_dim),
             seq_len=0
         )
-        return torch.zeros_like(x), dummy_cache  # Replace
+        return torch.zeros_like(x), dummy_cache
 
 
 # ============================================================================
@@ -258,45 +223,34 @@ class CachedTransformerBlock(nn.Module):
         d_ff = d_ff or d_model * 4
         
         # TODO: Initialize components
-        # HINT:
-        #   self.attention = CachedAttention(d_model, num_heads, num_kv_heads)
-        #   self.ffn = nn.Sequential(
-        #       nn.Linear(d_model, d_ff),
-        #       nn.GELU(),
-        #       nn.Linear(d_ff, d_model)
-        #   )
-        #   self.norm1 = nn.LayerNorm(d_model)
-        #   self.norm2 = nn.LayerNorm(d_model)
-        self.attention = None  # Replace
-        self.ffn = None        # Replace
-        self.norm1 = None      # Replace
-        self.norm2 = None      # Replace
+        # API hints:
+        # - CachedAttention(d_model, num_heads, num_kv_heads) -> cached attention
+        # - nn.Sequential(nn.Linear(d_model, d_ff), nn.GELU(), nn.Linear(d_ff, d_model)) -> FFN
+        # - nn.LayerNorm(d_model) -> layer norm
+        self.attention = None
+        self.ffn = None
+        self.norm1 = None
+        self.norm2 = None
     
     def forward(self, x: torch.Tensor, 
                 cache: Optional[KVCache] = None,
                 mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, KVCache]:
         """
         Forward pass with cache.
-        
-        TODO: Implement pre-norm transformer block with cache
-        HINT:
-            # Attention with cache
-            normed = self.norm1(x)
-            attn_out, cache = self.attention(normed, cache, mask)
-            x = x + attn_out
-            
-            # FFN (no caching needed)
-            normed = self.norm2(x)
-            x = x + self.ffn(normed)
-            
-            return x, cache
         """
+        # TODO: Implement pre-norm transformer block with cache
+        # API hints:
+        # - self.norm1(x) -> pre-norm before attention
+        # - self.attention(normed, cache, mask) -> returns (output, updated_cache)
+        # - x + attn_out -> residual connection
+        # - self.norm2(x) -> pre-norm before FFN
+        # - self.ffn(normed) -> FFN output
         dummy_cache = KVCache(
             k_cache=torch.zeros(1),
             v_cache=torch.zeros(1),
             seq_len=0
         )
-        return x, dummy_cache  # Replace
+        return x, dummy_cache
 
 
 # ============================================================================
@@ -341,16 +295,13 @@ def create_layer_caches(num_layers: int, batch_size: int, num_kv_heads: int,
     
     Returns:
         LayerCaches with pre-allocated caches for all layers
-    
-    TODO: Create caches for all layers
-    HINT:
-        caches = LayerCaches(num_layers)
-        for i in range(num_layers):
-            cache = create_kv_cache(batch_size, num_kv_heads, max_seq_len, head_dim, device)
-            caches.set(i, cache)
-        return caches
     """
-    return LayerCaches(num_layers)  # Replace
+    # TODO: Create caches for all layers
+    # API hints:
+    # - LayerCaches(num_layers) -> create cache manager
+    # - create_kv_cache(batch_size, num_kv_heads, max_seq_len, head_dim, device) -> per-layer cache
+    # - caches.set(i, cache) -> store cache for layer i
+    return LayerCaches(num_layers)
 
 
 # ============================================================================
@@ -374,18 +325,15 @@ class CachedTransformer(nn.Module):
         self.head_dim = d_model // num_heads
         
         # TODO: Initialize model components
-        # HINT:
-        #   self.token_emb = nn.Embedding(vocab_size, d_model)
-        #   self.layers = nn.ModuleList([
-        #       CachedTransformerBlock(d_model, num_heads, self.num_kv_heads)
-        #       for _ in range(num_layers)
-        #   ])
-        #   self.final_norm = nn.LayerNorm(d_model)
-        #   self.output_proj = nn.Linear(d_model, vocab_size, bias=False)
-        self.token_emb = None   # Replace
-        self.layers = None      # Replace
-        self.final_norm = None  # Replace
-        self.output_proj = None # Replace
+        # API hints:
+        # - nn.Embedding(vocab_size, d_model) -> token embedding
+        # - nn.ModuleList([CachedTransformerBlock(...) for _ in range(num_layers)]) -> layers
+        # - nn.LayerNorm(d_model) -> final layer norm
+        # - nn.Linear(d_model, vocab_size, bias=False) -> output projection
+        self.token_emb = None
+        self.layers = None
+        self.final_norm = None
+        self.output_proj = None
     
     def forward(self, token_ids: torch.Tensor,
                 layer_caches: Optional[LayerCaches] = None,
@@ -401,40 +349,22 @@ class CachedTransformer(nn.Module):
         Returns:
             logits: (batch, seq_len, vocab_size)
             layer_caches: Updated caches
-        
-        TODO: Implement forward pass with per-layer caching
-        HINT:
-            batch, seq_len = token_ids.shape
-            
-            # Get embeddings
-            x = self.token_emb(token_ids)
-            
-            # Create caches if needed
-            if layer_caches is None:
-                layer_caches = LayerCaches(self.num_layers)
-            
-            # Create causal mask for current tokens
-            # During decode (seq_len=1), we attend to all cached positions
-            total_len = start_pos + seq_len
-            mask = torch.tril(torch.ones(total_len, total_len, device=x.device))
-            mask = mask[start_pos:total_len, :total_len]  # Only rows for new tokens
-            mask = mask.unsqueeze(0).unsqueeze(0)  # (1, 1, seq_len, total_len)
-            
-            # Forward through layers
-            for i, layer in enumerate(self.layers):
-                cache = layer_caches.get(i)
-                x, new_cache = layer(x, cache, mask)
-                layer_caches.set(i, new_cache)
-            
-            x = self.final_norm(x)
-            logits = self.output_proj(x)
-            
-            return logits, layer_caches
         """
+        # TODO: Implement forward pass with per-layer caching
+        # API hints:
+        # - self.token_emb(token_ids) -> get embeddings
+        # - LayerCaches(self.num_layers) -> create new caches if needed
+        # - torch.tril(torch.ones(total_len, total_len)) -> causal mask
+        # - mask[start_pos:total_len, :total_len] -> slice for decode
+        # - for i, layer in enumerate(self.layers): -> iterate layers
+        # - layer_caches.get(i), layer_caches.set(i, cache) -> get/set cache
+        # - layer(x, cache, mask) -> returns (output, updated_cache)
+        # - self.final_norm(x) -> final normalization
+        # - self.output_proj(x) -> project to vocab
         batch, seq_len = token_ids.shape
         if layer_caches is None:
             layer_caches = LayerCaches(self.num_layers)
-        return torch.zeros(batch, seq_len, 1000), layer_caches  # Replace
+        return torch.zeros(batch, seq_len, 1000), layer_caches
 
 
 # ============================================================================
@@ -456,37 +386,17 @@ def generate_with_cache(model: CachedTransformer,
     
     Returns:
         Full sequence including prompt and generated tokens
-    
-    TODO: Implement generation loop with cache
-    HINT:
-        model.eval()
-        device = prompt_ids.device
-        
-        # Prefill: process entire prompt
-        with torch.no_grad():
-            logits, caches = model(prompt_ids)
-            
-        generated = prompt_ids.clone()
-        
-        # Generate new tokens one at a time
-        for i in range(max_new_tokens):
-            # Get logits for last position
-            next_logits = logits[:, -1, :] / temperature
-            
-            # Sample next token
-            probs = F.softmax(next_logits, dim=-1)
-            next_token = torch.multinomial(probs, num_samples=1)
-            
-            # Append to sequence
-            generated = torch.cat([generated, next_token], dim=1)
-            
-            # Decode: process only new token with cache
-            with torch.no_grad():
-                logits, caches = model(next_token, caches, start_pos=generated.size(1)-1)
-        
-        return generated
     """
-    return prompt_ids  # Replace
+    # TODO: Implement generation loop with cache
+    # API hints:
+    # - model.eval() -> set to eval mode
+    # - model(prompt_ids) -> prefill, returns (logits, caches)
+    # - logits[:, -1, :] / temperature -> get last position logits with temp
+    # - F.softmax(next_logits, dim=-1) -> softmax for sampling
+    # - torch.multinomial(probs, num_samples=1) -> sample next token
+    # - torch.cat([generated, next_token], dim=1) -> append to sequence
+    # - model(next_token, caches, start_pos=...) -> decode with cache
+    return prompt_ids
 
 
 # ============================================================================
@@ -509,30 +419,21 @@ def compute_cache_memory(num_layers: int, num_kv_heads: int, head_dim: int,
     
     Returns:
         Dictionary with memory analysis
-    
-    TODO: Compute cache memory requirements
-    HINT:
-        # K and V cache per layer
-        per_layer_elements = 2 * batch_size * num_kv_heads * max_seq_len * head_dim
-        per_layer_bytes = per_layer_elements * dtype_bytes
-        
-        total_bytes = per_layer_bytes * num_layers
-        
-        return {
-            'per_layer_bytes': per_layer_bytes,
-            'total_bytes': total_bytes,
-            'total_mb': total_bytes / (1024 * 1024),
-            'total_gb': total_bytes / (1024 * 1024 * 1024),
-            'per_token_bytes': total_bytes / max_seq_len
-        }
     """
+    # TODO: Compute cache memory requirements
+    # API hints:
+    # - per_layer_elements = 2 * batch_size * num_kv_heads * max_seq_len * head_dim
+    # - per_layer_bytes = per_layer_elements * dtype_bytes
+    # - total_bytes = per_layer_bytes * num_layers
+    # - total_mb = total_bytes / (1024 * 1024)
+    # - total_gb = total_bytes / (1024 * 1024 * 1024)
     return {
         'per_layer_bytes': 0,
         'total_bytes': 0,
         'total_mb': 0.0,
         'total_gb': 0.0,
         'per_token_bytes': 0
-    }  # Replace
+    }
 
 
 if __name__ == "__main__":

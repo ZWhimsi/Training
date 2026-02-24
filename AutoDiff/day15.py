@@ -152,27 +152,19 @@ class Tensor:
         Gradient: The upstream gradient is broadcast back to input shape.
         For sum, each input element contributes equally (with coefficient 1).
         """
+        # API hints:
+        # - np.sum(data, axis=axis, keepdims=keepdims) -> sum reduction
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: broadcast upstream gradient back to input shape
+        # - np.full(shape, value) -> array filled with value
+        # - np.expand_dims(arr, axis=i) -> add dimension at position i
+        # - np.broadcast_to(arr, shape) -> broadcast to target shape
+        
         # TODO: Implement forward pass
-        # HINT: result = np.sum(self.data, axis=axis, keepdims=keepdims)
-        out = None  # Replace: Tensor(result, (self,), 'sum')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Gradient needs to be broadcast back to self.shape
-            # If keepdims=False, we need to expand dims to match
-            # HINT: 
-            # if axis is None:
-            #     self.grad += np.full(self.shape, out.grad)
-            # else:
-            #     grad = out.grad
-            #     if not keepdims:
-            #         # Expand dims for broadcasting
-            #         if isinstance(axis, int):
-            #             grad = np.expand_dims(grad, axis=axis)
-            #         else:
-            #             for ax in sorted(axis):
-            #                 grad = np.expand_dims(grad, axis=ax)
-            #     self.grad += np.broadcast_to(grad, self.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -197,11 +189,18 @@ class Tensor:
         Gradient: Same as sum, but divided by the number of elements
         that were averaged.
         """
-        # TODO: Implement forward pass
-        # HINT: result = np.mean(self.data, axis=axis, keepdims=keepdims)
-        out = None  # Replace: Tensor(result, (self,), 'mean')
+        # API hints:
+        # - np.mean(data, axis=axis, keepdims=keepdims) -> mean reduction
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: same as sum, but divided by count of elements averaged
+        # - self.data.size -> total elements (for axis=None)
+        # - self.data.shape[axis] -> size along axis
+        # - np.prod([...]) -> product of values
         
-        # TODO: Compute the count of elements being averaged
+        # TODO: Implement forward pass
+        out = None  # Replace
+        
+        # Compute the count of elements being averaged
         if axis is None:
             count = self.data.size
         elif isinstance(axis, int):
@@ -211,19 +210,6 @@ class Tensor:
         
         # TODO: Implement backward pass
         def _backward():
-            # Same as sum gradient, but divided by count
-            # HINT: 
-            # if axis is None:
-            #     self.grad += np.full(self.shape, out.grad / count)
-            # else:
-            #     grad = out.grad / count
-            #     if not keepdims:
-            #         if isinstance(axis, int):
-            #             grad = np.expand_dims(grad, axis=axis)
-            #         else:
-            #             for ax in sorted(axis):
-            #                 grad = np.expand_dims(grad, axis=ax)
-            #     self.grad += np.broadcast_to(grad, self.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -247,25 +233,20 @@ class Tensor:
         Gradient: Only the maximum element(s) receive gradient.
         This is a "hard" selection operation.
         """
+        # API hints:
+        # - np.max(data, axis=axis, keepdims=keepdims) -> max reduction
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: only flows to max element(s)
+        # - Create mask where self.data == max value
+        # - Normalize mask if ties exist (split gradient)
+        # - mask.sum(axis=axis, keepdims=True) -> count of maxes per position
+        
         # TODO: Implement forward pass
         result = np.max(self.data, axis=axis, keepdims=keepdims)
-        out = None  # Replace: Tensor(result, (self,), 'max')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Create mask of where max values are
-            # Gradient only flows to max positions
-            # HINT:
-            # if axis is None:
-            #     mask = (self.data == out.data)
-            # else:
-            #     # Expand out.data for broadcasting comparison
-            #     expanded = out.data if keepdims else np.expand_dims(out.data, axis=axis)
-            #     mask = (self.data == expanded)
-            # # Normalize mask if multiple max values
-            # mask = mask / mask.sum(axis=axis, keepdims=True)
-            # grad = out.grad if keepdims else np.expand_dims(out.grad, axis=axis)
-            # self.grad += mask * np.broadcast_to(grad, self.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -284,12 +265,14 @@ class Tensor:
         This is implemented using existing operations, so gradients
         flow automatically through the computation graph!
         """
+        # API hints:
+        # - var(x) = mean((x - mean(x))^2)
+        # - self.mean(axis=axis, keepdims=True) -> compute mean (keepdims for broadcast)
+        # - self - mean_val -> compute differences
+        # - diff ** 2 -> square differences
+        # - Use existing operations so gradients flow automatically
+        
         # TODO: Implement variance using mean
-        # HINT:
-        # mean_val = self.mean(axis=axis, keepdims=True)  # Keep dims for broadcast
-        # diff = self - mean_val
-        # sq_diff = diff ** 2
-        # return sq_diff.mean(axis=axis, keepdims=keepdims)
         return None  # Replace
 
 

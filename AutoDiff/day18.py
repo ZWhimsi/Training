@@ -168,28 +168,15 @@ class Tensor:
         result = np.max(self.data, axis=axis, keepdims=keepdims)
         out = Tensor(result, (self,), 'max')
         
+        # API hints:
+        # - Create mask: (self.data == max_value).astype(float)
+        # - Normalize mask for ties: mask / mask.sum(...)
+        # - np.expand_dims(arr, axis=axis) -> add dim if not keepdims
+        # - np.broadcast_to(grad, shape) -> broadcast gradient
+        # - Gradient only flows to max position(s)
+        
         # TODO: Implement backward pass
         def _backward():
-            # Step 1: Create mask of max positions
-            # Step 2: If axis specified, need to broadcast for comparison
-            # Step 3: Normalize mask for ties
-            # Step 4: Apply gradient through mask
-            #
-            # HINT:
-            # if axis is None:
-            #     mask = (self.data == out.data).astype(float)
-            #     # Normalize for ties
-            #     mask = mask / mask.sum()
-            #     self.grad += mask * out.grad
-            # else:
-            #     # Expand result for broadcasting comparison
-            #     expanded = out.data if keepdims else np.expand_dims(out.data, axis=axis)
-            #     mask = (self.data == expanded).astype(float)
-            #     # Normalize along axis
-            #     mask = mask / mask.sum(axis=axis, keepdims=True)
-            #     # Apply gradient
-            #     grad = out.grad if keepdims else np.expand_dims(out.grad, axis=axis)
-            #     self.grad += mask * np.broadcast_to(grad, self.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -215,19 +202,14 @@ class Tensor:
         result = np.min(self.data, axis=axis, keepdims=keepdims)
         out = Tensor(result, (self,), 'min')
         
+        # API hints:
+        # - Same logic as max, but for minimum values
+        # - Create mask: (self.data == min_value).astype(float)
+        # - Normalize mask for ties
+        # - Gradient only flows to min position(s)
+        
         # TODO: Implement backward pass
-        # HINT: Same logic as max, but compare with minimum
         def _backward():
-            # if axis is None:
-            #     mask = (self.data == out.data).astype(float)
-            #     mask = mask / mask.sum()
-            #     self.grad += mask * out.grad
-            # else:
-            #     expanded = out.data if keepdims else np.expand_dims(out.data, axis=axis)
-            #     mask = (self.data == expanded).astype(float)
-            #     mask = mask / mask.sum(axis=axis, keepdims=True)
-            #     grad = out.grad if keepdims else np.expand_dims(out.grad, axis=axis)
-            #     self.grad += mask * np.broadcast_to(grad, self.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -249,14 +231,14 @@ class Tensor:
         Returns:
             numpy array of indices (not a Tensor)
         """
-        # TODO: Implement argmax
-        # HINT: return np.argmax(self.data, axis=axis)
+        # API hints:
+        # - np.argmax(data, axis=axis) -> indices of max values
         return None  # Replace
     
     def argmin(self, axis=None):
         """Return indices of minimum values."""
-        # TODO: Implement argmin
-        # HINT: return np.argmin(self.data, axis=axis)
+        # API hints:
+        # - np.argmin(data, axis=axis) -> indices of min values
         return None  # Replace
     
     # ========================================================================
@@ -276,20 +258,18 @@ class Tensor:
         
         Gradient: 1 where value is in range, 0 where clamped.
         """
+        # API hints:
+        # - np.clip(data, min_val, max_val) -> clamp values
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: 1 where not clamped, 0 where clamped
+        # - (self.data >= min_val) -> boolean mask
+        # - (self.data <= max_val) -> boolean mask
+        
         # TODO: Implement forward pass
-        # HINT: result = np.clip(self.data, min_val, max_val)
-        out = None  # Replace: Tensor(result, (self,), 'clamp')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Gradient is 1 where not clamped, 0 where clamped
-            # HINT:
-            # mask = np.ones_like(self.data)
-            # if min_val is not None:
-            #     mask = mask * (self.data >= min_val)
-            # if max_val is not None:
-            #     mask = mask * (self.data <= max_val)
-            # self.grad += mask * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -315,14 +295,17 @@ class Tensor:
         Note: At x=0, gradient is technically undefined.
         We use 0 (subgradient convention).
         """
+        # API hints:
+        # - np.maximum(data, 0) -> element-wise max with 0
+        # - Tensor(result, children, op) -> create output
+        # - Gradient: 1 if input > 0, else 0
+        # - (self.data > 0) -> boolean mask for gradient
+        
         # TODO: Implement forward pass
-        # HINT: result = np.maximum(self.data, 0)
-        out = None  # Replace: Tensor(result, (self,), 'relu')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Gradient passes through where input > 0
-            # HINT: self.grad += (self.data > 0) * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -346,15 +329,16 @@ class Tensor:
             df/dx = 1 if x > 0
             df/dx = negative_slope if x <= 0
         """
+        # API hints:
+        # - np.where(condition, x, y) -> x where True, y where False
+        # - Forward: x if x > 0 else negative_slope * x
+        # - Gradient: 1 if x > 0 else negative_slope
+        
         # TODO: Implement forward pass
-        # HINT: result = np.where(self.data > 0, self.data, negative_slope * self.data)
-        out = None  # Replace: Tensor(result, (self,), 'leaky_relu')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # HINT:
-            # grad_mask = np.where(self.data > 0, 1, negative_slope)
-            # self.grad += grad_mask * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -381,18 +365,18 @@ class Tensor:
         if isinstance(other, (int, float)):
             other = Tensor(np.full_like(self.data, other))
         
+        # API hints:
+        # - np.maximum(a, b) -> element-wise maximum
+        # - Tensor(result, children, op) -> create output
+        # - Gradient to self where self >= other
+        # - Gradient to other where other > self
+        # - Tensor.unbroadcast(grad, shape) -> handle broadcasting
+        
         # TODO: Implement forward pass
-        # HINT: result = np.maximum(self.data, other.data)
-        out = None  # Replace: Tensor(result, (self, other), 'maximum')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # HINT:
-            # self_mask = (self.data >= other.data).astype(float)
-            # other_mask = (other.data > self.data).astype(float)
-            # # Handle ties by giving gradient to self
-            # self.grad += Tensor.unbroadcast(self_mask * out.grad, self.shape)
-            # other.grad += Tensor.unbroadcast(other_mask * out.grad, other.shape)
             pass  # Replace
         
         out._backward = _backward
@@ -415,17 +399,18 @@ class Tensor:
         if isinstance(other, (int, float)):
             other = Tensor(np.full_like(self.data, other))
         
+        # API hints:
+        # - np.minimum(a, b) -> element-wise minimum
+        # - Tensor(result, children, op) -> create output
+        # - Gradient to self where self <= other
+        # - Gradient to other where other < self
+        # - Tensor.unbroadcast(grad, shape) -> handle broadcasting
+        
         # TODO: Implement forward pass
-        # HINT: result = np.minimum(self.data, other.data)
-        out = None  # Replace: Tensor(result, (self, other), 'minimum')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # HINT:
-            # self_mask = (self.data <= other.data).astype(float)
-            # other_mask = (other.data < self.data).astype(float)
-            # self.grad += Tensor.unbroadcast(self_mask * out.grad, self.shape)
-            # other.grad += Tensor.unbroadcast(other_mask * out.grad, other.shape)
             pass  # Replace
         
         out._backward = _backward

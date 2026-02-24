@@ -37,24 +37,14 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
         output: [batch, seq_q, d_v]
         attention_weights: [batch, seq_q, seq_k]
     """
-    d_k = Q.shape[-1]
-    
-    # TODO: Compute attention scores
-    # HINT: scores = Q @ K.transpose(-2, -1) / sqrt(d_k)
-    scores = None  # Replace
-    
-    # TODO: Apply mask if provided (set masked positions to -inf)
-    if mask is not None:
-        # HINT: scores = scores.masked_fill(mask == 0, float('-inf'))
-        pass  # Replace
-    
-    # TODO: Apply softmax
-    attention_weights = None  # Replace: F.softmax(scores, dim=-1)
-    
-    # TODO: Compute output
-    output = None  # Replace: attention_weights @ V
-    
-    return output, attention_weights
+    # API hints:
+    # - Q.shape[-1] -> d_k dimension
+    # - Q @ K.transpose(-2, -1) -> attention scores (batch, seq_q, seq_k)
+    # - scores / math.sqrt(d_k) -> scale by sqrt(d_k)
+    # - scores.masked_fill(mask == 0, float('-inf')) -> mask invalid positions
+    # - F.softmax(scores, dim=-1) -> normalize to attention weights
+    # - attention_weights @ V -> weighted sum of values
+    return None
 
 
 # ============================================================================
@@ -78,14 +68,15 @@ class SelfAttention(nn.Module):
         d_k = d_k or d_model
         d_v = d_v or d_model
         
-        # TODO: Create linear projections for Q, K, V
-        # HINT: self.W_q = nn.Linear(d_model, d_k)
-        self.W_q = None  # Replace
-        self.W_k = None  # Replace
-        self.W_v = None  # Replace
-        
-        # TODO: Output projection
-        self.W_o = None  # Replace: nn.Linear(d_v, d_model)
+        # API hints:
+        # - nn.Linear(d_model, d_k) -> query projection
+        # - nn.Linear(d_model, d_k) -> key projection
+        # - nn.Linear(d_model, d_v) -> value projection
+        # - nn.Linear(d_v, d_model) -> output projection
+        self.W_q = None
+        self.W_k = None
+        self.W_v = None
+        self.W_o = None
         
         self.d_k = d_k
     
@@ -98,18 +89,11 @@ class SelfAttention(nn.Module):
         Returns:
             output: [batch, seq, d_model]
         """
-        # TODO: Project to Q, K, V
-        Q = None  # Replace: self.W_q(x)
-        K = None  # Replace: self.W_k(x)
-        V = None  # Replace: self.W_v(x)
-        
-        # TODO: Compute attention
-        output, _ = scaled_dot_product_attention(Q, K, V, mask)
-        
-        # TODO: Project output
-        output = None  # Replace: self.W_o(output)
-        
-        return output
+        # API hints:
+        # - self.W_q(x), self.W_k(x), self.W_v(x) -> project to Q, K, V
+        # - scaled_dot_product_attention(Q, K, V, mask) -> compute attention
+        # - self.W_o(output) -> project output back to d_model
+        return None
 
 
 # ============================================================================
@@ -123,11 +107,12 @@ def create_causal_mask(seq_len, device='cpu'):
     Returns:
         mask: [1, seq_len, seq_len] where mask[i,j]=1 if j<=i else 0
     """
-    # TODO: Create lower triangular mask
-    # HINT: torch.tril(torch.ones(seq_len, seq_len))
-    mask = None  # Replace
-    
-    return mask.unsqueeze(0).to(device)  # Add batch dimension
+    # API hints:
+    # - torch.ones(seq_len, seq_len) -> all ones matrix
+    # - torch.tril(matrix) -> lower triangular (zeros above diagonal)
+    # - mask.unsqueeze(0) -> add batch dimension
+    # - mask.to(device) -> move to specified device
+    return None
 
 
 def causal_attention(Q, K, V):

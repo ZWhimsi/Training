@@ -35,7 +35,7 @@ import numpy as np
 
 def chain_rule_two_functions(df_dg, dg_dx):
     """
-    Apply chain rule: dy/dx = df/dg * dg/dx
+    Apply chain rule for y = f(g(x)).
     
     Args:
         df_dg: Derivative of outer function w.r.t. inner
@@ -44,9 +44,10 @@ def chain_rule_two_functions(df_dg, dg_dx):
     Returns:
         The composed derivative dy/dx
     """
-    # TODO: Multiply the derivatives
-    # HINT: return df_dg * dg_dx
-    return None  # Replace
+    # API hints:
+    # - Chain rule: dy/dx = df/dg * dg/dx
+    # - Multiply the two derivative values
+    return None
 
 
 # ============================================================================
@@ -55,11 +56,12 @@ def chain_rule_two_functions(df_dg, dg_dx):
 
 def chain_rule_three_functions(df_dg, dg_dh, dh_dx):
     """
-    Apply chain rule for y = f(g(h(x))):
-    dy/dx = df/dg * dg/dh * dh/dx
+    Apply chain rule for y = f(g(h(x))).
     """
-    # TODO: Multiply all three derivatives
-    return None  # Replace
+    # API hints:
+    # - Extended chain rule: dy/dx = df/dg * dg/dh * dh/dx
+    # - Multiply all three derivative values
+    return None
 
 
 # ============================================================================
@@ -72,13 +74,13 @@ def numerical_chain_rule(f, g, x, h=1e-5):
     
     Compare this with the analytical chain rule!
     """
-    # TODO: Compute using central difference on the composition
-    # HINT: Let composite(x) = f(g(x))
-    # HINT: return (composite(x+h) - composite(x-h)) / (2*h)
+    # API hints:
+    # - Create composite function: composite(val) = f(g(val))
+    # - Apply central difference: (composite(x+h) - composite(x-h)) / (2*h)
     def composite(val):
         return f(g(val))
     
-    return None  # Replace
+    return None
 
 
 # ============================================================================
@@ -87,22 +89,20 @@ def numerical_chain_rule(f, g, x, h=1e-5):
 
 def verify_chain_rule():
     """
-    Verify chain rule: d/dx[sin(x²)] at x=1
-    
-    Let u = x², y = sin(u)
-    dy/dx = cos(u) * 2x = cos(x²) * 2x
-    At x=1: cos(1) * 2 ≈ 1.0806
+    Verify chain rule: d/dx[sin(x²)] at x=1.
     
     Returns:
         dict with 'analytical' and 'numerical' derivatives
     """
     x = 1.0
     
-    # TODO: Compute analytical derivative
-    # dy/dx = cos(x²) * 2x
-    analytical = None  # Replace: np.cos(x**2) * 2 * x
+    # API hints:
+    # - For sin(x²): let u = x², y = sin(u)
+    # - dy/dx = cos(u) * du/dx = cos(x²) * 2x
+    # - Use np.cos(), np.sin() for trig functions
+    # - Use numerical_chain_rule(f, g, x) for numerical result
+    analytical = None
     
-    # TODO: Compute numerical derivative
     f = np.sin
     g = lambda t: t ** 2
     numerical = numerical_chain_rule(f, g, x)
@@ -110,7 +110,7 @@ def verify_chain_rule():
     return {
         'analytical': analytical,
         'numerical': numerical,
-        'match': None  # Replace: abs(analytical - numerical) < 1e-6
+        'match': None
     }
 
 
@@ -121,12 +121,13 @@ def verify_chain_rule():
 def derivative_exp_sin(x):
     """
     Compute d/dx[exp(sin(x))].
-    
-    Let u = sin(x), y = exp(u)
-    dy/dx = exp(u) * cos(x) = exp(sin(x)) * cos(x)
     """
-    # TODO: Implement analytical derivative
-    return None  # Replace: np.exp(np.sin(x)) * np.cos(x)
+    # API hints:
+    # - Let u = sin(x), y = exp(u)
+    # - Chain rule: dy/dx = dy/du * du/dx
+    # - dy/du = exp(u), du/dx = cos(x)
+    # - Use np.exp(), np.sin(), np.cos()
+    return None
 
 
 # ============================================================================
@@ -136,12 +137,13 @@ def derivative_exp_sin(x):
 def derivative_polynomial_power(x):
     """
     Compute d/dx[(x² + 1)³].
-    
-    Let u = x² + 1, y = u³
-    dy/dx = 3u² * 2x = 6x(x² + 1)²
     """
-    # TODO: Implement analytical derivative
-    return None  # Replace: 6 * x * (x**2 + 1)**2
+    # API hints:
+    # - Let u = x² + 1, y = u³
+    # - Chain rule: dy/dx = dy/du * du/dx
+    # - dy/du = 3*u², du/dx = 2x
+    # - Simplify the expression
+    return None
 
 
 # ============================================================================
@@ -153,11 +155,6 @@ def neural_network_gradient_intuition():
     In a neural network: output = activation(weight * input + bias)
     
     To learn, we need d(loss)/d(weight).
-    
-    If loss = L(output) and output = f(w*x + b):
-    d(loss)/d(weight) = dL/d(output) * d(output)/d(w)
-                      = dL/d(output) * f'(w*x + b) * x
-    
     This is the chain rule in action!
     
     Returns:
@@ -169,26 +166,23 @@ def neural_network_gradient_intuition():
     target = 5.0
     
     # Forward pass
-    pre_activation = w * x  # 6.0
-    output = max(0, pre_activation)  # relu: 6.0
-    loss = (output - target) ** 2  # (6-5)² = 1
+    pre_activation = w * x
+    output = max(0, pre_activation)  # relu
+    loss = (output - target) ** 2
     
-    # TODO: Backward pass using chain rule
-    # d(loss)/d(output) = 2 * (output - target)
-    dloss_doutput = None  # Replace: 2 * (output - target)
-    
-    # d(output)/d(pre_act) = 1 if pre_act > 0 else 0 (relu derivative)
-    doutput_dpre = None  # Replace: 1.0 if pre_activation > 0 else 0.0
-    
-    # d(pre_act)/d(w) = x
-    dpre_dw = None  # Replace: x
-    
-    # Chain rule: d(loss)/d(w) = d(loss)/d(output) * d(output)/d(pre) * d(pre)/d(w)
-    dloss_dw = None  # Replace: dloss_doutput * doutput_dpre * dpre_dw
+    # API hints:
+    # - dloss_doutput: derivative of squared error = 2 * (output - target)
+    # - doutput_dpre: relu derivative = 1 if pre_activation > 0 else 0
+    # - dpre_dw: derivative of w*x w.r.t. w = x
+    # - Chain rule: dloss_dw = dloss_doutput * doutput_dpre * dpre_dw
+    dloss_doutput = None
+    doutput_dpre = None
+    dpre_dw = None
+    dloss_dw = None
     
     return {
         'loss': loss,
-        'dloss_dw': dloss_dw,  # Should be 2 * 1 * 1 * 3 = 6
+        'dloss_dw': dloss_dw,
     }
 
 

@@ -52,27 +52,30 @@ def log_softmax_row_kernel(
     col_offsets = tl.arange(0, BLOCK_SIZE)
     mask = col_offsets < n_cols
     
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    # - tl.max(x, axis=0) -> max reduction along axis
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.log(x) -> element-wise natural logarithm
+    
     # Load row
     x = tl.load(input_ptr + row_start + col_offsets, mask=mask, other=-float('inf'))
     
-    # TODO: Find max for stability
-    # HINT: x_max = tl.max(x, axis=0)
+    # TODO: Find max for numerical stability
     x_max = None  # Replace
     
-    # TODO: Compute shifted values
-    # HINT: x_shifted = x - x_max
+    # TODO: Compute shifted values (x - max)
     x_shifted = None  # Replace
     
     # TODO: Compute log(sum(exp(x_shifted)))
-    # HINT: log_sum_exp = tl.log(tl.sum(tl.exp(x_shifted), axis=0))
     log_sum_exp = None  # Replace
     
-    # TODO: Compute log_softmax
-    # HINT: log_softmax = x_shifted - log_sum_exp
+    # TODO: Compute log_softmax = x_shifted - log_sum_exp
     log_softmax = None  # Replace
     
-    # TODO: Store
-    # HINT: tl.store(output_ptr + row_start + col_offsets, log_softmax, mask=mask)
+    # TODO: Store result
     pass  # Replace
 
 
@@ -115,22 +118,27 @@ def cross_entropy_kernel(
     # Load target class for this row
     target = tl.load(targets_ptr + row_idx)
     
-    # TODO: Compute log_softmax
+    # API hints:
+    # - tl.max(x, axis=0) -> max reduction along axis
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.exp(x) -> element-wise exponential
+    # - tl.log(x) -> element-wise natural logarithm
+    # - tl.where(cond, x, y) -> conditional select
+    # - tl.store(ptr, value) -> store scalar to memory
+    
+    # Compute log_softmax (provided)
     logits_max = tl.max(logits, axis=0)
     logits_shifted = logits - logits_max
     log_sum_exp = tl.log(tl.sum(tl.exp(logits_shifted), axis=0))
     log_softmax = logits_shifted - log_sum_exp
     
-    # TODO: Get log_softmax at target index
-    # HINT: target_log_prob = tl.sum(tl.where(col_offsets == target, log_softmax, 0.0), axis=0)
+    # TODO: Extract log_softmax value at target index (use where + sum trick)
     target_log_prob = None  # Replace
     
     # TODO: Loss is negative log probability
-    # HINT: loss = -target_log_prob
     loss = None  # Replace
     
-    # TODO: Store
-    # HINT: tl.store(output_ptr + row_idx, loss)
+    # TODO: Store loss for this sample
     pass  # Replace
 
 
@@ -156,8 +164,11 @@ def cross_entropy_mean(logits: torch.Tensor, targets: torch.Tensor) -> torch.Ten
     
     This is what's typically used for training.
     """
+    # API hints:
+    # - Use cross_entropy_loss() to get per-sample losses
+    # - Use .mean() to average over batch
+    
     # TODO: Compute per-sample loss and take mean
-    # HINT: return cross_entropy_loss(logits, targets).mean()
     return None  # Replace
 
 
@@ -196,16 +207,21 @@ def cross_entropy_smooth_kernel(
     log_sum_exp = tl.log(tl.sum(tl.exp(logits_shifted), axis=0))
     log_softmax = logits_shifted - log_sum_exp
     
+    # API hints:
+    # - tl.where(cond, x, y) -> conditional select
+    # - tl.sum(x, axis=0) -> sum reduction along axis
+    # - tl.store(ptr, value) -> store scalar to memory
+    
     # TODO: Create smoothed labels
-    # smooth_label = smoothing / n_cols for all, plus (1 - smoothing) for target
+    # smooth_label = smoothing / n_cols for all classes, plus (1 - smoothing) for target
     uniform_prob = smoothing / n_cols
     is_target = tl.where(col_offsets == target, 1.0, 0.0)
-    smooth_labels = None  # Replace: uniform_prob + (1.0 - smoothing) * is_target
+    smooth_labels = None  # Replace
     
-    # TODO: Compute loss: -sum(smooth_labels * log_softmax)
-    loss = None  # Replace: -tl.sum(smooth_labels * log_softmax, axis=0)
+    # TODO: Compute loss as negative sum of (smooth_labels * log_softmax)
+    loss = None  # Replace
     
-    # TODO: Store (only for valid mask)
+    # TODO: Store loss for this sample
     pass  # Replace
 
 

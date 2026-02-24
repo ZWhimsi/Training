@@ -50,31 +50,35 @@ def matmul_kernel(
     offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
     offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
     
-    # TODO: Initialize accumulator to zeros
-    # HINT: acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
+    # API hints:
+    # - tl.zeros((rows, cols), dtype=tl.float32) -> create zero-initialized tensor
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - tl.dot(a, b) -> matrix multiplication of two 2D tensors
+    # - tl.store(ptr, value, mask=mask) -> store elements to memory
+    
+    # TODO: Initialize accumulator to zeros with shape (BLOCK_M, BLOCK_N)
     acc = None  # Replace
     
     # Loop over K dimension in blocks
     for k in range(0, K, BLOCK_K):
         offs_k = k + tl.arange(0, BLOCK_K)
         
-        # TODO: Create masks for A and B loads
+        # Create masks for A and B loads
         mask_a = (offs_m[:, None] < M) & (offs_k[None, :] < K)
         mask_b = (offs_k[:, None] < K) & (offs_n[None, :] < N)
         
-        # TODO: Calculate pointers for A block [BLOCK_M, BLOCK_K]
+        # Calculate pointers for A block [BLOCK_M, BLOCK_K]
         a_ptrs = A_ptr + offs_m[:, None] * stride_am + offs_k[None, :] * stride_ak
         
-        # TODO: Calculate pointers for B block [BLOCK_K, BLOCK_N]
+        # Calculate pointers for B block [BLOCK_K, BLOCK_N]
         b_ptrs = B_ptr + offs_k[:, None] * stride_bk + offs_n[None, :] * stride_bn
         
         # TODO: Load A and B blocks
-        a = None  # Replace: tl.load(a_ptrs, mask=mask_a, other=0.0)
-        b = None  # Replace: tl.load(b_ptrs, mask=mask_b, other=0.0)
+        a = None  # Replace
+        b = None  # Replace
         
         # TODO: Block matrix multiply and accumulate
-        # HINT: acc += tl.dot(a, b)
-        pass  # Replace with acc += tl.dot(a, b)
+        pass  # Replace
     
     # Store C tile
     mask_c = (offs_m[:, None] < M) & (offs_n[None, :] < N)
@@ -149,12 +153,16 @@ def matmul_bias_kernel(
         
         acc += tl.dot(a, b)
     
-    # TODO: Load bias and add to result
-    bias_mask = offs_n < N
-    bias = None  # Replace: tl.load(bias_ptr + offs_n, mask=bias_mask, other=0.0)
+    # API hints:
+    # - tl.load(ptr, mask=mask, other=val) -> load with default for masked elements
+    # - Broadcasting: bias[None, :] broadcasts over M dimension
     
-    # TODO: Add bias (broadcasts over M dimension)
-    acc = None  # Replace: acc + bias[None, :]
+    # TODO: Load bias vector
+    bias_mask = offs_n < N
+    bias = None  # Replace
+    
+    # TODO: Add bias to accumulator (broadcasts over M dimension)
+    acc = None  # Replace
     
     mask_c = (offs_m[:, None] < M) & (offs_n[None, :] < N)
     c_ptrs = C_ptr + offs_m[:, None] * stride_cm + offs_n[None, :] * stride_cn

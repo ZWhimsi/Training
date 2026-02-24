@@ -57,22 +57,16 @@ class PositionalEncoding(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         
-        # TODO: Create positional encoding matrix [max_len, d_model]
+        # TODO: Create positional encoding matrix and register as buffer
+        # API hints:
+        # - torch.zeros(max_len, d_model) -> empty encoding matrix
+        # - torch.arange(0, max_len).unsqueeze(1).float() -> position indices
+        # - torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)) -> div_term
+        # - torch.sin(position * div_term) -> sin for even indices (pe[:, 0::2])
+        # - torch.cos(position * div_term) -> cos for odd indices (pe[:, 1::2])
+        # - self.register_buffer('pe', pe.unsqueeze(0)) -> register as buffer [1, max_len, d_model]
         pe = torch.zeros(max_len, d_model)
-        
-        # TODO: Create position indices [max_len, 1]
-        position = None  # Replace: torch.arange(0, max_len).unsqueeze(1).float()
-        
-        # TODO: Create division term for frequency scaling
-        # div_term = exp(arange(0, d_model, 2) * (-log(10000.0) / d_model))
-        div_term = None  # Replace
-        
-        # TODO: Apply sin to even indices, cos to odd indices
-        # pe[:, 0::2] = torch.sin(position * div_term)
-        # pe[:, 1::2] = torch.cos(position * div_term)
-        
-        # Register as buffer (not a trainable parameter)
-        self.register_buffer('pe', pe.unsqueeze(0))  # [1, max_len, d_model]
+        self.register_buffer('pe', pe.unsqueeze(0))
     
     def forward(self, x):
         """
@@ -82,9 +76,10 @@ class PositionalEncoding(nn.Module):
             [batch, seq, d_model] with positional encoding added
         """
         # TODO: Add positional encoding and apply dropout
-        # HINT: x = x + self.pe[:, :x.size(1)]
-        x = None  # Replace
-        return None if x is None else self.dropout(x)
+        # API hints:
+        # - x + self.pe[:, :x.size(1)] -> add positional encoding
+        # - self.dropout(x) -> apply dropout
+        return None
 
 
 # ============================================================================
@@ -104,12 +99,12 @@ class TransformerEmbedding(nn.Module):
         
         self.d_model = d_model
         
-        # TODO: Token embedding layer
-        # HINT: nn.Embedding(vocab_size, d_model, padding_idx=padding_idx)
-        self.token_embedding = None  # Replace
-        
-        # TODO: Positional encoding
-        self.pos_encoding = None  # Replace: PositionalEncoding(d_model, max_len, dropout)
+        # TODO: Create token embedding and positional encoding
+        # API hints:
+        # - nn.Embedding(vocab_size, d_model, padding_idx=padding_idx) -> token embedding
+        # - PositionalEncoding(d_model, max_len, dropout) -> positional encoding
+        self.token_embedding = None
+        self.pos_encoding = None
     
     def forward(self, tokens):
         """
@@ -118,15 +113,12 @@ class TransformerEmbedding(nn.Module):
         Returns:
             [batch, seq, d_model] embedded tokens with position info
         """
-        # TODO: Get embeddings and scale by sqrt(d_model)
-        # HINT: x = self.token_embedding(tokens) * math.sqrt(self.d_model)
-        x = None  # Replace
-        
-        # TODO: Add positional encoding
-        if x is not None and self.pos_encoding is not None:
-            x = self.pos_encoding(x)
-        
-        return x
+        # TODO: Get embeddings, scale by sqrt(d_model), add positional encoding
+        # API hints:
+        # - self.token_embedding(tokens) -> token embeddings
+        # - math.sqrt(self.d_model) -> scaling factor
+        # - self.pos_encoding(x) -> add positional encoding
+        return None
 
 
 # ============================================================================
@@ -219,17 +211,20 @@ class TransformerEncoder(nn.Module):
     def __init__(self, d_model, num_heads, num_layers, d_ff=None, dropout=0.0):
         super().__init__()
         
-        # TODO: Create encoder layers
-        self.layers = None  # Replace: nn.ModuleList([EncoderBlock(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
-        self.final_norm = None  # Replace: LayerNorm(d_model)
+        # TODO: Create encoder layers and final norm
+        # API hints:
+        # - nn.ModuleList([...]) -> list of modules
+        # - EncoderBlock(d_model, num_heads, d_ff, dropout) -> encoder block
+        # - LayerNorm(d_model) -> final layer norm
+        self.layers = None
+        self.final_norm = None
     
     def forward(self, x, mask=None):
-        if self.layers is not None:
-            for layer in self.layers:
-                x = layer(x, mask)
-        if self.final_norm is not None:
-            x = self.final_norm(x)
-        return x
+        # TODO: Pass through all layers, apply final norm
+        # API hints:
+        # - for layer in self.layers: x = layer(x, mask)
+        # - self.final_norm(x) -> final normalization
+        return None
 
 
 # ============================================================================
@@ -247,21 +242,19 @@ class DecoderBlock(nn.Module):
     def __init__(self, d_model, num_heads, d_ff=None, dropout=0.0):
         super().__init__()
         
-        # TODO: Masked self-attention
-        self.self_attn = None  # Replace: MultiHeadAttention(d_model, num_heads, dropout)
-        
-        # TODO: Cross-attention
-        self.cross_attn = None  # Replace: MultiHeadAttention(d_model, num_heads, dropout)
-        
-        # TODO: FFN
-        self.ffn = None  # Replace: FeedForward(d_model, d_ff, dropout)
-        
-        # TODO: Layer norms
-        self.norm1 = None  # Replace: LayerNorm(d_model)
-        self.norm2 = None  # Replace: LayerNorm(d_model)
-        self.norm3 = None  # Replace: LayerNorm(d_model)
-        
-        self.dropout = None  # Replace: nn.Dropout(dropout)
+        # TODO: Create self-attention, cross-attention, FFN, layer norms, dropout
+        # API hints:
+        # - MultiHeadAttention(d_model, num_heads, dropout) -> for self and cross attention
+        # - FeedForward(d_model, d_ff, dropout) -> feed-forward network
+        # - LayerNorm(d_model) -> layer norm (need 3)
+        # - nn.Dropout(dropout) -> dropout layer
+        self.self_attn = None
+        self.cross_attn = None
+        self.ffn = None
+        self.norm1 = None
+        self.norm2 = None
+        self.norm3 = None
+        self.dropout = None
     
     def forward(self, x, encoder_output, src_mask=None, tgt_mask=None):
         """
@@ -271,22 +264,13 @@ class DecoderBlock(nn.Module):
             src_mask: Padding mask for source
             tgt_mask: Combined causal + padding mask for target
         """
-        # TODO: Masked self-attention
-        normed = self.norm1(x) if self.norm1 else x
-        attn_output, _ = self.self_attn(normed, normed, normed, tgt_mask) if self.self_attn else (torch.zeros_like(x), None)
-        x = x + self.dropout(attn_output) if self.dropout else x + attn_output
-        
-        # TODO: Cross-attention
-        normed = self.norm2(x) if self.norm2 else x
-        cross_output, _ = self.cross_attn(normed, encoder_output, encoder_output, src_mask) if self.cross_attn else (torch.zeros_like(x), None)
-        x = x + self.dropout(cross_output) if self.dropout else x + cross_output
-        
-        # TODO: FFN
-        normed = self.norm3(x) if self.norm3 else x
-        ffn_output = self.ffn(normed) if self.ffn else torch.zeros_like(x)
-        x = x + self.dropout(ffn_output) if self.dropout else x + ffn_output
-        
-        return x
+        # TODO: Implement pre-norm decoder block with 3 sublayers
+        # API hints:
+        # - Sublayer 1: x = x + dropout(self_attn(norm1(x), norm1(x), norm1(x), tgt_mask))
+        # - Sublayer 2: x = x + dropout(cross_attn(norm2(x), encoder_output, encoder_output, src_mask))
+        # - Sublayer 3: x = x + dropout(ffn(norm3(x)))
+        # - self.self_attn(q, k, v, mask) returns (output, attn_weights)
+        return None
 
 
 class TransformerDecoder(nn.Module):
@@ -295,17 +279,20 @@ class TransformerDecoder(nn.Module):
     def __init__(self, d_model, num_heads, num_layers, d_ff=None, dropout=0.0):
         super().__init__()
         
-        # TODO: Create decoder layers
-        self.layers = None  # Replace: nn.ModuleList([DecoderBlock(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
-        self.final_norm = None  # Replace: LayerNorm(d_model)
+        # TODO: Create decoder layers and final norm
+        # API hints:
+        # - nn.ModuleList([...]) -> list of modules
+        # - DecoderBlock(d_model, num_heads, d_ff, dropout) -> decoder block
+        # - LayerNorm(d_model) -> final layer norm
+        self.layers = None
+        self.final_norm = None
     
     def forward(self, x, encoder_output, src_mask=None, tgt_mask=None):
-        if self.layers is not None:
-            for layer in self.layers:
-                x = layer(x, encoder_output, src_mask, tgt_mask)
-        if self.final_norm is not None:
-            x = self.final_norm(x)
-        return x
+        # TODO: Pass through all layers, apply final norm
+        # API hints:
+        # - for layer in self.layers: x = layer(x, encoder_output, src_mask, tgt_mask)
+        # - self.final_norm(x) -> final normalization
+        return None
 
 
 # ============================================================================
@@ -337,57 +324,51 @@ class Transformer(nn.Module):
         self.d_model = d_model
         self.padding_idx = padding_idx
         
-        # TODO: Source embedding (encoder input)
-        self.src_embedding = None  # Replace: TransformerEmbedding(src_vocab_size, d_model, max_len, dropout, padding_idx)
-        
-        # TODO: Target embedding (decoder input)
-        self.tgt_embedding = None  # Replace: TransformerEmbedding(tgt_vocab_size, d_model, max_len, dropout, padding_idx)
-        
-        # TODO: Encoder stack
-        self.encoder = None  # Replace: TransformerEncoder(d_model, num_heads, num_encoder_layers, d_ff, dropout)
-        
-        # TODO: Decoder stack
-        self.decoder = None  # Replace: TransformerDecoder(d_model, num_heads, num_decoder_layers, d_ff, dropout)
-        
-        # TODO: Output projection to vocabulary
-        self.output_projection = None  # Replace: nn.Linear(d_model, tgt_vocab_size)
+        # TODO: Create source/target embeddings, encoder, decoder, output projection
+        # API hints:
+        # - TransformerEmbedding(vocab_size, d_model, max_len, dropout, padding_idx) -> embeddings
+        # - TransformerEncoder(d_model, num_heads, num_encoder_layers, d_ff, dropout) -> encoder
+        # - TransformerDecoder(d_model, num_heads, num_decoder_layers, d_ff, dropout) -> decoder
+        # - nn.Linear(d_model, tgt_vocab_size) -> output projection
+        self.src_embedding = None
+        self.tgt_embedding = None
+        self.encoder = None
+        self.decoder = None
+        self.output_projection = None
     
     def create_src_mask(self, src):
         """Create padding mask for source sequence."""
         # TODO: Create mask where padding tokens are 0
-        # [batch, 1, 1, src_seq] for broadcasting
-        # HINT: (src != self.padding_idx).unsqueeze(1).unsqueeze(2)
-        return None  # Replace
+        # API hints:
+        # - (src != self.padding_idx) -> boolean mask
+        # - tensor.unsqueeze(1).unsqueeze(2) -> shape [batch, 1, 1, src_seq]
+        return None
     
     def create_tgt_mask(self, tgt):
         """Create combined causal and padding mask for target."""
-        batch_size, tgt_len = tgt.shape
-        
-        # TODO: Create causal mask [1, 1, tgt_len, tgt_len]
-        causal_mask = None  # Replace: create_causal_mask(tgt_len, tgt.device).unsqueeze(0).unsqueeze(0)
-        
-        # TODO: Create padding mask [batch, 1, 1, tgt_len]
-        padding_mask = None  # Replace: (tgt != self.padding_idx).unsqueeze(1).unsqueeze(2)
-        
-        # TODO: Combine masks (both must be 1 to attend)
-        # HINT: causal_mask & padding_mask (or multiply)
-        tgt_mask = None  # Replace
-        
-        return tgt_mask
+        # TODO: Create combined causal and padding mask
+        # API hints:
+        # - create_causal_mask(tgt_len, device) -> causal mask [tgt_len, tgt_len]
+        # - tensor.unsqueeze(0).unsqueeze(0) -> add batch/head dims
+        # - (tgt != self.padding_idx).unsqueeze(1).unsqueeze(2) -> padding mask
+        # - causal_mask * padding_mask -> combine masks (element-wise AND)
+        return None
     
     def encode(self, src, src_mask=None):
         """Encode source sequence."""
-        # TODO: Embed and encode
-        src_emb = None  # Replace: self.src_embedding(src)
-        encoder_output = None  # Replace: self.encoder(src_emb, src_mask)
-        return encoder_output
+        # TODO: Embed source and pass through encoder
+        # API hints:
+        # - self.src_embedding(src) -> source embeddings
+        # - self.encoder(src_emb, src_mask) -> encoder output
+        return None
     
     def decode(self, tgt, encoder_output, src_mask=None, tgt_mask=None):
         """Decode target sequence given encoder output."""
-        # TODO: Embed and decode
-        tgt_emb = None  # Replace: self.tgt_embedding(tgt)
-        decoder_output = None  # Replace: self.decoder(tgt_emb, encoder_output, src_mask, tgt_mask)
-        return decoder_output
+        # TODO: Embed target and pass through decoder
+        # API hints:
+        # - self.tgt_embedding(tgt) -> target embeddings
+        # - self.decoder(tgt_emb, encoder_output, src_mask, tgt_mask) -> decoder output
+        return None
     
     def forward(self, src, tgt):
         """
@@ -400,21 +381,12 @@ class Transformer(nn.Module):
         Returns:
             logits: [batch, tgt_seq, tgt_vocab_size]
         """
-        # TODO: Create masks
-        src_mask = self.create_src_mask(src)
-        tgt_mask = self.create_tgt_mask(tgt)
-        
-        # TODO: Encode source
-        encoder_output = self.encode(src, src_mask)
-        
-        # TODO: Decode target
-        decoder_output = self.decode(tgt, encoder_output, src_mask, tgt_mask)
-        
-        # TODO: Project to vocabulary
-        if decoder_output is not None and self.output_projection is not None:
-            logits = self.output_projection(decoder_output)
-            return logits
-        
+        # TODO: Create masks, encode, decode, project to vocabulary
+        # API hints:
+        # - self.create_src_mask(src), self.create_tgt_mask(tgt) -> masks
+        # - self.encode(src, src_mask) -> encoder output
+        # - self.decode(tgt, encoder_output, src_mask, tgt_mask) -> decoder output
+        # - self.output_projection(decoder_output) -> logits
         return None
 
 

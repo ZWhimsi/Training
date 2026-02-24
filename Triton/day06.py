@@ -9,11 +9,6 @@ Learning objectives:
 - Map multi-dimensional program IDs to data
 - Handle batched operations efficiently
 - Understand memory layout for multi-dim data
-
-Hints:
-- tl.program_id(0), tl.program_id(1), tl.program_id(2) for 3 axes
-- Grid dimensions: grid = (dim0, dim1, dim2)
-- Think about how to map program IDs to tensor indices
 """
 
 import torch
@@ -39,28 +34,15 @@ def elementwise_2d_kernel(
     Element-wise multiply using 2D grid.
     out[i,j] = x[i,j] * y[i,j]
     """
-    # TODO: Get 2D program IDs
-    pid_m = None  # Replace
-    pid_n = None  # Replace
+    # API hints:
+    # - tl.program_id(0), tl.program_id(1) -> 2D block indices
+    # - tl.arange(start, end) -> create range
+    # - mask[:, None] & mask[None, :] -> 2D mask from 1D masks
+    # - offs[:, None] * stride + offs[None, :] -> 2D indices
+    # - tl.load(ptr + indices, mask=mask) -> load 2D block
+    # - tl.store(ptr + indices, value, mask=mask) -> store 2D block
     
-    # Block start positions
-    m_start = pid_m * BLOCK_M
-    n_start = pid_n * BLOCK_N
-    
-    # Offsets
-    offs_m = m_start + tl.arange(0, BLOCK_M)
-    offs_n = n_start + tl.arange(0, BLOCK_N)
-    
-    # Masks
-    mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
-    
-    # TODO: Compute indices
-    indices = None  # Replace: offs_m[:, None] * stride_m + offs_n[None, :]
-    
-    # TODO: Load, multiply, store
-    x = None  # Replace
-    y = None  # Replace
-    out = None  # Replace
+    # TODO: Implement 2D element-wise kernel
     pass
 
 
@@ -73,7 +55,11 @@ def elementwise_2d(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     BLOCK_M, BLOCK_N = 32, 32
     grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -100,40 +86,15 @@ def batch_matvec_kernel(
     
     Grid: (B, ceil(M/BLOCK_M))
     """
-    # TODO: Get batch and row block indices
-    batch_idx = None  # Replace: tl.program_id(0)
-    pid_m = None      # Replace: tl.program_id(1)
+    # API hints:
+    # - tl.program_id(0) -> batch index
+    # - tl.program_id(1) -> row block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=1) -> sum along axis 1
+    # - tl.store(ptr + offsets, value, mask=mask) -> store to memory
     
-    m_start = pid_m * BLOCK_M
-    offs_m = m_start + tl.arange(0, BLOCK_M)
-    offs_n = tl.arange(0, BLOCK_N)
-    
-    mask_m = offs_m < M
-    mask_n = offs_n < N
-    
-    # Pointers for this batch
-    A_batch = A_ptr + batch_idx * stride_ab
-    x_batch = x_ptr + batch_idx * stride_xb
-    out_batch = out_ptr + batch_idx * stride_ob
-    
-    # TODO: Load x vector for this batch
-    x = None  # Replace
-    
-    # Accumulator
-    acc = tl.zeros((BLOCK_M,), dtype=tl.float32)
-    
-    # TODO: Loop over N dimension if BLOCK_N < N
-    # For simplicity, assume N <= BLOCK_N
-    
-    # TODO: Load A block [BLOCK_M, BLOCK_N]
-    A_indices = offs_m[:, None] * stride_am + offs_n[None, :]
-    A_block = tl.load(A_batch + A_indices, mask=mask_m[:, None] & mask_n[None, :], other=0.0)
-    
-    # TODO: Compute dot product for each row
-    # HINT: acc = tl.sum(A_block * x[None, :], axis=1)
-    acc = None  # Replace
-    
-    # TODO: Store result
+    # TODO: Implement batch matvec kernel
     pass
 
 
@@ -150,7 +111,11 @@ def batch_matvec(A: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     
     grid = (B, triton.cdiv(M, BLOCK_M))
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -174,25 +139,15 @@ def batch_add_3d_kernel(
     
     Grid: (B, ceil(M/BLOCK_M), ceil(N/BLOCK_N))
     """
-    # TODO: Get 3D program IDs
-    pid_b = None  # Replace: tl.program_id(0) - batch
-    pid_m = None  # Replace: tl.program_id(1) - rows
-    pid_n = None  # Replace: tl.program_id(2) - cols
+    # API hints:
+    # - tl.program_id(0) -> batch index
+    # - tl.program_id(1) -> row block index
+    # - tl.program_id(2) -> column block index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + indices, mask=mask) -> load 2D block
+    # - tl.store(ptr + indices, value, mask=mask) -> store 2D block
     
-    # Offsets
-    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
-    offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
-    
-    mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
-    
-    # TODO: Compute indices within this batch
-    batch_offset = pid_b * stride_b
-    indices = offs_m[:, None] * stride_m + offs_n[None, :]
-    
-    # TODO: Load, add, store
-    a = None  # Replace
-    b = None  # Replace
-    out = None  # Replace
+    # TODO: Implement 3D batch add kernel
     pass
 
 
@@ -205,7 +160,11 @@ def batch_add_3d(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     BLOCK_M, BLOCK_N = 32, 32
     grid = (B, triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -228,23 +187,14 @@ def sum_axis0_kernel(
     
     Grid: (N,) - one program per column
     """
-    col_idx = tl.program_id(0)
+    # API hints:
+    # - tl.program_id(0) -> column index
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask, other=0.0) -> load with default
+    # - tl.sum(x, axis=0) -> sum reduction
+    # - tl.store(ptr, value) -> store single value
     
-    if col_idx >= N:
-        return
-    
-    # Row offsets
-    offs_m = tl.arange(0, BLOCK_M)
-    mask = offs_m < M
-    
-    # TODO: Calculate indices for this column
-    indices = None  # Replace: offs_m * stride_m + col_idx
-    
-    # TODO: Load column
-    col_data = None  # Replace
-    
-    # TODO: Sum and store
-    col_sum = None  # Replace
+    # TODO: Implement sum axis 0 kernel
     pass
 
 
@@ -257,7 +207,11 @@ def sum_axis0(x: torch.Tensor) -> torch.Tensor:
     BLOCK_M = triton.next_power_of_2(M)
     grid = (N,)
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 
@@ -279,27 +233,15 @@ def broadcast_add_kernel(
     """
     Add bias to each row: out[i, j] = x[i, j] + bias[j]
     """
-    pid_m = tl.program_id(0)
-    pid_n = tl.program_id(1)
+    # API hints:
+    # - tl.program_id(0), tl.program_id(1) -> 2D block indices
+    # - tl.arange(start, end) -> create range
+    # - tl.load(ptr + offsets, mask=mask) -> load 1D bias
+    # - tl.load(ptr + indices, mask=mask) -> load 2D block
+    # - bias[None, :] -> broadcast bias to match 2D shape
+    # - tl.store(ptr + indices, value, mask=mask) -> store 2D block
     
-    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
-    offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
-    
-    mask_m = offs_m < M
-    mask_n = offs_n < N
-    mask = mask_m[:, None] & mask_n[None, :]
-    
-    # TODO: Load bias (1D)
-    bias = None  # Replace: tl.load(bias_ptr + offs_n, mask=mask_n, other=0.0)
-    
-    # TODO: Load x block (2D)
-    x_indices = offs_m[:, None] * stride_m + offs_n[None, :]
-    x = None  # Replace
-    
-    # TODO: Add bias (broadcasts automatically)
-    out = None  # Replace: x + bias[None, :]
-    
-    # TODO: Store
+    # TODO: Implement broadcast add kernel
     pass
 
 
@@ -314,7 +256,11 @@ def broadcast_add(x: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
     BLOCK_M, BLOCK_N = 32, 32
     grid = (triton.cdiv(M, BLOCK_M), triton.cdiv(N, BLOCK_N))
     
+    # API hints:
+    # - kernel_name[grid](args...) -> launch kernel
+    
     # TODO: Launch kernel
+    pass
     
     return out
 

@@ -148,8 +148,6 @@ def forward_difference(f, x, h=1e-5):
     """
     Compute numerical gradient using forward difference.
     
-    Formula: f'(x) ≈ [f(x + h) - f(x)] / h
-    
     This is O(h) accurate.
     
     Args:
@@ -160,9 +158,10 @@ def forward_difference(f, x, h=1e-5):
     Returns:
         Approximate gradient at x
     """
-    # TODO: Implement forward difference
-    # HINT: return (f(x + h) - f(x)) / h
-    return None  # Replace
+    # API hints:
+    # - Forward difference: (f(x + h) - f(x)) / h
+    # - Evaluate f at x and x+h
+    return None
 
 
 # ============================================================================
@@ -172,8 +171,6 @@ def forward_difference(f, x, h=1e-5):
 def central_difference(f, x, h=1e-5):
     """
     Compute numerical gradient using central difference.
-    
-    Formula: f'(x) ≈ [f(x + h) - f(x - h)] / (2h)
     
     This is O(h²) accurate - more accurate than forward difference!
     
@@ -185,9 +182,10 @@ def central_difference(f, x, h=1e-5):
     Returns:
         Approximate gradient at x
     """
-    # TODO: Implement central difference
-    # HINT: return (f(x + h) - f(x - h)) / (2 * h)
-    return None  # Replace
+    # API hints:
+    # - Central difference: (f(x + h) - f(x - h)) / (2 * h)
+    # - Evaluate f at x+h and x-h
+    return None
 
 
 # ============================================================================
@@ -213,13 +211,14 @@ def compare_difference_methods(f, x, true_grad, h_values=None):
     results = []
     
     for h in h_values:
-        # TODO: Compute forward and central difference
+        # API hints:
+        # - Use forward_difference(f, x, h) and central_difference(f, x, h)
+        # - Compute errors: abs(computed - true_grad)
         fwd = forward_difference(f, x, h) if forward_difference(f, x, h) else 0
         ctr = central_difference(f, x, h) if central_difference(f, x, h) else 0
         
-        # TODO: Compute errors
-        fwd_error = None  # Replace: abs(fwd - true_grad)
-        ctr_error = None  # Replace: abs(ctr - true_grad)
+        fwd_error = None
+        ctr_error = None
         
         results.append({
             'h': h,
@@ -255,15 +254,15 @@ def gradient_check_single(expression_fn, x_val, h=1e-5, tol=1e-4):
     y.backward()
     analytical = x.grad
     
-    # TODO: Compute numerical gradient
-    # Create a function that returns float output for float input
+    # API hints:
+    # - Create wrapper function: f(val) = expression_fn(Value(val)).data
+    # - Use central_difference(f, x_val, h) for numerical gradient
+    # - Check match: abs(analytical - numerical) < tol
     def f(val):
         return expression_fn(Value(val)).data
     
-    numerical = None  # Replace: central_difference(f, x_val, h)
-    
-    # TODO: Check if they match
-    matches = None  # Replace: abs(analytical - numerical) < tol
+    numerical = None
+    matches = None
     
     return {
         'analytical': analytical,
@@ -299,16 +298,18 @@ def gradient_check_multi(expression_fn, values_dict, h=1e-5, tol=1e-4):
         y.backward()
         analytical = values[var_name].grad
         
-        # TODO: Compute numerical gradient by perturbing this variable
+        # API hints:
+        # - Create wrapper that perturbs one variable at a time
+        # - Use central_difference(f, var_val, h) for numerical gradient
+        # - Check match: abs(analytical - numerical) < tol
         def f(val):
             perturbed = values_dict.copy()
             perturbed[var_name] = val
             values_temp = {k: Value(v) for k, v in perturbed.items()}
             return expression_fn(values_temp).data
         
-        numerical = None  # Replace: central_difference(f, var_val, h)
-        
-        matches = None  # Replace: abs(analytical - numerical) < tol if numerical else False
+        numerical = None
+        matches = None
         
         results[var_name] = {
             'analytical': analytical,
@@ -327,8 +328,6 @@ def relative_error(analytical, numerical):
     """
     Compute relative error between analytical and numerical gradients.
     
-    Formula: |a - n| / max(|a|, |n|, 1e-8)
-    
     Using max with 1e-8 prevents division by zero.
     
     Args:
@@ -338,9 +337,11 @@ def relative_error(analytical, numerical):
     Returns:
         Relative error (0 = perfect match)
     """
-    # TODO: Implement relative error calculation
-    # HINT: return abs(analytical - numerical) / max(abs(analytical), abs(numerical), 1e-8)
-    return None  # Replace
+    # API hints:
+    # - Formula: |a - n| / max(|a|, |n|, 1e-8)
+    # - Use abs() for absolute values
+    # - Use max() to get denominator, include 1e-8 to prevent div by zero
+    return None
 
 
 def gradient_check_relative(expression_fn, x_val, h=1e-5, tol=1e-5):

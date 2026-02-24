@@ -35,20 +35,17 @@ class Value:
             _children: Tuple of Values that produced this Value
             _op: String describing the operation that produced this
         """
-        # TODO: Store the numerical data
-        self.data = None  # Replace with: data
-        
-        # TODO: Initialize gradient to 0
-        self.grad = None  # Replace with: 0.0
-        
-        # TODO: Store the backward function (will be set by operations)
+        # API hints:
+        # - self.data: store the numerical value
+        # - self.grad: initialize to 0.0
+        # - self._backward: lambda: None (placeholder for backward function)
+        # - self._prev: set(_children) to track parent nodes
+        # - self._op: store operation name string
+        self.data = None
+        self.grad = None
         self._backward = lambda: None
-        
-        # TODO: Store children (parents in the computational graph)
-        self._prev = None  # Replace with: set(_children)
-        
-        # TODO: Store the operation name (for debugging)
-        self._op = None  # Replace with: _op
+        self._prev = None
+        self._op = None
     
     def __repr__(self):
         return f"Value(data={self.data}, grad={self.grad})"
@@ -64,18 +61,15 @@ class Value:
         Forward: out = self + other
         Backward: d(out)/d(self) = 1, d(out)/d(other) = 1
         """
-        # Handle adding with a plain number
         other = other if isinstance(other, Value) else Value(other)
         
-        # TODO: Create output Value
-        out = None  # Replace with: Value(self.data + other.data, (self, other), '+')
+        # API hints:
+        # - Create Value(self.data + other.data, (self, other), '+')
+        # - In _backward: self.grad += 1 * out.grad, other.grad += 1 * out.grad
+        out = None
         
-        # TODO: Define backward function
         def _backward():
-            # Gradient flows equally to both inputs
-            # HINT: self.grad += out.grad
-            # HINT: other.grad += out.grad
-            pass  # Replace with gradient updates
+            pass
         
         out._backward = _backward
         return out
@@ -97,15 +91,14 @@ class Value:
         """
         other = other if isinstance(other, Value) else Value(other)
         
-        # TODO: Create output Value
-        out = None  # Replace with: Value(self.data * other.data, (self, other), '*')
+        # API hints:
+        # - Create Value(self.data * other.data, (self, other), '*')
+        # - In _backward: self.grad += other.data * out.grad
+        # - In _backward: other.grad += self.data * out.grad
+        out = None
         
-        # TODO: Define backward function
         def _backward():
-            # Chain rule: multiply by other's value for self's grad
-            # HINT: self.grad += other.data * out.grad
-            # HINT: other.grad += self.data * out.grad
-            pass  # Replace with gradient updates
+            pass
         
         out._backward = _backward
         return out
@@ -119,13 +112,15 @@ class Value:
     
     def __neg__(self):
         """Negate: -self"""
-        # TODO: Implement using multiplication by -1
-        return None  # Replace with: self * -1
+        # API hints:
+        # - Implement as self * -1
+        return None
     
     def __sub__(self, other):
         """Subtract: self - other"""
-        # TODO: Implement using addition and negation
-        return None  # Replace with: self + (-other)
+        # API hints:
+        # - Implement as self + (-other)
+        return None
     
     def __rsub__(self, other):
         return (-self) + other
@@ -143,14 +138,14 @@ class Value:
         """
         assert isinstance(n, (int, float)), "Only constant powers supported"
         
-        # TODO: Create output Value
-        out = None  # Replace with: Value(self.data ** n, (self,), f'**{n}')
+        # API hints:
+        # - Create Value(self.data ** n, (self,), f'**{n}')
+        # - Power rule: d/dx(x^n) = n * x^(n-1)
+        # - In _backward: self.grad += n * (self.data ** (n-1)) * out.grad
+        out = None
         
-        # TODO: Define backward function
         def _backward():
-            # Power rule: d/dx(x^n) = n * x^(n-1)
-            # HINT: self.grad += n * (self.data ** (n - 1)) * out.grad
-            pass  # Replace
+            pass
         
         out._backward = _backward
         return out
@@ -161,9 +156,10 @@ class Value:
     
     def __truediv__(self, other):
         """Divide: self / other"""
-        # TODO: Implement using multiplication and power
-        # HINT: a / b = a * b^(-1)
-        return None  # Replace with: self * (other ** -1)
+        # API hints:
+        # - Division: a / b = a * b^(-1)
+        # - Use self * (other ** -1)
+        return None
     
     def __rtruediv__(self, other):
         return Value(other) / self

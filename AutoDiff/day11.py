@@ -42,28 +42,28 @@ class Value:
         2. Set gradient of output to 1.0
         3. Call _backward() on each node in reverse topological order
         """
-        # TODO: Build topological order
+        # API hints:
+        # - Topological sort: visit children before parents (DFS with post-order)
+        # - Use a visited set to avoid cycles
+        # - self.grad = 1.0 for the output node
+        # - reversed(list) -> iterate in reverse order
+        # - v._backward() -> call the backward function for each node
+        
+        # TODO: Build topological order using DFS
         topo = []
         visited = set()
         
         def build_topo(v):
             """Recursively build topological order."""
-            if v not in visited:
-                visited.add(v)
-                for child in v._prev:
-                    build_topo(child)
-                topo.append(v)
+            pass  # Implement DFS traversal
         
         # TODO: Build topo starting from self
-        # HINT: build_topo(self)
         pass  # Replace
         
         # TODO: Set gradient of output (self) to 1.0
-        # HINT: self.grad = 1.0
         pass  # Replace
         
         # TODO: Call _backward on each node in reverse order
-        # HINT: for v in reversed(topo): v._backward()
         pass  # Replace
     
     # ========================================================================
@@ -127,15 +127,19 @@ class Value:
         """
         ReLU activation: max(0, x)
         
-        Backward: 1 if x > 0 else 0
+        Backward: d/dx = 1 if x > 0 else 0
         """
+        # API hints:
+        # - max(0, value) -> forward pass
+        # - Value(data, children, op) -> create output node
+        # - Gradient flows only where input > 0
+        # - self.grad += local_grad * out.grad
+        
         # TODO: Implement forward
-        out = None  # Replace: Value(max(0, self.data), (self,), 'relu')
+        out = None  # Replace
         
         # TODO: Implement backward
         def _backward():
-            # Gradient is 1 if input was positive, 0 otherwise
-            # HINT: self.grad += (out.data > 0) * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -151,13 +155,17 @@ class Value:
         
         Backward: d/dx(e^x) = e^x
         """
+        # API hints:
+        # - math.exp(x) -> compute e^x
+        # - Value(data, children, op) -> create output node
+        # - Derivative of exp(x) equals exp(x) itself
+        # - self.grad += local_grad * out.grad
+        
         # TODO: Implement forward
-        out = None  # Replace: Value(math.exp(self.data), (self,), 'exp')
+        out = None  # Replace
         
         # TODO: Implement backward
         def _backward():
-            # d/dx(e^x) = e^x = out.data
-            # HINT: self.grad += out.data * out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -173,13 +181,17 @@ class Value:
         
         Backward: d/dx(tanh(x)) = 1 - tanh(x)^2
         """
+        # API hints:
+        # - Formula: tanh(x) = (e^2x - 1) / (e^2x + 1)
+        # - math.exp(2 * x) -> compute e^(2x)
+        # - Derivative: 1 - tanh(x)^2 = 1 - out.data^2
+        # - self.grad += local_grad * out.grad
+        
         t = (math.exp(2 * self.data) - 1) / (math.exp(2 * self.data) + 1)
         out = Value(t, (self,), 'tanh')
         
         # TODO: Implement backward
         def _backward():
-            # d/dx(tanh(x)) = 1 - tanh^2(x)
-            # HINT: self.grad += (1 - out.data ** 2) * out.grad
             pass  # Replace
         
         out._backward = _backward

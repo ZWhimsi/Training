@@ -56,9 +56,10 @@ def block_max_kernel(
         block_max = tl.max(x, axis=0)
         row_max = tl.maximum(row_max, block_max)
     
-    # TODO: Store row max
-    # HINT: tl.store(max_ptr + row_idx, row_max)
-    pass  # Replace
+    # TODO: Store the computed row maximum
+    # API hints:
+    # - tl.store(ptr, value) -> store scalar value to memory
+    pass
 
 
 def compute_row_max(x: torch.Tensor) -> torch.Tensor:
@@ -144,11 +145,12 @@ def blocked_softmax_v_kernel(
     # Normalize by sum
     output = acc / l
     
-    # TODO: Store output
+    # TODO: Store the normalized output
+    # API hints:
+    # - tl.store(ptr + offsets, values, mask=mask) -> store with bounds checking
     o_offs = row_idx * stride_Os + offs_d * stride_Od
     o_mask = offs_d < head_dim
-    # HINT: tl.store(output_ptr + o_offs, output, mask=o_mask)
-    pass  # Replace
+    pass
 
 
 def blocked_attention(scores: torch.Tensor, V: torch.Tensor) -> torch.Tensor:

@@ -32,18 +32,16 @@ class SimpleDataset(Dataset):
         self.y = y
     
     def __len__(self) -> int:
-        """
-        Return the number of samples.
-        HINT: return len(self.X)
-        """
-        return 0  # Replace
+        """Return the number of samples in the dataset."""
+        # API hints:
+        # - len(tensor) -> returns the size of the first dimension
+        return None
     
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Return sample at index.
-        HINT: return self.X[idx], self.y[idx]
-        """
-        return None, None  # Replace
+        """Return the (input, target) tuple at the given index."""
+        # API hints:
+        # - tensor[idx] -> index into tensor to get a single sample
+        return None
 
 
 # ============================================================================
@@ -65,14 +63,12 @@ class TransformDataset(Dataset):
     
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        TODO: Apply transform if provided
-        HINT:
-            x = self.X[idx]
-            if self.transform:
-                x = self.transform(x)
-            return x, self.y[idx]
+        Return the sample at index, applying transform to input if provided.
         """
-        return None, None  # Replace
+        # API hints:
+        # - self.transform(x) -> apply a callable transform to input tensor
+        # - Check if self.transform is not None before applying
+        return None
 
 
 # ============================================================================
@@ -88,14 +84,11 @@ def custom_collate(batch: List[Tuple[torch.Tensor, torch.Tensor]]) -> Tuple[torc
     
     Returns:
         Tuple of (batched_x, batched_y)
-    
-    TODO: Stack samples into batches
-    HINT:
-        xs = [item[0] for item in batch]
-        ys = [item[1] for item in batch]
-        return torch.stack(xs), torch.stack(ys)
     """
-    return None, None  # Replace
+    # API hints:
+    # - torch.stack(tensors, dim=0) -> concatenate tensors along a new dimension
+    # - List comprehension to extract x's and y's from batch tuples
+    return None
 
 
 # ============================================================================
@@ -112,21 +105,21 @@ class SequenceDataset(Dataset):
         self.seq_length = seq_length
     
     def __len__(self) -> int:
-        """
-        TODO: Return number of valid sequences
-        HINT: return len(self.data) - self.seq_length
-        """
-        return 0  # Replace
+        """Return the number of valid overlapping sequences that can be extracted."""
+        # API hints:
+        # - Total length minus sequence length gives number of valid start positions
+        return None
     
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Return (input_sequence, target_sequence).
-        Input is data[idx:idx+seq_length]
-        Target is data[idx+1:idx+seq_length+1]
-        
-        TODO: Implement sequence extraction
+        Return (input_sequence, target_sequence) for sequence prediction.
+        Input is data[idx:idx+seq_length], target is shifted by 1 position.
         """
-        return None, None  # Replace
+        # API hints:
+        # - tensor[start:end] -> slice tensor to get a subsequence
+        # - Input: positions idx to idx+seq_length
+        # - Target: positions idx+1 to idx+seq_length+1
+        return None
 
 
 # ============================================================================
@@ -154,21 +147,15 @@ class BalancedSampler(Sampler):
     
     def __iter__(self):
         """
-        TODO: Yield indices that balance classes
-        HINT:
-            indices = []
-            for c, idx_list in self.indices_per_class.items():
-                # Oversample to match max_count
-                while len(idx_list) < self.max_count:
-                    idx_list = idx_list + idx_list
-                indices.extend(idx_list[:self.max_count])
-            
-            # Shuffle
-            import random
-            random.shuffle(indices)
-            return iter(indices)
+        Yield sample indices that balance classes by oversampling minority classes.
         """
-        return iter([])  # Replace
+        # API hints:
+        # - self.indices_per_class[c] -> list of indices for class c
+        # - self.max_count -> target count to oversample each class to
+        # - Duplicate lists to oversample: list + list
+        # - random.shuffle(indices) -> shuffle list in-place
+        # - iter(indices) -> create iterator from list
+        return iter([])
     
     def __len__(self) -> int:
         return self.max_count * len(self.class_counts)
@@ -180,25 +167,15 @@ class BalancedSampler(Sampler):
 
 def demonstrate_dataloader():
     """
-    Demonstrate DataLoader features.
-    
-    TODO: Create dataloader with various options
-    HINT:
-        X = torch.randn(100, 10)
-        y = torch.randint(0, 3, (100,))
-        dataset = SimpleDataset(X, y)
-        
-        loader = DataLoader(
-            dataset,
-            batch_size=16,
-            shuffle=True,
-            num_workers=0,  # Set to 0 for simplicity
-            drop_last=True,  # Drop incomplete batches
-        )
-        
-        return loader
+    Create and return a DataLoader with common configuration options.
+    Should create sample data, wrap in SimpleDataset, and create DataLoader.
     """
-    return None  # Replace
+    # API hints:
+    # - torch.randn(size) -> create random tensor for features
+    # - torch.randint(low, high, size) -> create random integer tensor for labels
+    # - SimpleDataset(X, y) -> wrap data in custom dataset
+    # - DataLoader(dataset, batch_size, shuffle, num_workers, drop_last) -> create batched iterator
+    return None
 
 
 if __name__ == "__main__":

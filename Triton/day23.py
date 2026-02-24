@@ -81,15 +81,13 @@ def attention_scores_kernel(
         # Q @ K^T: [BLOCK_M, BLOCK_K] @ [BLOCK_K, BLOCK_N]
         acc += tl.dot(q, tl.trans(k))
     
-    # TODO: Apply scale
-    # HINT: scores = acc * scale
-    scores = None  # Replace
-    
-    # TODO: Store scores
+    # TODO: Apply scale to accumulated scores and store result
+    # API hints:
+    # - Multiply accumulator by scale factor
+    # - tl.store(ptr + offsets, values, mask=mask) -> store with mask
     s_offs = offs_m[:, None] * stride_Ss + offs_n[None, :] * stride_Sd
     s_mask = (offs_m[:, None] < seq_len) & (offs_n[None, :] < seq_len)
-    # HINT: tl.store(scores_ptr + s_offs, scores, mask=s_mask)
-    pass  # Replace
+    pass
 
 
 def attention_scores(Q: torch.Tensor, K: torch.Tensor) -> torch.Tensor:
@@ -139,24 +137,17 @@ def causal_mask_kernel(
     offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
     offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
     
-    # TODO: Create causal mask
-    # mask[i, j] = True if j > i (future positions)
-    # HINT: is_future = offs_n[None, :] > offs_m[:, None]
-    is_future = None  # Replace
-    
+    # TODO: Create causal mask, apply it to scores, and store
+    # Causal mask: position i can only attend to positions j <= i
+    # API hints:
+    # - Create boolean mask comparing column indices to row indices
+    # - tl.where(condition, true_val, false_val) -> select based on condition
+    # - Use float('-inf') for masked positions
+    # - tl.load(ptr, mask=mask, other=val) -> load with mask
+    # - tl.store(ptr, values, mask=mask) -> store with mask
     valid = (offs_m[:, None] < seq_len) & (offs_n[None, :] < seq_len)
-    
-    # Load current scores
     s_offs = offs_m[:, None] * stride_s + offs_n[None, :] * stride_d
-    scores = tl.load(scores_ptr + s_offs, mask=valid, other=0.0)
-    
-    # TODO: Apply mask: set future positions to -inf
-    # HINT: scores = tl.where(is_future, float('-inf'), scores)
-    masked_scores = None  # Replace
-    
-    # TODO: Store
-    # HINT: tl.store(scores_ptr + s_offs, masked_scores, mask=valid)
-    pass  # Replace
+    pass
 
 
 def apply_causal_mask(scores: torch.Tensor) -> torch.Tensor:

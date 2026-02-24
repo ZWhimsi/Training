@@ -58,22 +58,15 @@ def create_sinusoidal_encoding(max_seq_len: int, d_model: int) -> torch.Tensor:
     
     Returns:
         Tensor of shape (max_seq_len, d_model)
-    
-    TODO: Implement sinusoidal encoding
-    HINT:
-        pe = torch.zeros(max_seq_len, d_model)
-        position = torch.arange(0, max_seq_len, dtype=torch.float).unsqueeze(1)
-        
-        # Create division term: 10000^(2i/d_model)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * 
-                            (-math.log(10000.0) / d_model))
-        
-        pe[:, 0::2] = torch.sin(position * div_term)  # Even indices
-        pe[:, 1::2] = torch.cos(position * div_term)  # Odd indices
-        
-        return pe
     """
-    return torch.zeros(max_seq_len, d_model)  # Replace
+    # API hints:
+    # - torch.zeros(max_seq_len, d_model) -> initialize output
+    # - torch.arange(0, max_seq_len).unsqueeze(1) -> position column vector
+    # - torch.arange(0, d_model, 2) -> even dimension indices
+    # - torch.exp(x * (-math.log(10000.0) / d_model)) -> compute div_term
+    # - pe[:, 0::2] = torch.sin(...) -> fill even indices
+    # - pe[:, 1::2] = torch.cos(...) -> fill odd indices
+    return None
 
 
 class SinusoidalPositionalEncoding(nn.Module):
@@ -82,18 +75,13 @@ class SinusoidalPositionalEncoding(nn.Module):
     """
     def __init__(self, d_model: int, max_seq_len: int = 5000, dropout: float = 0.1):
         super().__init__()
-        """
-        TODO: Create and register positional encoding buffer
-        HINT:
-            self.dropout = nn.Dropout(p=dropout)
-            
-            # Create encoding and register as buffer (not a parameter)
-            pe = create_sinusoidal_encoding(max_seq_len, d_model)
-            pe = pe.unsqueeze(0)  # (1, max_seq_len, d_model) for broadcasting
-            self.register_buffer('pe', pe)
-        """
+        # API hints:
+        # - nn.Dropout(p=dropout) -> dropout layer
+        # - create_sinusoidal_encoding(max_seq_len, d_model) -> get encoding matrix
+        # - pe.unsqueeze(0) -> add batch dimension (1, max_seq_len, d_model)
+        # - self.register_buffer('pe', pe) -> register as non-trainable buffer
         self.dropout = nn.Dropout(p=dropout)
-        self.pe = None  # Replace
+        self.pe = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -104,16 +92,12 @@ class SinusoidalPositionalEncoding(nn.Module):
         
         Returns:
             Tensor with positional encoding added
-        
-        TODO: Add positional encoding
-        HINT:
-            # x has shape (batch, seq_len, d_model)
-            # self.pe has shape (1, max_seq_len, d_model)
-            # Slice pe to match input sequence length
-            x = x + self.pe[:, :x.size(1), :]
-            return self.dropout(x)
         """
-        return x  # Replace
+        # API hints:
+        # - self.pe[:, :x.size(1), :] -> slice to match input seq_len
+        # - x + self.pe[...] -> add positional encoding
+        # - self.dropout(x) -> apply dropout
+        return None
 
 
 # ============================================================================
@@ -126,13 +110,10 @@ class LearnedPositionalEncoding(nn.Module):
     """
     def __init__(self, d_model: int, max_seq_len: int = 512, dropout: float = 0.1):
         super().__init__()
-        """
-        TODO: Create learned position embeddings
-        HINT:
-            self.position_embedding = nn.Embedding(max_seq_len, d_model)
-            self.dropout = nn.Dropout(p=dropout)
-        """
-        self.position_embedding = None  # Replace
+        # API hints:
+        # - nn.Embedding(max_seq_len, d_model) -> learnable position embeddings
+        # - nn.Dropout(p=dropout) -> dropout layer
+        self.position_embedding = None
         self.dropout = nn.Dropout(p=dropout)
         self.max_seq_len = max_seq_len
     
@@ -145,16 +126,15 @@ class LearnedPositionalEncoding(nn.Module):
         
         Returns:
             Tensor with positional encoding added
-        
-        TODO: Add learned positions
-        HINT:
-            seq_len = x.size(1)
-            positions = torch.arange(seq_len, device=x.device)
-            pos_embed = self.position_embedding(positions)  # (seq_len, d_model)
-            x = x + pos_embed.unsqueeze(0)  # Broadcast over batch
-            return self.dropout(x)
         """
-        return x  # Replace
+        # API hints:
+        # - x.size(1) -> sequence length
+        # - torch.arange(seq_len, device=x.device) -> position indices
+        # - self.position_embedding(positions) -> (seq_len, d_model)
+        # - pos_embed.unsqueeze(0) -> add batch dim for broadcasting
+        # - x + pos_embed -> add to input
+        # - self.dropout(x) -> apply dropout
+        return None
 
 
 # ============================================================================
@@ -164,9 +144,7 @@ class LearnedPositionalEncoding(nn.Module):
 def create_relative_position_bias(seq_len: int, num_heads: int) -> nn.Parameter:
     """
     Create learnable relative position bias matrix.
-    
-    This is a simplified version of what's used in models like T5.
-    The bias is added to attention scores based on relative positions.
+    Simplified version of T5-style relative attention bias.
     
     Args:
         seq_len: Sequence length
@@ -174,41 +152,28 @@ def create_relative_position_bias(seq_len: int, num_heads: int) -> nn.Parameter:
     
     Returns:
         Parameter of shape (num_heads, seq_len, seq_len)
-    
-    TODO: Create relative position bias
-    HINT:
-        # Initialize with zeros or small random values
-        bias = torch.zeros(num_heads, seq_len, seq_len)
-        return nn.Parameter(bias)
     """
-    return nn.Parameter(torch.zeros(1))  # Replace
+    # API hints:
+    # - torch.zeros(num_heads, seq_len, seq_len) -> initialize bias
+    # - nn.Parameter(tensor) -> wrap as learnable parameter
+    return None
 
 
 def compute_relative_positions(seq_len: int) -> torch.Tensor:
     """
-    Compute relative position matrix.
-    
-    For positions i and j, relative position is j - i.
+    Compute relative position matrix where entry (i,j) = j - i.
     
     Args:
         seq_len: Sequence length
     
     Returns:
         Tensor of shape (seq_len, seq_len) with relative positions
-    
-    Example for seq_len=4:
-        [[ 0,  1,  2,  3],
-         [-1,  0,  1,  2],
-         [-2, -1,  0,  1],
-         [-3, -2, -1,  0]]
-    
-    TODO: Compute relative positions
-    HINT:
-        positions = torch.arange(seq_len)
-        # Broadcasting: positions.unsqueeze(0) - positions.unsqueeze(1)
-        return positions.unsqueeze(0) - positions.unsqueeze(1)
     """
-    return torch.zeros(seq_len, seq_len)  # Replace
+    # API hints:
+    # - torch.arange(seq_len) -> [0, 1, 2, ..., seq_len-1]
+    # - positions.unsqueeze(0) - positions.unsqueeze(1) -> broadcasting
+    # - Result: row indices - column indices
+    return None
 
 
 # ============================================================================
@@ -229,19 +194,13 @@ def compute_rope_frequencies(dim: int, max_seq_len: int,
     
     Returns:
         Tensor of shape (max_seq_len, dim/2) containing position * frequency
-    
-    TODO: Compute RoPE frequencies
-    HINT:
-        # Compute frequencies
-        freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
-        
-        # Compute positions * frequencies
-        positions = torch.arange(max_seq_len).float()
-        freqs = torch.outer(positions, freq)  # (max_seq_len, dim/2)
-        
-        return freqs
     """
-    return torch.zeros(max_seq_len, dim // 2)  # Replace
+    # API hints:
+    # - torch.arange(0, dim, 2).float() -> even dimension indices
+    # - 1.0 / (base ** (indices / dim)) -> frequency per dimension
+    # - torch.arange(max_seq_len).float() -> position indices
+    # - torch.outer(positions, freq) -> outer product (max_seq_len, dim/2)
+    return None
 
 
 def apply_rope(x: torch.Tensor, freqs: torch.Tensor) -> torch.Tensor:
@@ -259,26 +218,15 @@ def apply_rope(x: torch.Tensor, freqs: torch.Tensor) -> torch.Tensor:
     
     Returns:
         Rotated tensor of same shape
-    
-    TODO: Apply RoPE
-    HINT:
-        # Split into pairs
-        x_pairs = x.view(*x.shape[:-1], -1, 2)  # (..., dim/2, 2)
-        
-        # Get sin and cos
-        freqs = freqs[:x.size(1)]  # Slice to actual seq_len
-        cos_freq = torch.cos(freqs).unsqueeze(0).unsqueeze(-1)
-        sin_freq = torch.sin(freqs).unsqueeze(0).unsqueeze(-1)
-        
-        # Rotate
-        x_rotated = torch.stack([
-            x_pairs[..., 0] * cos_freq.squeeze(-1) - x_pairs[..., 1] * sin_freq.squeeze(-1),
-            x_pairs[..., 0] * sin_freq.squeeze(-1) + x_pairs[..., 1] * cos_freq.squeeze(-1)
-        ], dim=-1)
-        
-        return x_rotated.view(*x.shape)
     """
-    return x  # Replace
+    # API hints:
+    # - x.view(*x.shape[:-1], -1, 2) -> reshape to pairs (..., dim/2, 2)
+    # - freqs[:x.size(1)] -> slice freqs to actual sequence length
+    # - torch.cos(freqs), torch.sin(freqs) -> compute rotation components
+    # - Apply rotation: x' = x * cos - x_rotated * sin, x_rotated' = x * sin + x_rotated * cos
+    # - torch.stack([...], dim=-1) -> combine rotated pairs
+    # - result.view(*x.shape) -> reshape back
+    return None
 
 
 class RoPEPositionalEncoding(nn.Module):
@@ -287,23 +235,17 @@ class RoPEPositionalEncoding(nn.Module):
     """
     def __init__(self, dim: int, max_seq_len: int = 2048, base: float = 10000.0):
         super().__init__()
-        """
-        TODO: Precompute and register frequencies
-        HINT:
-            freqs = compute_rope_frequencies(dim, max_seq_len, base)
-            self.register_buffer('freqs', freqs)
-        """
-        self.freqs = None  # Replace
+        # API hints:
+        # - compute_rope_frequencies(dim, max_seq_len, base) -> precompute freqs
+        # - self.register_buffer('freqs', freqs) -> register as non-trainable buffer
+        self.freqs = None
         self.dim = dim
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Apply RoPE to input.
-        
-        TODO: Apply rotary encoding
-        HINT: return apply_rope(x, self.freqs)
-        """
-        return x  # Replace
+        """Apply RoPE to input tensor."""
+        # API hints:
+        # - apply_rope(x, self.freqs) -> apply rotary encoding
+        return None
 
 
 # ============================================================================
@@ -313,34 +255,15 @@ class RoPEPositionalEncoding(nn.Module):
 def compare_encoding_properties():
     """
     Compare properties of different positional encoding methods.
-    
-    TODO: Create instances and compare
-    HINT:
-        d_model = 64
-        max_len = 100
-        
-        sinusoidal = SinusoidalPositionalEncoding(d_model, max_len, dropout=0.0)
-        learned = LearnedPositionalEncoding(d_model, max_len, dropout=0.0)
-        
-        # Sinusoidal: check parameter count (should be 0 for encoding)
-        sin_params = sum(p.numel() for p in sinusoidal.parameters())
-        
-        # Learned: check parameter count
-        learn_params = sum(p.numel() for p in learned.parameters())
-        
-        return {
-            'sinusoidal_params': sin_params,
-            'learned_params': learn_params,
-            'd_model': d_model,
-            'max_len': max_len
-        }
+    Returns dict with parameter counts and config.
     """
-    return {
-        'sinusoidal_params': 0,
-        'learned_params': 0,
-        'd_model': 64,
-        'max_len': 100
-    }  # Replace
+    # API hints:
+    # - SinusoidalPositionalEncoding(d_model, max_len, dropout=0.0)
+    # - LearnedPositionalEncoding(d_model, max_len, dropout=0.0)
+    # - sum(p.numel() for p in module.parameters()) -> count parameters
+    # - Sinusoidal has 0 learnable params (buffer only)
+    # - Learned has max_len * d_model params
+    return None
 
 
 # ============================================================================
@@ -354,20 +277,12 @@ class TransformerEmbedding(nn.Module):
     def __init__(self, vocab_size: int, d_model: int, max_seq_len: int,
                  dropout: float = 0.1, use_learned_pos: bool = False):
         super().__init__()
-        """
-        TODO: Create token embedding and positional encoding
-        HINT:
-            self.token_embedding = nn.Embedding(vocab_size, d_model)
-            
-            if use_learned_pos:
-                self.pos_encoding = LearnedPositionalEncoding(d_model, max_seq_len, dropout)
-            else:
-                self.pos_encoding = SinusoidalPositionalEncoding(d_model, max_seq_len, dropout)
-            
-            self.d_model = d_model
-        """
-        self.token_embedding = None  # Replace
-        self.pos_encoding = None     # Replace
+        # API hints:
+        # - nn.Embedding(vocab_size, d_model) -> token embedding
+        # - If use_learned_pos: LearnedPositionalEncoding(d_model, max_seq_len, dropout)
+        # - Else: SinusoidalPositionalEncoding(d_model, max_seq_len, dropout)
+        self.token_embedding = None
+        self.pos_encoding = None
         self.d_model = d_model
     
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
@@ -379,14 +294,12 @@ class TransformerEmbedding(nn.Module):
         
         Returns:
             Embeddings of shape (batch, seq_len, d_model)
-        
-        TODO: Apply token embedding and positional encoding
-        HINT:
-            # Scale embeddings (common practice in transformers)
-            x = self.token_embedding(token_ids) * math.sqrt(self.d_model)
-            return self.pos_encoding(x)
         """
-        return torch.zeros(token_ids.shape[0], token_ids.shape[1], self.d_model)  # Replace
+        # API hints:
+        # - self.token_embedding(token_ids) -> get token embeddings
+        # - Multiply by math.sqrt(self.d_model) -> scaling (common in transformers)
+        # - self.pos_encoding(x) -> add positional encoding
+        return None
 
 
 if __name__ == "__main__":

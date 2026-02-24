@@ -39,12 +39,14 @@ class Tensor:
             _op: Operation that created this tensor
             requires_grad: Whether to track gradients
         """
+        # API hints:
+        # - np.array(data, dtype=np.float64) -> convert to numpy array
+        # - np.zeros_like(arr) -> create zeros array with same shape
+        
         # TODO: Convert data to numpy array
-        # HINT: self.data = np.array(data, dtype=np.float64)
         self.data = None  # Replace
         
         # TODO: Initialize gradient to zeros with same shape
-        # HINT: self.grad = np.zeros_like(self.data)
         self.grad = None  # Replace
         
         self._backward = lambda: None
@@ -59,22 +61,22 @@ class Tensor:
     @property
     def shape(self) -> Tuple[int, ...]:
         """Return the shape of the tensor."""
-        # TODO: Return the shape tuple
-        # HINT: return self.data.shape
+        # API hints:
+        # - self.data.shape -> numpy array shape attribute
         return None  # Replace
     
     @property
     def ndim(self) -> int:
         """Return the number of dimensions."""
-        # TODO: Return number of dimensions
-        # HINT: return self.data.ndim
+        # API hints:
+        # - self.data.ndim -> number of dimensions
         return None  # Replace
     
     @property
     def size(self) -> int:
         """Return total number of elements."""
-        # TODO: Return total element count
-        # HINT: return self.data.size
+        # API hints:
+        # - self.data.size -> total element count
         return None  # Replace
     
     # ========================================================================
@@ -83,8 +85,8 @@ class Tensor:
     
     def __repr__(self):
         """String representation of the tensor."""
-        # TODO: Create informative string representation
-        # HINT: return f"Tensor(shape={self.shape}, data=\n{self.data})"
+        # API hints:
+        # - f-string with self.shape and self.data
         return None  # Replace
     
     # ========================================================================
@@ -111,14 +113,15 @@ class Tensor:
         
         build_topo(self)
         
+        # API hints:
+        # - np.ones_like(self.data) -> array of ones with same shape
+        # - reversed(topo) -> iterate in reverse order
+        # - v._backward() -> call backward function
+        
         # TODO: Initialize gradient of output
-        # For loss (scalar output), this is 1.0
-        # For tensor output, this is ones of same shape
-        # HINT: self.grad = np.ones_like(self.data)
         pass  # Replace
         
         # TODO: Call backward on each node in reverse order
-        # HINT: for v in reversed(topo): v._backward()
         pass  # Replace
     
     # ========================================================================
@@ -132,16 +135,16 @@ class Tensor:
         Note: This is a simplified version without gradient tracking
         for the indexed operation.
         """
-        # TODO: Return data at index
-        # HINT: return self.data[idx]
+        # API hints:
+        # - self.data[idx] -> index into numpy array
         return None  # Replace
     
     def item(self):
         """
         Return the tensor as a Python scalar (only for single-element tensors).
         """
-        # TODO: Return scalar value
-        # HINT: return self.data.item()
+        # API hints:
+        # - self.data.item() -> convert single-element array to scalar
         return None  # Replace
     
     # ========================================================================
@@ -151,29 +154,30 @@ class Tensor:
     @staticmethod
     def zeros(shape, requires_grad=True):
         """Create a tensor filled with zeros."""
-        # TODO: Create zeros tensor
-        # HINT: return Tensor(np.zeros(shape), requires_grad=requires_grad)
+        # API hints:
+        # - np.zeros(shape) -> array of zeros
+        # - Tensor(data, requires_grad=...) -> create tensor
         return None  # Replace
     
     @staticmethod
     def ones(shape, requires_grad=True):
         """Create a tensor filled with ones."""
-        # TODO: Create ones tensor
-        # HINT: return Tensor(np.ones(shape), requires_grad=requires_grad)
+        # API hints:
+        # - np.ones(shape) -> array of ones
         return None  # Replace
     
     @staticmethod
     def randn(shape, requires_grad=True):
         """Create a tensor with random normal values."""
-        # TODO: Create random tensor
-        # HINT: return Tensor(np.random.randn(*shape), requires_grad=requires_grad)
+        # API hints:
+        # - np.random.randn(*shape) -> random normal array
         return None  # Replace
     
     @staticmethod
     def from_numpy(arr, requires_grad=True):
         """Create a tensor from a numpy array."""
-        # TODO: Create tensor from numpy
-        # HINT: return Tensor(arr.copy(), requires_grad=requires_grad)
+        # API hints:
+        # - arr.copy() -> copy array to avoid aliasing
         return None  # Replace
     
     # ========================================================================
@@ -185,18 +189,21 @@ class Tensor:
         Element-wise addition.
         
         Supports Tensor + Tensor and Tensor + scalar.
+        Gradient: dz/d(self) = 1, dz/d(other) = 1
         """
         if isinstance(other, (int, float)):
             other = Tensor(np.full_like(self.data, other))
         
+        # API hints:
+        # - self.data + other.data -> element-wise addition
+        # - Tensor(data, children, op) -> create output tensor
+        # - self.grad += out.grad -> accumulate gradient (addition gradient is 1)
+        
         # TODO: Implement forward pass
-        out = None  # Replace: Tensor(self.data + other.data, (self, other), '+')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Gradient of addition is 1 for both inputs
-            # HINT: self.grad += out.grad
-            # HINT: other.grad += out.grad
             pass  # Replace
         
         out._backward = _backward
@@ -210,18 +217,22 @@ class Tensor:
         Element-wise multiplication.
         
         Supports Tensor * Tensor and Tensor * scalar.
+        Gradient: dz/d(self) = other, dz/d(other) = self
         """
         if isinstance(other, (int, float)):
             other = Tensor(np.full_like(self.data, other))
         
+        # API hints:
+        # - self.data * other.data -> element-wise multiplication
+        # - Tensor(data, children, op) -> create output tensor
+        # - d(a*b)/da = b, d(a*b)/db = a
+        # - self.grad += local_grad * out.grad
+        
         # TODO: Implement forward pass
-        out = None  # Replace: Tensor(self.data * other.data, (self, other), '*')
+        out = None  # Replace
         
         # TODO: Implement backward pass
         def _backward():
-            # Gradient of multiplication
-            # HINT: self.grad += other.data * out.grad
-            # HINT: other.grad += self.data * out.grad
             pass  # Replace
         
         out._backward = _backward

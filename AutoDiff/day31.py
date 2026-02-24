@@ -190,30 +190,14 @@ def im2col(x: np.ndarray, kernel_h: int, kernel_w: int,
         - Each 2x2 patch becomes a row of 4 values
         - 9 patches (3x3 output) gives 9 rows
     """
-    # TODO: Implement im2col
-    # HINT:
-    # 1. Pad the input if needed
-    # 2. Calculate output dimensions
-    # 3. Extract patches and reshape
-    #
-    # N, C, H, W = x.shape
-    # if padding > 0:
-    #     x = np.pad(x, ((0, 0), (0, 0), (padding, padding), (padding, padding)))
-    # 
-    # H_out = (H + 2*padding - kernel_h) // stride + 1
-    # W_out = (W + 2*padding - kernel_w) // stride + 1
-    # 
-    # col = np.zeros((N, C, kernel_h, kernel_w, H_out, W_out))
-    # for y in range(kernel_h):
-    #     y_max = y + stride * H_out
-    #     for x_idx in range(kernel_w):
-    #         x_max = x_idx + stride * W_out
-    #         col[:, :, y, x_idx, :, :] = x[:, :, y:y_max:stride, x_idx:x_max:stride]
-    # 
-    # col = col.transpose(0, 4, 5, 1, 2, 3).reshape(N * H_out * W_out, -1)
-    # return col
+    # API hints:
+    # - np.pad(x, pad_width) -> add zero padding to array
+    # - H_out = (H + 2*padding - kernel_h) // stride + 1 -> output dimension formula
+    # - Extract patches using slicing with stride: x[:, :, y:y_max:stride, ...]
+    # - transpose() and reshape() to convert patches to column format
+    # - Final shape: (N * H_out * W_out, C * kernel_h * kernel_w)
     
-    pass  # Replace with implementation
+    return None
 
 
 def col2im(col: np.ndarray, x_shape: Tuple[int, ...], 
@@ -236,32 +220,14 @@ def col2im(col: np.ndarray, x_shape: Tuple[int, ...],
     Returns:
         img: Reconstructed input of shape (N, C, H, W)
     """
-    # TODO: Implement col2im
-    # HINT:
-    # 1. Calculate dimensions
-    # 2. Reshape col back to patch format
-    # 3. Accumulate patches back to image (add overlapping regions)
-    #
-    # N, C, H, W = x_shape
-    # H_padded = H + 2 * padding
-    # W_padded = W + 2 * padding
-    # H_out = (H + 2*padding - kernel_h) // stride + 1
-    # W_out = (W + 2*padding - kernel_w) // stride + 1
-    # 
-    # col = col.reshape(N, H_out, W_out, C, kernel_h, kernel_w).transpose(0, 3, 4, 5, 1, 2)
-    # 
-    # img = np.zeros((N, C, H_padded, W_padded))
-    # for y in range(kernel_h):
-    #     y_max = y + stride * H_out
-    #     for x_idx in range(kernel_w):
-    #         x_max = x_idx + stride * W_out
-    #         img[:, :, y:y_max:stride, x_idx:x_max:stride] += col[:, :, y, x_idx, :, :]
-    # 
-    # if padding > 0:
-    #     img = img[:, :, padding:-padding, padding:-padding]
-    # return img
+    # API hints:
+    # - Inverse of im2col: reshape col back to patch format
+    # - col.reshape(...).transpose(...) to get (N, C, kH, kW, H_out, W_out)
+    # - Accumulate overlapping patches using += (not just assignment)
+    # - Remove padding at the end with slicing: img[:, :, padding:-padding, ...]
+    # - Output shape matches original x_shape
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -287,30 +253,14 @@ def conv2d_forward(x: np.ndarray, weight: np.ndarray, bias: Optional[np.ndarray]
         out[n, c_out, h, w] = bias[c_out] + 
             sum_{c_in, kh, kw} x[n, c_in, h*s+kh, w*s+kw] * weight[c_out, c_in, kh, kw]
     """
-    # TODO: Implement convolution forward using im2col
-    # HINT:
-    # 1. Use im2col to unfold input
-    # 2. Reshape weights for matrix multiplication
-    # 3. Compute output and reshape
-    #
-    # N, C_in, H, W = x.shape
-    # C_out, _, kH, kW = weight.shape
-    # 
-    # H_out = (H + 2*padding - kH) // stride + 1
-    # W_out = (W + 2*padding - kW) // stride + 1
-    # 
-    # col = im2col(x, kH, kW, stride, padding)  # (N*H_out*W_out, C_in*kH*kW)
-    # weight_col = weight.reshape(C_out, -1)     # (C_out, C_in*kH*kW)
-    # 
-    # out = col @ weight_col.T  # (N*H_out*W_out, C_out)
-    # out = out.reshape(N, H_out, W_out, C_out).transpose(0, 3, 1, 2)
-    # 
-    # if bias is not None:
-    #     out += bias.reshape(1, -1, 1, 1)
-    # 
-    # return out
+    # API hints:
+    # - im2col(x, kH, kW, stride, padding) -> unfold input to columns
+    # - weight.reshape(C_out, -1) -> flatten filters for matrix multiply
+    # - col @ weight_col.T -> efficient convolution as matmul
+    # - reshape and transpose to get (N, C_out, H_out, W_out)
+    # - bias.reshape(1, -1, 1, 1) for broadcasting
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -339,27 +289,15 @@ def conv2d_backward(dy: np.ndarray, x: np.ndarray, weight: np.ndarray,
     - dw[c_out, c_in, kh, kw] = sum over patches of (input patch * dy value)
     - dx = "full" convolution of dy with rotated weights
     """
-    # TODO: Implement convolution backward
-    # HINT:
-    # N, C_out, H_out, W_out = dy.shape
-    # C_out, C_in, kH, kW = weight.shape
-    # 
-    # # Bias gradient: sum over all except channel dimension
-    # db = np.sum(dy, axis=(0, 2, 3))
-    # 
-    # # Weight gradient
-    # col = im2col(x, kH, kW, stride, padding)  # (N*H_out*W_out, C_in*kH*kW)
-    # dy_reshaped = dy.transpose(0, 2, 3, 1).reshape(-1, C_out)  # (N*H_out*W_out, C_out)
-    # dw = (dy_reshaped.T @ col).reshape(C_out, C_in, kH, kW)
-    # 
-    # # Input gradient using col2im
-    # weight_col = weight.reshape(C_out, -1)  # (C_out, C_in*kH*kW)
-    # dcol = dy_reshaped @ weight_col  # (N*H_out*W_out, C_in*kH*kW)
-    # dx = col2im(dcol, x.shape, kH, kW, stride, padding)
-    # 
-    # return dx, dw, db
+    # API hints:
+    # - db = np.sum(dy, axis=(0, 2, 3)) -> bias gradient sums over batch and spatial
+    # - im2col(x, ...) to get input columns for weight gradient
+    # - dy.transpose(0, 2, 3, 1).reshape(-1, C_out) -> reshape upstream gradient
+    # - dw = (dy_reshaped.T @ col).reshape(...) -> weight gradient via matmul
+    # - dcol = dy_reshaped @ weight_col -> gradient w.r.t. columns
+    # - col2im(dcol, x.shape, ...) -> convert column gradient back to input gradient
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================
@@ -409,23 +347,12 @@ class Conv2d(Module):
     def __init__(self, in_channels: int, out_channels: int, kernel_size: int,
                  stride: int = 1, padding: int = 0, bias: bool = True):
         """Initialize Conv2d layer with He initialization."""
-        # TODO: Initialize weights and bias
-        # HINT:
-        # self.in_channels = in_channels
-        # self.out_channels = out_channels
-        # self.kernel_size = kernel_size
-        # self.stride = stride
-        # self.padding = padding
-        # 
-        # # He initialization for conv layers
-        # fan_in = in_channels * kernel_size * kernel_size
-        # scale = np.sqrt(2.0 / fan_in)
-        # self.weight = Tensor(np.random.randn(out_channels, in_channels, kernel_size, kernel_size) * scale)
-        # 
-        # if bias:
-        #     self.bias = Tensor(np.zeros(out_channels))
-        # else:
-        #     self.bias = None
+        # API hints:
+        # - He initialization: scale = sqrt(2.0 / fan_in), fan_in = in_channels * k * k
+        # - weight shape: (out_channels, in_channels, kernel_size, kernel_size)
+        # - np.random.randn(...) * scale for weight initialization
+        # - bias shape: (out_channels,), initialize to zeros
+        # - Tensor(...) to wrap numpy arrays
         
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -445,30 +372,14 @@ class Conv2d(Module):
         Returns:
             Output tensor of shape (N, C_out, H_out, W_out)
         """
-        # TODO: Implement forward pass with gradient tracking
-        # HINT:
-        # Store information needed for backward pass
-        # Use conv2d_forward for computation
-        #
-        # bias_data = self.bias.data if self.bias is not None else None
-        # out_data = conv2d_forward(x.data, self.weight.data, bias_data,
-        #                           self.stride, self.padding)
-        # 
-        # children = (x, self.weight) if self.bias is None else (x, self.weight, self.bias)
-        # out = Tensor(out_data, children, 'conv2d')
-        # 
-        # def _backward():
-        #     dx, dw, db = conv2d_backward(out.grad, x.data, self.weight.data,
-        #                                   self.stride, self.padding)
-        #     x.grad += dx
-        #     self.weight.grad += dw
-        #     if self.bias is not None:
-        #         self.bias.grad += db
-        # 
-        # out._backward = _backward
-        # return out
+        # API hints:
+        # - conv2d_forward(x.data, weight.data, bias_data, stride, padding) -> compute output
+        # - Create output Tensor with children=(x, weight) or (x, weight, bias)
+        # - Define _backward() closure to compute gradients
+        # - conv2d_backward(out.grad, x.data, weight.data, ...) -> (dx, dw, db)
+        # - Accumulate gradients: x.grad += dx, weight.grad += dw, bias.grad += db
         
-        return None  # Replace with implementation
+        return None
     
     def parameters(self) -> List[Tensor]:
         """Return list of learnable parameters."""
@@ -494,34 +405,14 @@ def conv2d_naive(x: np.ndarray, weight: np.ndarray, bias: Optional[np.ndarray] =
     
     Use this to check your im2col implementation is correct!
     """
-    # TODO: Implement naive convolution
-    # HINT:
-    # N, C_in, H, W = x.shape
-    # C_out, _, kH, kW = weight.shape
-    # 
-    # if padding > 0:
-    #     x = np.pad(x, ((0, 0), (0, 0), (padding, padding), (padding, padding)))
-    # 
-    # H_out = (H + 2*padding - kH) // stride + 1
-    # W_out = (W + 2*padding - kW) // stride + 1
-    # 
-    # out = np.zeros((N, C_out, H_out, W_out))
-    # 
-    # for n in range(N):
-    #     for c_out in range(C_out):
-    #         for h in range(H_out):
-    #             for w in range(W_out):
-    #                 h_start = h * stride
-    #                 w_start = w * stride
-    #                 patch = x[n, :, h_start:h_start+kH, w_start:w_start+kW]
-    #                 out[n, c_out, h, w] = np.sum(patch * weight[c_out])
-    # 
-    # if bias is not None:
-    #     out += bias.reshape(1, -1, 1, 1)
-    # 
-    # return out
+    # API hints:
+    # - np.pad(x, ...) to add padding
+    # - Four nested loops: batch (n), output channel (c_out), height (h), width (w)
+    # - Extract patch: x[n, :, h_start:h_start+kH, w_start:w_start+kW]
+    # - np.sum(patch * weight[c_out]) -> dot product for one output element
+    # - bias.reshape(1, -1, 1, 1) for broadcasting
     
-    pass  # Replace with implementation
+    return None
 
 
 # ============================================================================

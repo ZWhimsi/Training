@@ -157,9 +157,10 @@ class TokenEmbedding(nn.Module):
         self.scale = scale
         
         # TODO: Initialize embedding layer
-        # HINT:
-        #   self.embedding = nn.Embedding(vocab_size, d_model, padding_idx=padding_idx)
-        self.embedding = None  # Replace
+        # API hints:
+        # - nn.Embedding(vocab_size, d_model, padding_idx=padding_idx) -> embedding
+        
+        self.embedding = None
     
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
         """
@@ -170,16 +171,12 @@ class TokenEmbedding(nn.Module):
         
         Returns:
             Embeddings (batch, seq_len, d_model)
-        
-        TODO: Implement embedding lookup with scaling
-        HINT:
-            x = self.embedding(token_ids)
-            if self.scale:
-                x = x * math.sqrt(self.d_model)
-            return x
         """
-        batch, seq_len = token_ids.shape
-        return torch.zeros(batch, seq_len, self.d_model)  # Replace
+        # API hints:
+        # - self.embedding(token_ids) -> lookup embeddings
+        # - x * math.sqrt(self.d_model) -> scale if self.scale is True
+        
+        return None
 
 
 # ============================================================================
@@ -195,15 +192,7 @@ class RotaryEmbedding(nn.Module):
         self.dim = dim
         self.max_seq_len = max_seq_len
         
-        # TODO: Precompute rotation frequencies
-        # HINT:
-        #   inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
-        #   self.register_buffer('inv_freq', inv_freq)
-        #   
-        #   t = torch.arange(max_seq_len).float()
-        #   freqs = torch.outer(t, inv_freq)
-        #   self.register_buffer('cos_cached', torch.cos(freqs))
-        #   self.register_buffer('sin_cached', torch.sin(freqs))
+        # Precompute rotation frequencies
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
         self.register_buffer('inv_freq', inv_freq)
     
@@ -264,19 +253,19 @@ class MultiHeadLatentAttention(nn.Module):
         self.num_kv_groups = config.num_heads // config.num_kv_heads
         
         # TODO: Initialize attention components
-        # HINT:
-        #   self.W_q = nn.Linear(config.d_model, config.num_heads * self.head_dim, bias=False)
-        #   self.W_kv_compress = nn.Linear(config.d_model, config.latent_dim, bias=False)
-        #   self.W_k_expand = nn.Linear(config.latent_dim, config.num_kv_heads * self.head_dim, bias=False)
-        #   self.W_v_expand = nn.Linear(config.latent_dim, config.num_kv_heads * self.head_dim, bias=False)
-        #   self.W_o = nn.Linear(config.d_model, config.d_model, bias=False)
-        #   self.attn_dropout = nn.Dropout(config.attention_dropout)
-        self.W_q = None           # Replace
-        self.W_kv_compress = None # Replace
-        self.W_k_expand = None    # Replace
-        self.W_v_expand = None    # Replace
-        self.W_o = None           # Replace
-        self.attn_dropout = None  # Replace
+        # API hints:
+        # - nn.Linear(d_model, num_heads * head_dim, bias=False) -> W_q
+        # - nn.Linear(d_model, latent_dim, bias=False) -> W_kv_compress
+        # - nn.Linear(latent_dim, num_kv_heads * head_dim, bias=False) -> W_k_expand, W_v_expand
+        # - nn.Linear(d_model, d_model, bias=False) -> W_o
+        # - nn.Dropout(attention_dropout) -> attn_dropout
+        
+        self.W_q = None
+        self.W_kv_compress = None
+        self.W_k_expand = None
+        self.W_v_expand = None
+        self.W_o = None
+        self.attn_dropout = None
     
     def _repeat_kv(self, x: torch.Tensor) -> torch.Tensor:
         """Repeat KV heads to match query heads."""
@@ -303,47 +292,20 @@ class MultiHeadLatentAttention(nn.Module):
         Returns:
             output: (batch, seq_len, d_model)
             new_kv_cache: Updated cache
-        
-        TODO: Implement MLA forward
-        HINT:
-            batch, seq_len, _ = x.shape
-            
-            # Query projection
-            q = self.W_q(x).view(batch, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-            
-            # KV compression and expansion
-            kv_latent = self.W_kv_compress(x)
-            k = self.W_k_expand(kv_latent).view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-            v = self.W_v_expand(kv_latent).view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
-            
-            # Apply RoPE
-            q, k = apply_rotary_emb(q, k, cos, sin)
-            
-            # Handle cache
-            if kv_cache is not None:
-                k_cache, v_cache = kv_cache
-                k = torch.cat([k_cache, k], dim=2)
-                v = torch.cat([v_cache, v], dim=2)
-            new_kv_cache = (k, v)
-            
-            # Repeat KV for GQA
-            k_expanded = self._repeat_kv(k)
-            v_expanded = self._repeat_kv(v)
-            
-            # Attention
-            scores = torch.matmul(q, k_expanded.transpose(-2, -1)) * self.scale
-            if mask is not None:
-                scores = scores.masked_fill(mask == 0, float('-inf'))
-            attn = F.softmax(scores, dim=-1)
-            attn = self.attn_dropout(attn)
-            
-            output = torch.matmul(attn, v_expanded)
-            output = output.transpose(1, 2).reshape(batch, seq_len, self.d_model)
-            output = self.W_o(output)
-            
-            return output, new_kv_cache
         """
-        return x, None  # Replace
+        # API hints:
+        # - self.W_q(x).view(batch, seq_len, num_heads, head_dim).transpose(1, 2) -> Q
+        # - self.W_kv_compress(x) -> latent KV representation
+        # - self.W_k_expand(latent), self.W_v_expand(latent) -> K, V
+        # - apply_rotary_emb(q, k, cos, sin) -> apply RoPE
+        # - torch.cat([k_cache, k], dim=2) -> append to cache
+        # - self._repeat_kv(k) -> expand for GQA
+        # - torch.matmul(q, k.transpose(-2, -1)) * scale -> attention scores
+        # - scores.masked_fill(mask == 0, float('-inf')) -> apply mask
+        # - F.softmax(scores, dim=-1) -> attention weights
+        # - self.W_o(output) -> final projection
+        
+        return None
 
 
 # ============================================================================
@@ -360,15 +322,15 @@ class DeepSeekBlock(nn.Module):
         self.layer_idx = layer_idx
         
         # TODO: Initialize block components
-        # HINT:
-        #   self.attn_norm = RMSNorm(config.d_model, config.layer_norm_eps)
-        #   self.attention = MultiHeadLatentAttention(config)
-        #   self.ffn_norm = RMSNorm(config.d_model, config.layer_norm_eps)
-        #   self.ffn = SwiGLUFFN(config.d_model, config.d_ff, config.dropout)
-        self.attn_norm = None  # Replace
-        self.attention = None  # Replace
-        self.ffn_norm = None   # Replace
-        self.ffn = None        # Replace
+        # API hints:
+        # - RMSNorm(d_model, eps) -> attn_norm, ffn_norm
+        # - MultiHeadLatentAttention(config) -> attention
+        # - SwiGLUFFN(d_model, d_ff, dropout) -> ffn
+        
+        self.attn_norm = None
+        self.attention = None
+        self.ffn_norm = None
+        self.ffn = None
     
     def forward(self, x: torch.Tensor,
                 cos: torch.Tensor, sin: torch.Tensor,
@@ -377,21 +339,15 @@ class DeepSeekBlock(nn.Module):
                 ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         """
         Forward pass through block.
-        
-        TODO: Implement pre-norm transformer block
-        HINT:
-            # Attention with pre-norm
-            normed = self.attn_norm(x)
-            attn_out, new_kv_cache = self.attention(normed, cos, sin, mask, kv_cache)
-            x = x + attn_out
-            
-            # FFN with pre-norm
-            normed = self.ffn_norm(x)
-            x = x + self.ffn(normed)
-            
-            return x, new_kv_cache
         """
-        return x, None  # Replace
+        # API hints:
+        # - self.attn_norm(x) -> pre-norm
+        # - self.attention(normed, cos, sin, mask, kv_cache) -> attention + cache
+        # - x = x + attn_out -> residual
+        # - self.ffn_norm(x) -> pre-norm for FFN
+        # - x = x + self.ffn(normed) -> FFN with residual
+        
+        return None
 
 
 # ============================================================================
@@ -420,39 +376,19 @@ class DeepSeekMathModel(nn.Module):
         self.config = config
         
         # TODO: Initialize all model components
-        # HINT:
-        #   # Token embedding
-        #   self.token_embedding = TokenEmbedding(
-        #       config.vocab_size, config.d_model, scale=True
-        #   )
-        #   
-        #   # Rotary embedding
-        #   self.rope = RotaryEmbedding(
-        #       config.head_dim, config.max_seq_len, config.rope_base
-        #   )
-        #   
-        #   # Transformer blocks
-        #   self.layers = nn.ModuleList([
-        #       DeepSeekBlock(config, layer_idx=i)
-        #       for i in range(config.num_layers)
-        #   ])
-        #   
-        #   # Final normalization
-        #   self.final_norm = RMSNorm(config.d_model, config.layer_norm_eps)
-        #   
-        #   # LM head (tied to embedding if configured)
-        #   if config.tie_word_embeddings:
-        #       self.lm_head = None  # Will use embedding weights
-        #   else:
-        #       self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
-        #   
-        #   # Initialize weights
-        #   self.apply(self._init_weights)
-        self.token_embedding = None  # Replace
-        self.rope = None             # Replace
-        self.layers = None           # Replace
-        self.final_norm = None       # Replace
-        self.lm_head = None          # Replace
+        # API hints:
+        # - TokenEmbedding(vocab_size, d_model, scale=True) -> token_embedding
+        # - RotaryEmbedding(head_dim, max_seq_len, rope_base) -> rope
+        # - nn.ModuleList([DeepSeekBlock(config, i) for i in range(num_layers)]) -> layers
+        # - RMSNorm(d_model, eps) -> final_norm
+        # - nn.Linear(d_model, vocab_size, bias=False) -> lm_head (if not tied)
+        # - self.apply(self._init_weights) -> initialize weights
+        
+        self.token_embedding = None
+        self.rope = None
+        self.layers = None
+        self.final_norm = None
+        self.lm_head = None
     
     def _init_weights(self, module: nn.Module):
         """Initialize weights using DeepSeek's strategy."""
@@ -487,49 +423,18 @@ class DeepSeekMathModel(nn.Module):
         Returns:
             logits: (batch, seq_len, vocab_size)
             new_kv_caches: Updated caches for each layer
-        
-        TODO: Implement full forward pass
-        HINT:
-            batch, seq_len = input_ids.shape
-            
-            # Get embeddings
-            x = self.token_embedding(input_ids)
-            
-            # Get RoPE rotations
-            cos, sin = self.rope.get_cos_sin(seq_len, offset=start_pos, device=x.device)
-            
-            # Create causal mask if not provided
-            if attention_mask is None:
-                total_len = start_pos + seq_len
-                mask = torch.tril(torch.ones(total_len, total_len, device=x.device))
-                mask = mask[start_pos:total_len, :total_len]
-                mask = mask.unsqueeze(0).unsqueeze(0)
-            else:
-                mask = attention_mask
-            
-            # Initialize caches list
-            if kv_caches is None:
-                kv_caches = [None] * self.config.num_layers
-            new_kv_caches = []
-            
-            # Forward through layers
-            for i, layer in enumerate(self.layers):
-                x, new_cache = layer(x, cos, sin, mask, kv_caches[i])
-                new_kv_caches.append(new_cache)
-            
-            # Final norm
-            x = self.final_norm(x)
-            
-            # Project to vocabulary
-            if self.config.tie_word_embeddings:
-                logits = F.linear(x, self.token_embedding.embedding.weight)
-            else:
-                logits = self.lm_head(x)
-            
-            return logits, new_kv_caches
         """
-        batch, seq_len = input_ids.shape
-        return torch.zeros(batch, seq_len, self.config.vocab_size), []  # Replace
+        # API hints:
+        # - self.token_embedding(input_ids) -> embeddings
+        # - self.rope.get_cos_sin(seq_len, offset=start_pos, device=x.device) -> RoPE
+        # - torch.tril(torch.ones(total_len, total_len, device=device)) -> causal mask
+        # - mask[start_pos:total_len, :total_len].unsqueeze(0).unsqueeze(0) -> slice mask
+        # - layer(x, cos, sin, mask, kv_caches[i]) -> forward through each layer
+        # - self.final_norm(x) -> final normalization
+        # - F.linear(x, embedding.weight) -> tied output projection
+        # - self.lm_head(x) -> untied output projection
+        
+        return None
 
 
 # ============================================================================
@@ -541,40 +446,21 @@ def create_deepseek_math_7b_config() -> DeepSeekMathConfig:
     Create configuration matching DeepSeek Math 7B.
     
     Note: This is approximate - actual DeepSeek Math may differ slightly.
-    
-    TODO: Return appropriate config
-    HINT:
-        return DeepSeekMathConfig(
-            vocab_size=102400,    # Large vocab for math tokens
-            d_model=4096,
-            num_layers=30,
-            num_heads=32,
-            num_kv_heads=4,       # 8x KV compression
-            latent_dim=512,       # Latent dimension for MLA
-            d_ff=11008,           # ~2.7x d_model for SwiGLU
-            max_seq_len=4096,
-            tie_word_embeddings=True
-        )
     """
-    return DeepSeekMathConfig()  # Replace
+    # API hints:
+    # - DeepSeekMathConfig(vocab_size=102400, d_model=4096, num_layers=30, ...)
+    # - num_heads=32, num_kv_heads=4 -> 8x KV compression
+    # - latent_dim=512, d_ff=11008, max_seq_len=4096
+    # - tie_word_embeddings=True
+    
+    return None
 
 
 def create_deepseek_math_small_config() -> DeepSeekMathConfig:
     """
     Create a smaller config for testing/development.
     
-    TODO: Return smaller config
-    HINT:
-        return DeepSeekMathConfig(
-            vocab_size=32000,
-            d_model=512,
-            num_layers=6,
-            num_heads=8,
-            num_kv_heads=2,
-            latent_dim=128,
-            d_ff=1376,
-            max_seq_len=512
-        )
+    This is a reference implementation - not an exercise.
     """
     return DeepSeekMathConfig(
         vocab_size=32000,
@@ -601,77 +487,30 @@ def analyze_model_stats(model: DeepSeekMathModel) -> Dict[str, float]:
     
     Returns:
         Dictionary with model statistics
-    
-    TODO: Compute various statistics
-    HINT:
-        stats = {}
-        
-        # Count parameters
-        total_params = sum(p.numel() for p in model.parameters())
-        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        
-        stats['total_parameters'] = total_params
-        stats['trainable_parameters'] = trainable_params
-        
-        # Compute memory estimate (fp16)
-        stats['memory_mb_fp16'] = total_params * 2 / (1024 * 1024)
-        stats['memory_gb_fp16'] = stats['memory_mb_fp16'] / 1024
-        
-        # Weight statistics
-        all_weights = torch.cat([p.flatten() for p in model.parameters()])
-        stats['weight_mean'] = all_weights.mean().item()
-        stats['weight_std'] = all_weights.std().item()
-        stats['weight_min'] = all_weights.min().item()
-        stats['weight_max'] = all_weights.max().item()
-        
-        return stats
     """
-    return {
-        'total_parameters': 0,
-        'trainable_parameters': 0,
-        'memory_mb_fp16': 0.0,
-        'memory_gb_fp16': 0.0,
-        'weight_mean': 0.0,
-        'weight_std': 0.0
-    }  # Replace
+    # API hints:
+    # - sum(p.numel() for p in model.parameters()) -> total params
+    # - sum(p.numel() for p in model.parameters() if p.requires_grad) -> trainable
+    # - total_params * 2 / (1024 * 1024) -> memory in MB (fp16)
+    # - torch.cat([p.flatten() for p in model.parameters()]) -> all weights
+    # - all_weights.mean().item(), .std().item(), .min().item(), .max().item()
+    
+    return None
 
 
 def count_parameters_by_component(model: DeepSeekMathModel) -> Dict[str, int]:
     """
     Count parameters broken down by component.
     
-    TODO: Count parameters for each major component
-    HINT:
-        counts = {}
-        
-        if model.token_embedding is not None:
-            counts['embedding'] = sum(p.numel() for p in model.token_embedding.parameters())
-        
-        if model.layers is not None:
-            attention_params = 0
-            ffn_params = 0
-            norm_params = 0
-            
-            for layer in model.layers:
-                if layer.attention is not None:
-                    attention_params += sum(p.numel() for p in layer.attention.parameters())
-                if layer.ffn is not None:
-                    ffn_params += sum(p.numel() for p in layer.ffn.parameters())
-                if layer.attn_norm is not None:
-                    norm_params += sum(p.numel() for p in layer.attn_norm.parameters())
-                if layer.ffn_norm is not None:
-                    norm_params += sum(p.numel() for p in layer.ffn_norm.parameters())
-            
-            counts['attention'] = attention_params
-            counts['ffn'] = ffn_params
-            counts['norm'] = norm_params
-        
-        if model.lm_head is not None:
-            counts['lm_head'] = sum(p.numel() for p in model.lm_head.parameters())
-        
-        return counts
     """
-    return {}  # Replace
+    # API hints:
+    # - sum(p.numel() for p in model.token_embedding.parameters()) -> embedding params
+    # - sum(p.numel() for p in layer.attention.parameters()) -> attention per layer
+    # - sum(p.numel() for p in layer.ffn.parameters()) -> ffn per layer
+    # - sum(p.numel() for p in layer.attn_norm.parameters()) -> norm params
+    # - sum(p.numel() for p in model.lm_head.parameters()) -> lm_head (if not tied)
+    
+    return None
 
 
 # ============================================================================

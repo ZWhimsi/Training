@@ -93,14 +93,14 @@ def forward_mode_x_squared(x):
     Returns:
         (value, derivative)
     """
-    # TODO: Create dual number with derivative 1 (we want df/dx)
+    # API hints:
+    # - Create DualNumber(x, 1.0) to track df/dx
+    # - Compute x_dual ** 2 using the DualNumber operations
+    # - Return (result.value, result.derivative)
     x_dual = DualNumber(x, 1.0)
-    
-    # TODO: Compute x²
     result = x_dual ** 2
     
-    # TODO: Return value and derivative
-    return None, None  # Replace: (result.value, result.derivative)
+    return None, None
 
 
 # ============================================================================
@@ -114,13 +114,15 @@ def forward_mode_polynomial(x):
     Returns:
         (value, derivative)
     """
-    # TODO: Create dual number
-    x_dual = None  # Replace: DualNumber(x, 1.0)
+    # API hints:
+    # - Create DualNumber(x, 1.0) to track df/dx
+    # - Build polynomial: x_dual**3 + 2*x_dual**2 + 3*x_dual + 4
+    # - DualNumber supports +, *, ** operations
+    # - Return (result.value, result.derivative)
+    x_dual = None
+    result = None
     
-    # TODO: Compute polynomial
-    result = None  # Replace: x_dual**3 + 2*x_dual**2 + 3*x_dual + 4
-    
-    return None, None  # Replace: (result.value, result.derivative)
+    return None, None
 
 
 # ============================================================================
@@ -136,14 +138,15 @@ def forward_mode_two_vars(x, y):
     Returns:
         (value, df_dx)
     """
-    # TODO: Create dual numbers (dx=1, dy=0 for ∂f/∂x)
-    x_dual = None  # Replace: DualNumber(x, 1.0)  # dx = 1
-    y_dual = None  # Replace: DualNumber(y, 0.0)  # dy = 0
+    # API hints:
+    # - For ∂f/∂x: DualNumber(x, 1.0) and DualNumber(y, 0.0)
+    # - Compute: x_dual * y_dual + x_dual ** 2
+    # - Return (result.value, result.derivative)
+    x_dual = None
+    y_dual = None
+    result = None
     
-    # TODO: Compute f = x*y + x²
-    result = None  # Replace: x_dual * y_dual + x_dual ** 2
-    
-    return None, None  # Replace: (result.value, result.derivative)
+    return None, None
 
 
 # ============================================================================
@@ -164,29 +167,24 @@ def reverse_mode_manual(x, y):
     a = x + y           # a = x + y
     f = a * x           # f = a * x = (x+y) * x = x² + xy
     
-    # Backward pass
-    # Start with df/df = 1
+    # Backward pass - start with df/df = 1
     df_df = 1.0
     
-    # f = a * x
-    # df/da = x, df/dx (through this op) = a
-    # TODO: Compute gradient flowing to a and direct gradient to x
-    df_da = None  # Replace: x * df_df
-    df_dx_from_f = None  # Replace: a * df_df
-    
-    # a = x + y
-    # da/dx = 1, da/dy = 1
-    # TODO: Compute gradients flowing through a
-    df_dx_from_a = None  # Replace: 1 * df_da
-    df_dy = None  # Replace: 1 * df_da
-    
-    # TODO: Total df/dx (sum of all paths)
-    df_dx = None  # Replace: df_dx_from_f + df_dx_from_a
+    # API hints:
+    # - For f = a * x: df/da = x, df/dx_from_f = a
+    # - For a = x + y: da/dx = 1, da/dy = 1
+    # - Chain rule: df_dx_from_a = da/dx * df_da
+    # - Total df_dx = df_dx_from_f + df_dx_from_a (sum all paths)
+    df_da = None
+    df_dx_from_f = None
+    df_dx_from_a = None
+    df_dy = None
+    df_dx = None
     
     return {
         'value': f,
-        'df_dx': df_dx,  # Should be 2x + y
-        'df_dy': df_dy   # Should be x
+        'df_dx': df_dx,
+        'df_dy': df_dy
     }
 
 
@@ -205,28 +203,33 @@ def complexity_analysis():
     Returns:
         dict with analysis for different scenarios
     """
+    # API hints:
+    # - forward_passes = n_inputs (one pass per input)
+    # - reverse_passes = n_outputs (one pass per output)
+    # - better_mode: 'forward' if n_inputs < n_outputs
+    #                'reverse' if n_outputs < n_inputs
+    #                'either' if equal
     scenarios = {
-        # (n_inputs, n_outputs): which mode is better
         'neural_net_loss': {
-            'n_inputs': 1000000,  # Parameters
-            'n_outputs': 1,       # Scalar loss
-            'better_mode': None,  # Replace: 'reverse' (O(1) vs O(1M))
-            'forward_passes': None,  # Replace: 1000000
-            'reverse_passes': None,  # Replace: 1
+            'n_inputs': 1000000,
+            'n_outputs': 1,
+            'better_mode': None,
+            'forward_passes': None,
+            'reverse_passes': None,
         },
         'jacobian_narrow': {
             'n_inputs': 3,
             'n_outputs': 1000,
-            'better_mode': None,  # Replace: 'forward' (O(3) vs O(1000))
-            'forward_passes': None,  # Replace: 3
-            'reverse_passes': None,  # Replace: 1000
+            'better_mode': None,
+            'forward_passes': None,
+            'reverse_passes': None,
         },
         'square_jacobian': {
             'n_inputs': 100,
             'n_outputs': 100,
-            'better_mode': None,  # Replace: 'either' (O(100) both)
-            'forward_passes': None,  # Replace: 100
-            'reverse_passes': None,  # Replace: 100
+            'better_mode': None,
+            'forward_passes': None,
+            'reverse_passes': None,
         },
     }
     

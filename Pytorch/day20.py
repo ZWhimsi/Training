@@ -67,7 +67,9 @@ class RMSNorm(nn.Module):
         self.eps = eps
         
         # TODO: Create learnable scale parameter (no shift in RMSNorm)
-        self.weight = None  # Replace: nn.Parameter(torch.ones(d_model))
+        # API hints:
+        # - nn.Parameter(torch.ones(d_model)) -> learnable scale
+        self.weight = None
     
     def forward(self, x):
         """
@@ -76,13 +78,12 @@ class RMSNorm(nn.Module):
         Returns:
             [batch, seq, d_model]
         """
-        # TODO: Compute RMS: sqrt(mean(x^2))
-        # HINT: rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
-        rms = None  # Replace
-        
-        # TODO: Normalize and scale
-        # HINT: return x / rms * self.weight
-        return None  # Replace
+        # TODO: Compute RMS normalization and scale
+        # API hints:
+        # - torch.mean(x ** 2, dim=-1, keepdim=True) -> mean of squares
+        # - torch.sqrt(tensor + self.eps) -> root mean square
+        # - x / rms * self.weight -> normalize and scale
+        return None
 
 
 # ============================================================================
@@ -105,18 +106,14 @@ class RotaryPositionEmbedding(nn.Module):
         
         self.d_model = d_model
         
-        # TODO: Compute inverse frequencies
-        # inv_freq = 1 / (base ** (arange(0, d_model, 2) / d_model))
-        inv_freq = None  # Replace
-        
-        if inv_freq is not None:
-            self.register_buffer('inv_freq', inv_freq)
-        
-        # TODO: Precompute cos and sin for positions up to max_len
-        # position = arange(max_len)
-        # freqs = outer(position, inv_freq) -> [max_len, d_model/2]
-        # cos_cached = cos(freqs)
-        # sin_cached = sin(freqs)
+        # TODO: Compute inverse frequencies and precompute cos/sin
+        # API hints:
+        # - torch.arange(0, d_model, 2).float() -> dimension indices
+        # - 1.0 / (base ** (indices / d_model)) -> inverse frequencies
+        # - self.register_buffer('inv_freq', inv_freq) -> register as buffer
+        # - torch.arange(max_len) -> position indices
+        # - torch.outer(positions, inv_freq) -> frequency matrix [max_len, d_model/2]
+        # - torch.cos(freqs), torch.sin(freqs) -> precomputed values
         self.register_buffer('cos_cached', torch.zeros(max_len, d_model // 2))
         self.register_buffer('sin_cached', torch.zeros(max_len, d_model // 2))
     
@@ -132,20 +129,13 @@ class RotaryPositionEmbedding(nn.Module):
         Returns:
             q_rotated, k_rotated with same shapes
         """
-        seq_len = q.shape[2]
-        
-        if positions is None:
-            positions = torch.arange(seq_len, device=q.device)
-        
-        # Get cos and sin for these positions
-        cos = self.cos_cached[positions]  # [seq, d_k/2]
-        sin = self.sin_cached[positions]  # [seq, d_k/2]
-        
-        # TODO: Apply rotation
-        # Split q and k into pairs, rotate each pair
-        # This is the simplified version; full implementation is more complex
-        
-        return q, k  # Return unmodified for now (placeholder)
+        # TODO: Apply rotary position embedding
+        # API hints:
+        # - Split q, k into pairs of dimensions
+        # - Apply rotation: x_rot = x * cos + rotate_half(x) * sin
+        # - rotate_half: stack(-x[..., 1::2], x[..., ::2]) or similar
+        # - self.cos_cached[positions], self.sin_cached[positions] -> get cached values
+        return q, k
 
 
 # ============================================================================
@@ -166,29 +156,26 @@ class GPTBlock(nn.Module):
         
         d_ff = d_ff or d_model * 4
         
-        # TODO: Causal self-attention
         self.num_heads = num_heads
         self.d_k = d_model // num_heads
-        
-        self.W_q = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_k = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_v = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_o = None  # Replace: nn.Linear(d_model, d_model)
-        
-        # TODO: FFN
-        self.ffn_linear1 = None  # Replace: nn.Linear(d_model, d_ff)
-        self.ffn_linear2 = None  # Replace: nn.Linear(d_ff, d_model)
-        
-        # TODO: Layer norms (RMSNorm or standard LayerNorm)
-        if use_rms_norm:
-            self.norm1 = None  # Replace: RMSNorm(d_model)
-            self.norm2 = None  # Replace: RMSNorm(d_model)
-        else:
-            self.norm1 = None  # Replace: nn.LayerNorm(d_model)
-            self.norm2 = None  # Replace: nn.LayerNorm(d_model)
-        
-        self.dropout = None  # Replace: nn.Dropout(dropout)
         self.d_model = d_model
+        
+        # TODO: Create Q, K, V, O projections, FFN layers, layer norms, dropout
+        # API hints:
+        # - nn.Linear(d_model, d_model) -> Q, K, V, O projections
+        # - nn.Linear(d_model, d_ff) -> FFN expansion
+        # - nn.Linear(d_ff, d_model) -> FFN projection
+        # - RMSNorm(d_model) or nn.LayerNorm(d_model) -> based on use_rms_norm
+        # - nn.Dropout(dropout) -> dropout layer
+        self.W_q = None
+        self.W_k = None
+        self.W_v = None
+        self.W_o = None
+        self.ffn_linear1 = None
+        self.ffn_linear2 = None
+        self.norm1 = None
+        self.norm2 = None
+        self.dropout = None
     
     def forward(self, x, causal_mask=None, kv_cache=None):
         """
@@ -297,28 +284,22 @@ class GPT(nn.Module):
         super().__init__()
         
         self.d_model = d_model
-        
-        # TODO: Token embedding
-        self.token_embedding = None  # Replace: nn.Embedding(vocab_size, d_model)
-        
-        # TODO: Position embedding (learned, not sinusoidal)
-        self.position_embedding = None  # Replace: nn.Embedding(max_len, d_model)
-        
-        self.dropout = None  # Replace: nn.Dropout(dropout)
-        
-        # TODO: GPT blocks
-        self.blocks = None  # Replace: nn.ModuleList([GPTBlock(d_model, num_heads, d_ff, dropout, use_rms_norm) for _ in range(num_layers)])
-        
-        # TODO: Final layer norm
-        if use_rms_norm:
-            self.final_norm = None  # Replace: RMSNorm(d_model)
-        else:
-            self.final_norm = None  # Replace: nn.LayerNorm(d_model)
-        
-        # TODO: Output projection to vocabulary (often tied with token_embedding)
-        self.lm_head = None  # Replace: nn.Linear(d_model, vocab_size, bias=False)
-        
         self.max_len = max_len
+        
+        # TODO: Create embeddings, GPT blocks, final norm, and LM head
+        # API hints:
+        # - nn.Embedding(vocab_size, d_model) -> token embedding
+        # - nn.Embedding(max_len, d_model) -> learned position embedding
+        # - nn.Dropout(dropout) -> dropout layer
+        # - nn.ModuleList([GPTBlock(...) for _ in range(num_layers)]) -> blocks
+        # - RMSNorm(d_model) or nn.LayerNorm(d_model) -> final norm
+        # - nn.Linear(d_model, vocab_size, bias=False) -> LM head
+        self.token_embedding = None
+        self.position_embedding = None
+        self.dropout = None
+        self.blocks = None
+        self.final_norm = None
+        self.lm_head = None
     
     def forward(self, input_ids, use_cache=False, past_kv_cache=None):
         """
@@ -448,19 +429,12 @@ def compute_lm_loss(logits, targets, ignore_index=-100):
     Returns:
         loss: Scalar cross-entropy loss
     """
-    # TODO: Flatten logits and targets
-    # logits: [batch * seq, vocab_size]
-    # targets: [batch * seq]
-    batch_size, seq_len, vocab_size = logits.shape
-    
-    logits_flat = None  # Replace: logits.view(-1, vocab_size)
-    targets_flat = None  # Replace: targets.view(-1)
-    
-    # TODO: Compute cross-entropy loss
-    # HINT: F.cross_entropy(logits_flat, targets_flat, ignore_index=ignore_index)
-    loss = None  # Replace
-    
-    return loss
+    # TODO: Flatten logits and targets, compute cross-entropy loss
+    # API hints:
+    # - logits.view(-1, vocab_size) -> flatten to [batch*seq, vocab_size]
+    # - targets.view(-1) -> flatten to [batch*seq]
+    # - F.cross_entropy(logits_flat, targets_flat, ignore_index=ignore_index) -> loss
+    return None
 
 
 def prepare_lm_batch(token_ids):
@@ -477,13 +451,11 @@ def prepare_lm_batch(token_ids):
         input_ids: [batch, seq-1]
         target_ids: [batch, seq-1]
     """
-    # TODO: Create input (everything except last token)
-    input_ids = None  # Replace: token_ids[:, :-1]
-    
-    # TODO: Create target (everything except first token)
-    target_ids = None  # Replace: token_ids[:, 1:]
-    
-    return input_ids, target_ids
+    # TODO: Create input and target sequences
+    # API hints:
+    # - token_ids[:, :-1] -> all but last token (input)
+    # - token_ids[:, 1:] -> all but first token (target)
+    return None, None
 
 
 # ============================================================================

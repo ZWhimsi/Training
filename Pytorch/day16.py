@@ -47,18 +47,13 @@ def split_heads(x, num_heads):
     Returns:
         [batch, num_heads, seq, d_k] where d_k = d_model // num_heads
     """
-    batch_size, seq_len, d_model = x.shape
-    d_k = d_model // num_heads
-    
-    # TODO: Reshape x to [batch, seq, num_heads, d_k]
-    # HINT: x = x.view(batch_size, seq_len, num_heads, d_k)
-    x = None  # Replace
-    
-    # TODO: Transpose to [batch, num_heads, seq, d_k]
-    # HINT: x = x.transpose(1, 2)
-    x = None  # Replace
-    
-    return x
+    # API hints:
+    # - x.shape -> (batch_size, seq_len, d_model)
+    # - d_k = d_model // num_heads
+    # - x.view(batch_size, seq_len, num_heads, d_k) -> reshape
+    # - x.transpose(1, 2) -> swap seq and num_heads dims
+    # - Result: [batch, num_heads, seq, d_k]
+    return None
 
 
 def merge_heads(x):
@@ -71,17 +66,12 @@ def merge_heads(x):
     Returns:
         [batch, seq, d_model] where d_model = num_heads * d_k
     """
-    batch_size, num_heads, seq_len, d_k = x.shape
-    
-    # TODO: Transpose to [batch, seq, num_heads, d_k]
-    # HINT: x = x.transpose(1, 2)
-    x = None  # Replace
-    
-    # TODO: Reshape to [batch, seq, d_model]
-    # HINT: x = x.contiguous().view(batch_size, seq_len, num_heads * d_k)
-    x = None  # Replace
-    
-    return x
+    # API hints:
+    # - x.shape -> (batch_size, num_heads, seq_len, d_k)
+    # - x.transpose(1, 2) -> swap to [batch, seq, num_heads, d_k]
+    # - x.contiguous() -> ensure memory layout is contiguous
+    # - x.view(batch_size, seq_len, num_heads * d_k) -> reshape to [batch, seq, d_model]
+    return None
 
 
 # ============================================================================
@@ -91,8 +81,7 @@ def merge_heads(x):
 def multi_head_attention_scores(Q, K, V, mask=None):
     """
     Compute attention with multi-head tensors.
-    
-    This is the same as single-head attention but operates on 4D tensors.
+    Same as single-head attention but operates on 4D tensors.
     
     Args:
         Q: [batch, num_heads, seq_q, d_k]
@@ -104,24 +93,14 @@ def multi_head_attention_scores(Q, K, V, mask=None):
         output: [batch, num_heads, seq_q, d_v]
         attention_weights: [batch, num_heads, seq_q, seq_k]
     """
-    d_k = Q.shape[-1]
-    
-    # TODO: Compute attention scores: Q @ K^T / sqrt(d_k)
-    # HINT: scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d_k)
-    scores = None  # Replace
-    
-    # TODO: Apply mask if provided
-    if mask is not None:
-        # HINT: scores = scores.masked_fill(mask == 0, float('-inf'))
-        pass  # Replace
-    
-    # TODO: Apply softmax over last dimension
-    attention_weights = None  # Replace: F.softmax(scores, dim=-1)
-    
-    # TODO: Compute weighted sum with V
-    output = None  # Replace: torch.matmul(attention_weights, V)
-    
-    return output, attention_weights
+    # API hints:
+    # - Q.shape[-1] -> d_k
+    # - torch.matmul(Q, K.transpose(-2, -1)) -> scores (batch, heads, seq_q, seq_k)
+    # - scores / math.sqrt(d_k) -> scale
+    # - scores.masked_fill(mask == 0, float('-inf')) -> apply mask
+    # - F.softmax(scores, dim=-1) -> attention weights
+    # - torch.matmul(attention_weights, V) -> weighted sum
+    return None
 
 
 # ============================================================================
@@ -151,15 +130,14 @@ class MultiHeadAttention(nn.Module):
         self.num_heads = num_heads
         self.d_k = d_model // num_heads
         
-        # TODO: Create linear projections for Q, K, V, and output
-        # Each should be nn.Linear(d_model, d_model)
-        self.W_q = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_k = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_v = None  # Replace: nn.Linear(d_model, d_model)
-        self.W_o = None  # Replace: nn.Linear(d_model, d_model)
-        
-        # TODO: Create dropout layer
-        self.dropout = None  # Replace: nn.Dropout(dropout)
+        # API hints:
+        # - nn.Linear(d_model, d_model) -> for W_q, W_k, W_v, W_o projections
+        # - nn.Dropout(dropout) -> dropout layer
+        self.W_q = None
+        self.W_k = None
+        self.W_v = None
+        self.W_o = None
+        self.dropout = None
     
     def forward(self, query, key, value, mask=None):
         """
@@ -173,33 +151,14 @@ class MultiHeadAttention(nn.Module):
             output: [batch, seq_q, d_model]
             attention_weights: [batch, num_heads, seq_q, seq_k]
         """
-        batch_size = query.shape[0]
-        
-        # TODO: Step 1 - Project inputs to Q, K, V
-        # HINT: Q = self.W_q(query)
-        Q = None  # Replace
-        K = None  # Replace
-        V = None  # Replace
-        
-        # TODO: Step 2 - Split into multiple heads
-        # HINT: Q = split_heads(Q, self.num_heads)
-        Q = None  # Replace
-        K = None  # Replace
-        V = None  # Replace
-        
-        # TODO: Step 3 - Apply attention
-        attn_output, attention_weights = multi_head_attention_scores(Q, K, V, mask)
-        
-        # TODO: Step 4 - Apply dropout to attention output
-        attn_output = None  # Replace: self.dropout(attn_output)
-        
-        # TODO: Step 5 - Merge heads back
-        attn_output = None  # Replace: merge_heads(attn_output)
-        
-        # TODO: Step 6 - Final output projection
-        output = None  # Replace: self.W_o(attn_output)
-        
-        return output, attention_weights
+        # API hints:
+        # Step 1: Project inputs - self.W_q(query), self.W_k(key), self.W_v(value)
+        # Step 2: Split heads - split_heads(Q, self.num_heads)
+        # Step 3: Apply attention - multi_head_attention_scores(Q, K, V, mask)
+        # Step 4: Apply dropout - self.dropout(attn_output)
+        # Step 5: Merge heads - merge_heads(attn_output)
+        # Step 6: Output projection - self.W_o(attn_output)
+        return None
 
 
 # ============================================================================
@@ -214,8 +173,9 @@ class MultiHeadSelfAttention(nn.Module):
     
     def __init__(self, d_model, num_heads, dropout=0.0):
         super().__init__()
-        # TODO: Initialize the MultiHeadAttention module
-        self.attention = None  # Replace: MultiHeadAttention(d_model, num_heads, dropout)
+        # API hints:
+        # - MultiHeadAttention(d_model, num_heads, dropout) -> underlying attention
+        self.attention = None
     
     def forward(self, x, mask=None):
         """
@@ -226,9 +186,9 @@ class MultiHeadSelfAttention(nn.Module):
         Returns:
             output: [batch, seq, d_model]
         """
-        # TODO: Call attention with x as query, key, and value
-        output, weights = None, None  # Replace: self.attention(x, x, x, mask)
-        return output, weights
+        # API hints:
+        # - self.attention(x, x, x, mask) -> Q=K=V=x for self-attention
+        return None
 
 
 # ============================================================================
@@ -257,9 +217,10 @@ class CrossAttention(nn.Module):
         Returns:
             output: [batch, seq_q, d_model]
         """
-        # TODO: Apply attention with separate query and key/value sources
-        output, weights = None, None  # Replace: self.attention(query_seq, kv_seq, kv_seq, mask)
-        return output, weights
+        # API hints:
+        # - self.attention(query_seq, kv_seq, kv_seq, mask)
+        # - Query from decoder, Key/Value from encoder
+        return None
 
 
 # ============================================================================
