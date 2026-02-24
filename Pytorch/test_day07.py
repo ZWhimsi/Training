@@ -70,12 +70,19 @@ def test_adam() -> Tuple[bool, str]:
         
         # Take a step
         loss = w ** 2
-        loss.backward()
+        loss.backward()  # grad = 2.0
         opt.step()
         
-        # Should decrease
-        if w.item() >= 1.0:
-            return False, f"w should decrease, got {w.item()}"
+        # Manually compute expected Adam update:
+        # t=1, grad=2.0
+        # m = 0.9*0 + 0.1*2 = 0.2
+        # v = 0.999*0 + 0.001*4 = 0.004
+        # m_hat = 0.2 / (1 - 0.9) = 2.0
+        # v_hat = 0.004 / (1 - 0.999) = 4.0
+        # w = 1.0 - 0.1 * 2.0 / (sqrt(4.0) + 1e-8) = 1.0 - 0.1 = 0.9
+        expected = 0.9
+        if abs(w.item() - expected) > 1e-5:
+            return False, f"w={w.item():.6f}, expected={expected}"
         
         return True, f"OK (w={w.item():.4f})"
     except Exception as e:

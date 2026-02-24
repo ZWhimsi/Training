@@ -16,13 +16,17 @@ except ImportError as e:
 
 
 def test_rms_norm_shape() -> Tuple[bool, str]:
-    """Test RMSNorm output shape."""
+    """Test RMSNorm output shape and weight initialization."""
     try:
         d_model = 64
         norm = RMSNorm(d_model)
         
         if norm.weight is None:
             return False, "weight not initialized"
+        
+        # Weight should be initialized to ones
+        if not torch.allclose(norm.weight.data, torch.ones(d_model)):
+            return False, "weight should be initialized to ones"
         
         x = torch.randn(2, 8, d_model)
         output = norm(x)
@@ -32,7 +36,7 @@ def test_rms_norm_shape() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, f"RMSNorm shape: {output.shape}"
+        return True, f"RMSNorm weight initialized to ones"
     except Exception as e:
         return False, str(e)
 
@@ -65,25 +69,34 @@ def test_rms_norm_normalization() -> Tuple[bool, str]:
 
 
 def test_gpt_block_shape() -> Tuple[bool, str]:
-    """Test GPTBlock output shape."""
+    """Test GPTBlock output and residual connection."""
     try:
         d_model, num_heads = 64, 4
         batch, seq = 2, 16
         
-        block = GPTBlock(d_model, num_heads)
+        block = GPTBlock(d_model, num_heads, dropout=0.0)
         
         if block.W_q is None:
             return False, "W_q not initialized"
+        if block.ffn_linear1 is None:
+            return False, "ffn_linear1 not initialized"
+        if block.norm1 is None:
+            return False, "norm1 not initialized"
         
         x = torch.randn(batch, seq, d_model)
-        output, _ = block(x)
+        output, kv_cache = block(x)
         
         if output is None:
             return False, "output is None"
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, f"GPTBlock output: {output.shape}"
+        # Verify residual: output should correlate with input
+        correlation = torch.corrcoef(torch.stack([x.flatten(), output.flatten()]))[0, 1]
+        if correlation < 0.1:
+            return False, f"Weak residual connection: corr={correlation:.4f}"
+        
+        return True, f"GPTBlock with residual connection works"
     except Exception as e:
         return False, str(e)
 
@@ -156,7 +169,7 @@ def test_gpt_block_kv_cache() -> Tuple[bool, str]:
 
 
 def test_gpt_model_shape() -> Tuple[bool, str]:
-    """Test GPT model output shape."""
+    """Test GPT model output shape and valid logits."""
     try:
         vocab_size = 1000
         d_model, num_heads, num_layers = 64, 4, 2
@@ -167,6 +180,10 @@ def test_gpt_model_shape() -> Tuple[bool, str]:
             return False, "token_embedding not initialized"
         if model.blocks is None:
             return False, "blocks not initialized"
+        if model.lm_head is None:
+            return False, "lm_head not initialized"
+        if model.position_embedding is None:
+            return False, "position_embedding not initialized"
         
         batch, seq = 2, 16
         input_ids = torch.randint(0, vocab_size, (batch, seq))
@@ -180,7 +197,16 @@ def test_gpt_model_shape() -> Tuple[bool, str]:
         if logits.shape != expected_shape:
             return False, f"Shape {logits.shape} != {expected_shape}"
         
-        return True, f"GPT output: {logits.shape}"
+        # Verify logits are valid for softmax
+        if torch.isnan(logits).any() or torch.isinf(logits).any():
+            return False, "Logits contain NaN or Inf"
+        
+        # Softmax should produce valid probabilities
+        probs = F.softmax(logits, dim=-1)
+        if not torch.allclose(probs.sum(dim=-1), torch.ones(batch, seq), atol=1e-5):
+            return False, "Softmax of logits doesn't sum to 1"
+        
+        return True, f"GPT produces valid logits for {vocab_size} vocab"
     except Exception as e:
         return False, str(e)
 
@@ -249,7 +275,7 @@ def test_gpt_with_cache() -> Tuple[bool, str]:
 
 
 def test_compute_lm_loss() -> Tuple[bool, str]:
-    """Test language modeling loss computation."""
+    """Test language modeling loss computation matches PyTorch reference."""
     try:
         batch, seq, vocab_size = 2, 10, 100
         
@@ -269,11 +295,16 @@ def test_compute_lm_loss() -> Tuple[bool, str]:
         if loss.item() <= 0:
             return False, "Loss should be positive"
         
-        # Check roughly reasonable magnitude
-        if loss.item() > 100:
-            return False, f"Loss suspiciously high: {loss.item()}"
+        # Compare with PyTorch cross_entropy
+        expected_loss = F.cross_entropy(
+            logits.view(-1, vocab_size), 
+            targets.view(-1)
+        )
         
-        return True, f"LM loss: {loss.item():.4f}"
+        if not torch.allclose(loss, expected_loss, atol=1e-5):
+            return False, f"Loss {loss.item():.4f} != expected {expected_loss.item():.4f}"
+        
+        return True, f"LM loss matches F.cross_entropy: {loss.item():.4f}"
     except Exception as e:
         return False, str(e)
 
@@ -358,7 +389,7 @@ def test_gpt2_configs() -> Tuple[bool, str]:
 
 
 def test_gpt_with_rms_norm() -> Tuple[bool, str]:
-    """Test GPT model with RMSNorm."""
+    """Test GPT model with RMSNorm produces valid output."""
     try:
         model = GPT(
             vocab_size=100, 
@@ -371,13 +402,25 @@ def test_gpt_with_rms_norm() -> Tuple[bool, str]:
         if model.token_embedding is None:
             return False, "Model not initialized"
         
+        # Check that RMSNorm is used in blocks
+        if model.blocks is not None and len(model.blocks) > 0:
+            block = model.blocks[0]
+            if block.norm1 is not None:
+                # RMSNorm has 'weight' but no 'bias'
+                if hasattr(block.norm1, 'bias') and block.norm1.bias is not None:
+                    return False, "Expected RMSNorm (no bias), got LayerNorm"
+        
         input_ids = torch.randint(0, 100, (1, 8))
         logits, _ = model(input_ids)
         
         if logits is None:
             return False, "logits is None"
         
-        return True, "GPT with RMSNorm works"
+        # Verify valid output
+        if torch.isnan(logits).any():
+            return False, "NaN in output with RMSNorm"
+        
+        return True, "GPT with RMSNorm produces valid output"
     except Exception as e:
         return False, str(e)
 

@@ -78,7 +78,7 @@ def test_down_projection_init() -> Tuple[bool, str]:
 
 
 def test_down_projection_forward() -> Tuple[bool, str]:
-    """Test DownProjection forward pass."""
+    """Test DownProjection forward pass computes linear projection."""
     try:
         d_model, d_latent = 256, 64
         proj = DownProjection(d_model, d_latent)
@@ -87,6 +87,7 @@ def test_down_projection_forward() -> Tuple[bool, str]:
             return False, "down_proj not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, d_model)
         out = proj(x)
         
@@ -94,7 +95,19 @@ def test_down_projection_forward() -> Tuple[bool, str]:
         if out.shape != expected_shape:
             return False, f"Output shape {out.shape} != {expected_shape}"
         
-        return True, f"Output shape: {out.shape}"
+        # Verify it computes linear projection
+        with torch.no_grad():
+            expected = F.linear(x, proj.down_proj.weight, 
+                               proj.down_proj.bias if proj.down_proj.bias is not None else None)
+        
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, "Output doesn't match expected linear projection"
+        
+        # Verify output is not zeros
+        if out.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        return True, f"Down projection matches x @ W.T, output range=[{out.min():.2f}, {out.max():.2f}]"
     except Exception as e:
         return False, str(e)
 
@@ -114,7 +127,7 @@ def test_up_projection_init() -> Tuple[bool, str]:
 
 
 def test_up_projection_forward() -> Tuple[bool, str]:
-    """Test UpProjection forward pass."""
+    """Test UpProjection forward pass computes linear projection."""
     try:
         d_latent, d_output = 64, 256
         proj = UpProjection(d_latent, d_output)
@@ -123,6 +136,7 @@ def test_up_projection_forward() -> Tuple[bool, str]:
             return False, "up_proj not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         c = torch.randn(batch, seq, d_latent)
         out = proj(c)
         
@@ -130,7 +144,19 @@ def test_up_projection_forward() -> Tuple[bool, str]:
         if out.shape != expected_shape:
             return False, f"Output shape {out.shape} != {expected_shape}"
         
-        return True, f"Output shape: {out.shape}"
+        # Verify it computes linear projection
+        with torch.no_grad():
+            expected = F.linear(c, proj.up_proj.weight,
+                               proj.up_proj.bias if proj.up_proj.bias is not None else None)
+        
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, "Output doesn't match expected linear projection"
+        
+        # Verify output is not zeros
+        if out.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        return True, f"Up projection matches c @ W.T, output range=[{out.min():.2f}, {out.max():.2f}]"
     except Exception as e:
         return False, str(e)
 
@@ -154,7 +180,7 @@ def test_low_rank_kv_projection_init() -> Tuple[bool, str]:
 
 
 def test_low_rank_kv_compress() -> Tuple[bool, str]:
-    """Test KV compression."""
+    """Test KV compression computes correct linear transformation."""
     try:
         d_model, d_latent, num_heads, head_dim = 256, 64, 8, 32
         proj = LowRankKVProjection(d_model, d_latent, num_heads, head_dim)
@@ -163,6 +189,7 @@ def test_low_rank_kv_compress() -> Tuple[bool, str]:
             return False, "Projection not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, d_model)
         c = proj.compress(x)
         
@@ -170,7 +197,22 @@ def test_low_rank_kv_compress() -> Tuple[bool, str]:
         if c.shape != expected_shape:
             return False, f"Compressed shape {c.shape} != {expected_shape}"
         
-        return True, f"Compressed shape: {c.shape}"
+        # Verify compression is linear projection
+        with torch.no_grad():
+            expected = F.linear(x, proj.down_proj.weight,
+                               proj.down_proj.bias if proj.down_proj.bias is not None else None)
+        
+        if not torch.allclose(c, expected, atol=1e-5):
+            return False, "Compressed output doesn't match linear projection"
+        
+        # Verify compression actually reduces dimension
+        input_size = x.numel()
+        compressed_size = c.numel()
+        compression_ratio = input_size / compressed_size
+        if compression_ratio < 1.5:
+            return False, f"Compression ratio {compression_ratio:.2f} too low"
+        
+        return True, f"Compression ratio: {compression_ratio:.1f}x"
     except Exception as e:
         return False, str(e)
 
@@ -262,7 +304,7 @@ def test_basic_mla_attention_init() -> Tuple[bool, str]:
 
 
 def test_basic_mla_attention_forward() -> Tuple[bool, str]:
-    """Test BasicMLAAttention forward pass."""
+    """Test BasicMLAAttention forward pass produces valid attention."""
     try:
         d_model, d_latent, num_heads, head_dim = 256, 64, 8, 32
         attn = BasicMLAAttention(d_model, d_latent, num_heads, head_dim)
@@ -271,6 +313,7 @@ def test_basic_mla_attention_forward() -> Tuple[bool, str]:
             return False, "Attention not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, d_model)
         output, weights, _ = attn(x)
         
@@ -281,7 +324,23 @@ def test_basic_mla_attention_forward() -> Tuple[bool, str]:
         if weights.shape != expected_weights_shape:
             return False, f"Weights shape wrong"
         
-        return True, f"Output shape: {output.shape}"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify attention weights are valid probabilities
+        if (weights < 0).any():
+            return False, "Attention weights have negative values"
+        
+        attn_sums = weights.sum(dim=-1)
+        if not torch.allclose(attn_sums, torch.ones_like(attn_sums), atol=1e-4):
+            return False, "Attention weights don't sum to 1"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        return True, f"MLA attention works, output std={output.std():.4f}"
     except Exception as e:
         return False, str(e)
 

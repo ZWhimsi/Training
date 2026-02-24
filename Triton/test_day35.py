@@ -67,21 +67,40 @@ def test_backward_runs() -> Tuple[bool, str]:
         return False, "CUDA required"
     try:
         batch, n_heads, seq_len, head_dim = 1, 4, 64, 32
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda', requires_grad=True)
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda', requires_grad=True)
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda', requires_grad=True)
+        Q1 = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda', requires_grad=True)
+        K1 = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda', requires_grad=True)
+        V1 = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda', requires_grad=True)
         
-        output = flash_attention(Q, K, V)
-        loss = output.sum()
-        loss.backward()
+        dO = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
         
-        if Q.grad is None or K.grad is None or V.grad is None:
+        output = flash_attention(Q1, K1, V1)
+        output.backward(dO)
+        
+        if Q1.grad is None or K1.grad is None or V1.grad is None:
             return False, "Gradients not computed"
         
-        if torch.isnan(Q.grad).any() or torch.isnan(K.grad).any() or torch.isnan(V.grad).any():
+        if torch.isnan(Q1.grad).any() or torch.isnan(K1.grad).any() or torch.isnan(V1.grad).any():
             return False, "NaN in gradients"
         
-        return True, "backward runs OK"
+        Q2 = Q1.detach().clone().requires_grad_(True)
+        K2 = K1.detach().clone().requires_grad_(True)
+        V2 = V1.detach().clone().requires_grad_(True)
+        
+        ref_out = standard_attention(Q2, K2, V2)
+        ref_out.backward(dO)
+        
+        dq_err = (Q1.grad - Q2.grad).abs().max().item()
+        dk_err = (K1.grad - K2.grad).abs().max().item()
+        dv_err = (V1.grad - V2.grad).abs().max().item()
+        
+        if not torch.allclose(Q1.grad, Q2.grad, atol=0.1, rtol=0.1):
+            return False, f"dQ mismatch: {dq_err:.4f}"
+        if not torch.allclose(K1.grad, K2.grad, atol=0.1, rtol=0.1):
+            return False, f"dK mismatch: {dk_err:.4f}"
+        if not torch.allclose(V1.grad, V2.grad, atol=0.1, rtol=0.1):
+            return False, f"dV mismatch: {dv_err:.4f}"
+        
+        return True, f"backward OK (dQ={dq_err:.4f}, dK={dk_err:.4f}, dV={dv_err:.4f})"
     except Exception as e:
         return False, str(e)
 

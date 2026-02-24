@@ -48,7 +48,7 @@ def test_mla_config() -> Tuple[bool, str]:
 
 
 def test_kv_cache_init() -> Tuple[bool, str]:
-    """Test MLAKVCache initialization."""
+    """Test MLAKVCache initialization with zeros."""
     try:
         config = get_test_config()
         batch = 2
@@ -67,13 +67,23 @@ def test_kv_cache_init() -> Tuple[bool, str]:
         if cache.k_rope.shape != (batch, max_len, config.num_heads, config.rope_dim):
             return False, "k_rope shape wrong"
         
-        return True, "Cache initialized correctly"
+        # Verify cache is initialized with zeros
+        if cache.c_kv.abs().sum() != 0:
+            return False, "c_kv should be initialized with zeros"
+        if cache.k_rope.abs().sum() != 0:
+            return False, "k_rope should be initialized with zeros"
+        
+        # Verify seq_len starts at 0
+        if cache.seq_len != 0:
+            return False, f"seq_len should be 0, got {cache.seq_len}"
+        
+        return True, "Cache initialized with zeros, seq_len=0"
     except Exception as e:
         return False, str(e)
 
 
 def test_kv_cache_update() -> Tuple[bool, str]:
-    """Test MLAKVCache update."""
+    """Test MLAKVCache update stores values correctly."""
     try:
         config = get_test_config()
         batch, max_len = 2, 64
@@ -86,6 +96,7 @@ def test_kv_cache_update() -> Tuple[bool, str]:
         
         # Add some values
         seq_len = 8
+        torch.manual_seed(42)
         c_kv = torch.randn(batch, seq_len, config.d_kv_latent)
         k_rope = torch.randn(batch, seq_len, config.num_heads, config.rope_dim)
         
@@ -94,18 +105,31 @@ def test_kv_cache_update() -> Tuple[bool, str]:
         if new_len != seq_len:
             return False, f"New length {new_len} != {seq_len}"
         
+        # Verify values were stored correctly
+        if not torch.allclose(cache.c_kv[:, :seq_len], c_kv):
+            return False, "c_kv values not stored correctly"
+        if not torch.allclose(cache.k_rope[:, :seq_len], k_rope):
+            return False, "k_rope values not stored correctly"
+        
         # Add more
-        new_len = cache.update(c_kv, k_rope)
+        c_kv2 = torch.randn(batch, seq_len, config.d_kv_latent)
+        k_rope2 = torch.randn(batch, seq_len, config.num_heads, config.rope_dim)
+        new_len = cache.update(c_kv2, k_rope2)
+        
         if new_len != 2 * seq_len:
             return False, f"New length {new_len} != {2 * seq_len}"
         
-        return True, f"Cache updated to length {new_len}"
+        # Verify second update stored correctly (appended)
+        if not torch.allclose(cache.c_kv[:, seq_len:2*seq_len], c_kv2):
+            return False, "Second c_kv values not appended correctly"
+        
+        return True, f"Cache updated correctly to length {new_len}"
     except Exception as e:
         return False, str(e)
 
 
 def test_kv_cache_get() -> Tuple[bool, str]:
-    """Test MLAKVCache retrieval."""
+    """Test MLAKVCache retrieval returns correct values."""
     try:
         config = get_test_config()
         batch, max_len = 2, 64
@@ -117,6 +141,7 @@ def test_kv_cache_get() -> Tuple[bool, str]:
             return False, "Cache not initialized"
         
         seq_len = 8
+        torch.manual_seed(42)
         c_kv = torch.randn(batch, seq_len, config.d_kv_latent)
         k_rope = torch.randn(batch, seq_len, config.num_heads, config.rope_dim)
         cache.update(c_kv, k_rope)
@@ -129,7 +154,13 @@ def test_kv_cache_get() -> Tuple[bool, str]:
         if cached_c.shape != (batch, seq_len, config.d_kv_latent):
             return False, f"Retrieved c_kv shape wrong: {cached_c.shape}"
         
-        return True, "Cache retrieval works"
+        # Verify retrieved values match what was stored
+        if not torch.allclose(cached_c, c_kv):
+            return False, "Retrieved c_kv values don't match stored values"
+        if not torch.allclose(cached_k, k_rope):
+            return False, "Retrieved k_rope values don't match stored values"
+        
+        return True, f"Cache retrieval returns correct values"
     except Exception as e:
         return False, str(e)
 
@@ -207,7 +238,7 @@ def test_mla_attention_compute_kv() -> Tuple[bool, str]:
 
 
 def test_mla_attention_forward() -> Tuple[bool, str]:
-    """Test MLA forward pass."""
+    """Test MLA forward pass produces valid attention."""
     try:
         config = get_test_config()
         mla = MultiheadLatentAttention(config)
@@ -216,6 +247,7 @@ def test_mla_attention_forward() -> Tuple[bool, str]:
             return False, "MLA not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, config.d_model)
         
         output, attn = mla(x)
@@ -227,7 +259,23 @@ def test_mla_attention_forward() -> Tuple[bool, str]:
         if attn.shape != expected_attn_shape:
             return False, f"Attention shape wrong"
         
-        return True, f"Forward pass works"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify attention weights are valid
+        if (attn < 0).any():
+            return False, "Attention weights have negative values"
+        
+        attn_sums = attn.sum(dim=-1)
+        if not torch.allclose(attn_sums, torch.ones_like(attn_sums), atol=1e-4):
+            return False, "Attention weights don't sum to 1"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        return True, f"MLA forward works, output std={output.std():.4f}"
     except Exception as e:
         return False, str(e)
 
@@ -294,7 +342,7 @@ def test_mla_transformer_block_init() -> Tuple[bool, str]:
 
 
 def test_mla_transformer_block_forward() -> Tuple[bool, str]:
-    """Test MLATransformerBlock forward."""
+    """Test MLATransformerBlock forward with residual verification."""
     try:
         config = get_test_config()
         block = MLATransformerBlock(config)
@@ -303,6 +351,7 @@ def test_mla_transformer_block_forward() -> Tuple[bool, str]:
             return False, "Block not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, config.d_model)
         
         output, attn = block(x)
@@ -310,7 +359,20 @@ def test_mla_transformer_block_forward() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Output shape {output.shape} != {x.shape}"
         
-        return True, f"Block forward works"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify residual connection is working (output correlates with input)
+        correlation = F.cosine_similarity(output.flatten(), x.flatten(), dim=0)
+        if correlation < 0.1:
+            return False, f"Residual connection may not work: correlation={correlation:.3f}"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        return True, f"Block forward works, residual correlation={correlation:.3f}"
     except Exception as e:
         return False, str(e)
 
@@ -334,7 +396,7 @@ def test_mla_model_init() -> Tuple[bool, str]:
 
 
 def test_mla_model_forward() -> Tuple[bool, str]:
-    """Test MLAModel forward."""
+    """Test MLAModel forward through multiple layers."""
     try:
         config = get_test_config()
         model = MLAModel(config, num_layers=2)
@@ -343,6 +405,7 @@ def test_mla_model_forward() -> Tuple[bool, str]:
             return False, "Model not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, config.d_model)
         
         output, attn_weights = model(x)
@@ -350,13 +413,30 @@ def test_mla_model_forward() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Output shape wrong"
         
-        return True, f"Model forward works"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify attention weights from all layers
+        if len(attn_weights) != 2:
+            return False, f"Expected attention weights from 2 layers, got {len(attn_weights)}"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        # Verify final norm was applied (output should be normalized)
+        output_rms = output.pow(2).mean(dim=-1).sqrt().mean()
+        if output_rms > 10:
+            return False, f"Output may not be normalized, RMS={output_rms:.2f}"
+        
+        return True, f"Model forward works through 2 layers, output RMS={output_rms:.2f}"
     except Exception as e:
         return False, str(e)
 
 
 def test_generation() -> Tuple[bool, str]:
-    """Test generation with MLA."""
+    """Test generation with MLA produces valid sequence."""
     try:
         config = get_test_config()
         model = MLAModel(config, num_layers=2)
@@ -368,6 +448,7 @@ def test_generation() -> Tuple[bool, str]:
         prompt_len = 8
         max_new = 4
         
+        torch.manual_seed(42)
         prompt = torch.randn(batch, prompt_len, config.d_model)
         
         all_hidden, caches = generate_with_mla(model, prompt, max_new_tokens=max_new)
@@ -376,26 +457,58 @@ def test_generation() -> Tuple[bool, str]:
         if all_hidden.shape[1] != expected_len:
             return False, f"Generated length {all_hidden.shape[1]} != {expected_len}"
         
-        return True, f"Generated {max_new} new tokens"
+        # Verify hidden states are not zeros
+        if all_hidden.abs().sum() == 0:
+            return False, "Generated hidden states are all zeros"
+        
+        # Verify caches were populated
+        if len(caches) != 2:  # 2 layers
+            return False, f"Expected caches for 2 layers, got {len(caches)}"
+        
+        for layer_idx, cache in caches.items():
+            if cache.seq_len != expected_len:
+                return False, f"Layer {layer_idx} cache length {cache.seq_len} != {expected_len}"
+        
+        # Verify output has reasonable values
+        if torch.isnan(all_hidden).any() or torch.isinf(all_hidden).any():
+            return False, "Generated hidden states contain NaN or Inf"
+        
+        return True, f"Generated {max_new} tokens with caching, total length={expected_len}"
     except Exception as e:
         return False, str(e)
 
 
 def test_memory_comparison() -> Tuple[bool, str]:
-    """Test memory comparison calculation."""
+    """Test memory comparison calculation with expected formula."""
     try:
         config = get_test_config()
+        seq_len = 1024
+        num_layers = 8
         
-        mem = compare_memory_usage(config, seq_len=1024, num_layers=8)
+        mem = compare_memory_usage(config, seq_len=seq_len, num_layers=num_layers)
         
         if mem['memory_reduction'] == 0:
             return False, "Memory comparison not computed"
+        
+        # Verify the calculation formula
+        # Standard: 2 * num_heads * head_dim per layer per token (K and V)
+        # MLA: d_kv_latent + num_heads * rope_dim per layer per token
+        d_kv = config.num_heads * config.head_dim
+        std_per_token = 2 * d_kv
+        mla_per_token = config.d_kv_latent + config.num_heads * config.rope_dim
+        
+        expected_reduction = std_per_token / mla_per_token
         
         # MLA should use less memory
         if mem['memory_reduction'] < 1.5:
             return False, f"Expected >1.5x reduction, got {mem['memory_reduction']:.2f}x"
         
-        return True, f"Memory reduction: {mem['memory_reduction']:.1f}x"
+        # Verify standard cache elements
+        expected_std_elements = num_layers * seq_len * std_per_token
+        if mem['standard_cache_elements'] != expected_std_elements:
+            return False, f"Standard elements {mem['standard_cache_elements']} != {expected_std_elements}"
+        
+        return True, f"Memory reduction: {mem['memory_reduction']:.1f}x (expected ~{expected_reduction:.1f}x)"
     except Exception as e:
         return False, str(e)
 

@@ -71,12 +71,13 @@ def test_token_embedding_forward() -> Tuple[bool, str]:
     """Test token embedding forward pass."""
     try:
         config = get_test_config()
-        embed = TokenEmbedding(config.vocab_size, config.d_model)
+        embed = TokenEmbedding(config.vocab_size, config.d_model, scale=True)
         
         if embed.embedding is None:
             return False, "Embedding not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         ids = torch.randint(0, config.vocab_size, (batch, seq_len))
         
         out = embed(ids)
@@ -85,7 +86,15 @@ def test_token_embedding_forward() -> Tuple[bool, str]:
         if out.shape != expected:
             return False, f"Output shape {out.shape} != {expected}"
         
-        return True, f"Embedding output: {out.shape}"
+        # Verify scaling: output should be embedding * sqrt(d_model)
+        import math
+        raw_embed = embed.embedding(ids)
+        expected_out = raw_embed * math.sqrt(config.d_model)
+        
+        if not torch.allclose(out, expected_out, atol=1e-5):
+            return False, "Embedding not scaled by sqrt(d_model)"
+        
+        return True, f"Embedding verified with scaling"
     except Exception as e:
         return False, str(e)
 
@@ -127,7 +136,8 @@ def test_rope_init() -> Tuple[bool, str]:
     try:
         dim = 32
         max_len = 128
-        rope = RotaryEmbedding(dim, max_len)
+        base = 10000.0
+        rope = RotaryEmbedding(dim, max_len, base)
         
         cos, sin = rope.get_cos_sin(16)
         
@@ -136,7 +146,18 @@ def test_rope_init() -> Tuple[bool, str]:
         if sin.shape != (16, dim // 2):
             return False, f"sin shape {sin.shape} != (16, {dim // 2})"
         
-        return True, f"RoPE initialized: cos/sin shape {cos.shape}"
+        # Verify cos² + sin² = 1
+        sum_sq = cos ** 2 + sin ** 2
+        if not torch.allclose(sum_sq, torch.ones_like(sum_sq), atol=1e-5):
+            return False, "cos² + sin² should equal 1"
+        
+        # Verify position 0: cos=1, sin=0 for all frequencies
+        if not torch.allclose(cos[0], torch.ones(dim // 2), atol=1e-5):
+            return False, "cos(0) should be 1 for all frequencies"
+        if not torch.allclose(sin[0], torch.zeros(dim // 2), atol=1e-5):
+            return False, "sin(0) should be 0 for all frequencies"
+        
+        return True, f"RoPE verified: cos²+sin²=1, position 0 correct"
     except Exception as e:
         return False, str(e)
 
@@ -174,6 +195,7 @@ def test_apply_rotary_emb() -> Tuple[bool, str]:
     try:
         batch, heads, seq_len, head_dim = 2, 4, 16, 32
         
+        torch.manual_seed(42)
         q = torch.randn(batch, heads, seq_len, head_dim)
         k = torch.randn(batch, heads // 2, seq_len, head_dim)
         
@@ -191,7 +213,18 @@ def test_apply_rotary_emb() -> Tuple[bool, str]:
         if torch.allclose(q, q_rot):
             return False, "RoPE didn't modify Q"
         
-        return True, "RoPE applied successfully"
+        # RoPE is a rotation, so it should preserve vector norms
+        q_norm = q.norm(dim=-1)
+        q_rot_norm = q_rot.norm(dim=-1)
+        if not torch.allclose(q_norm, q_rot_norm, atol=1e-4):
+            return False, "RoPE should preserve Q vector norms"
+        
+        k_norm = k.norm(dim=-1)
+        k_rot_norm = k_rot.norm(dim=-1)
+        if not torch.allclose(k_norm, k_rot_norm, atol=1e-4):
+            return False, "RoPE should preserve K vector norms"
+        
+        return True, "RoPE verified with norm preservation"
     except Exception as e:
         return False, str(e)
 
@@ -228,6 +261,7 @@ def test_mla_forward() -> Tuple[bool, str]:
             return False, "MLA not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, config.d_model)
         
         rope = RotaryEmbedding(config.head_dim, config.max_seq_len)
@@ -238,7 +272,25 @@ def test_mla_forward() -> Tuple[bool, str]:
         if out.shape != x.shape:
             return False, f"Output shape {out.shape} != {x.shape}"
         
-        return True, f"MLA forward: {out.shape}"
+        # Verify output is different from input
+        if torch.allclose(out, x, atol=1e-3):
+            return False, "MLA output too similar to input"
+        
+        # Verify KV compression is being used
+        latent = mla.W_kv_compress(x)
+        if latent.shape[-1] != config.latent_dim:
+            return False, f"KV compression not using latent_dim={config.latent_dim}"
+        
+        # Verify cache is returned
+        if cache is None:
+            return False, "Cache should be returned"
+        
+        k_cache, v_cache = cache
+        expected_cache_shape = (batch, config.num_kv_heads, seq_len, config.head_dim)
+        if k_cache.shape != expected_cache_shape:
+            return False, f"K cache shape {k_cache.shape} != {expected_cache_shape}"
+        
+        return True, f"MLA verified with KV compression"
     except Exception as e:
         return False, str(e)
 
@@ -253,6 +305,7 @@ def test_mla_kv_cache() -> Tuple[bool, str]:
             return False, "MLA not initialized"
         
         batch = 2
+        torch.manual_seed(42)
         rope = RotaryEmbedding(config.head_dim, config.max_seq_len)
         
         # Prefill
@@ -281,7 +334,13 @@ def test_mla_kv_cache() -> Tuple[bool, str]:
         if new_k.shape[2] != prompt_len + 1:
             return False, f"Cache not extended: {new_k.shape[2]}"
         
-        return True, "MLA caching works"
+        # Verify cached portion is preserved
+        if not torch.allclose(new_k[:, :, :prompt_len, :], k_cache, atol=1e-5):
+            return False, "K cache not preserved during extension"
+        if not torch.allclose(new_v[:, :, :prompt_len, :], v_cache, atol=1e-5):
+            return False, "V cache not preserved during extension"
+        
+        return True, "MLA caching verified with value preservation"
     except Exception as e:
         return False, str(e)
 
@@ -316,6 +375,7 @@ def test_deepseek_block_forward() -> Tuple[bool, str]:
             return False, "Block not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, config.d_model)
         
         rope = RotaryEmbedding(config.head_dim, config.max_seq_len)
@@ -326,7 +386,20 @@ def test_deepseek_block_forward() -> Tuple[bool, str]:
         if out.shape != x.shape:
             return False, f"Output shape {out.shape} != {x.shape}"
         
-        return True, f"Block output: {out.shape}"
+        # Verify block transforms input
+        if torch.allclose(out, x, atol=1e-3):
+            return False, "Block output too similar to input"
+        
+        # Verify cache is returned
+        if cache is None:
+            return False, "Block should return KV cache"
+        
+        k_cache, v_cache = cache
+        expected_cache_shape = (batch, config.num_kv_heads, seq_len, config.head_dim)
+        if k_cache.shape != expected_cache_shape:
+            return False, f"Cache shape {k_cache.shape} != {expected_cache_shape}"
+        
+        return True, f"Block verified with cache"
     except Exception as e:
         return False, str(e)
 
@@ -364,6 +437,7 @@ def test_model_forward() -> Tuple[bool, str]:
             return False, "Model not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         input_ids = torch.randint(0, config.vocab_size, (batch, seq_len))
         
         logits, caches = model(input_ids)
@@ -375,7 +449,21 @@ def test_model_forward() -> Tuple[bool, str]:
         if len(caches) != config.num_layers:
             return False, f"Cache count {len(caches)} != {config.num_layers}"
         
-        return True, f"Model output: {logits.shape}"
+        # Verify logits are reasonable (not all zeros, not all same)
+        if logits.abs().sum() == 0:
+            return False, "Logits are all zeros"
+        
+        logits_std = logits.std()
+        if logits_std < 1e-6:
+            return False, "Logits have no variance"
+        
+        # Verify softmax produces valid probabilities
+        probs = F.softmax(logits, dim=-1)
+        prob_sums = probs.sum(dim=-1)
+        if not torch.allclose(prob_sums, torch.ones_like(prob_sums), atol=1e-5):
+            return False, "Softmax of logits doesn't sum to 1"
+        
+        return True, f"Model verified with valid logits"
     except Exception as e:
         return False, str(e)
 
@@ -390,6 +478,7 @@ def test_model_with_cache() -> Tuple[bool, str]:
             return False, "Model not initialized"
         
         batch = 2
+        torch.manual_seed(42)
         
         # Prefill
         prompt_len = 8
@@ -408,7 +497,19 @@ def test_model_with_cache() -> Tuple[bool, str]:
         if logits2.shape != (batch, 1, config.vocab_size):
             return False, f"Decode logits shape wrong: {logits2.shape}"
         
-        return True, "Cached generation works"
+        # Verify cache is extended
+        for i, (old_cache, new_cache) in enumerate(zip(caches, new_caches)):
+            old_k, old_v = old_cache
+            new_k, new_v = new_cache
+            
+            if new_k.shape[2] != prompt_len + 1:
+                return False, f"Layer {i} cache not extended"
+            
+            # Old cache should be preserved in new cache
+            if not torch.allclose(new_k[:, :, :prompt_len, :], old_k, atol=1e-5):
+                return False, f"Layer {i} K cache not preserved"
+        
+        return True, "Cached generation verified with cache extension"
     except Exception as e:
         return False, str(e)
 
@@ -502,7 +603,16 @@ def test_7b_config() -> Tuple[bool, str]:
         if config.num_layers < 20:
             return False, "7B config too few layers"
         
-        return True, f"7B config: {config.d_model}d, {config.num_layers}L"
+        # Verify head_dim is reasonable
+        if config.head_dim < 64:
+            return False, f"Head dim too small: {config.head_dim}"
+        
+        # Verify KV compression (latent_dim < full KV size)
+        full_kv_size = config.num_kv_heads * config.head_dim
+        if config.latent_dim >= full_kv_size:
+            return False, "7B config should use KV compression"
+        
+        return True, f"7B config: {config.d_model}d, {config.num_layers}L, KV compression {full_kv_size}->{config.latent_dim}"
     except Exception as e:
         return False, str(e)
 

@@ -50,6 +50,7 @@ def test_maxpool_forward_basic() -> Tuple[bool, str]:
 def test_maxpool_forward_shape() -> Tuple[bool, str]:
     """Test max pooling output shape."""
     try:
+        np.random.seed(42)
         x = np.random.randn(4, 8, 16, 16)
         result = maxpool2d_forward(x, kernel_size=2, stride=2)
         
@@ -61,6 +62,13 @@ def test_maxpool_forward_shape() -> Tuple[bool, str]:
         if out.shape != (4, 8, 8, 8):
             return False, f"shape {out.shape}, expected (4, 8, 8, 8)"
         
+        # Verify max pooling property: output should be >= all values in window
+        # Check a specific window
+        window = x[0, 0, 0:2, 0:2]
+        expected_max = np.max(window)
+        if not np.isclose(out[0, 0, 0, 0], expected_max):
+            return False, f"output {out[0,0,0,0]} != max {expected_max}"
+        
         return True, "Output shape correct"
     except Exception as e:
         return False, str(e)
@@ -69,7 +77,8 @@ def test_maxpool_forward_shape() -> Tuple[bool, str]:
 def test_maxpool_stride() -> Tuple[bool, str]:
     """Test max pooling with different stride."""
     try:
-        x = np.random.randn(1, 1, 6, 6)
+        np.random.seed(42)
+        x = np.arange(36).reshape(1, 1, 6, 6).astype(np.float64)
         result = maxpool2d_forward(x, kernel_size=2, stride=1)
         
         if result is None:
@@ -79,6 +88,14 @@ def test_maxpool_stride() -> Tuple[bool, str]:
         
         if out.shape != (1, 1, 5, 5):
             return False, f"shape {out.shape}, expected (1, 1, 5, 5)"
+        
+        # Verify values: with stride=1, windows overlap
+        # First window [0,1,6,7] -> max=7
+        if not np.isclose(out[0, 0, 0, 0], 7.0):
+            return False, f"position (0,0) = {out[0,0,0,0]}, expected 7"
+        # Window at (0,1) is [1,2,7,8] -> max=8
+        if not np.isclose(out[0, 0, 0, 1], 8.0):
+            return False, f"position (0,1) = {out[0,0,0,1]}, expected 8"
         
         return True, "Stride works correctly"
     except Exception as e:
@@ -115,6 +132,7 @@ def test_maxpool_backward_gradient() -> Tuple[bool, str]:
 def test_maxpool_backward_shape() -> Tuple[bool, str]:
     """Test max pooling backward output shape."""
     try:
+        np.random.seed(42)
         x = np.random.randn(2, 4, 8, 8)
         result = maxpool2d_forward(x, kernel_size=2, stride=2)
         
@@ -131,6 +149,12 @@ def test_maxpool_backward_shape() -> Tuple[bool, str]:
         
         if dx.shape != x.shape:
             return False, f"shape {dx.shape}, expected {x.shape}"
+        
+        # Verify sparsity: only max positions should have non-zero gradients
+        non_zero_count = np.sum(dx != 0)
+        expected_count = out.size  # One gradient per output position
+        if non_zero_count != expected_count:
+            return False, f"non-zero count {non_zero_count}, expected {expected_count}"
         
         return True, "Backward shape correct"
     except Exception as e:
@@ -152,11 +176,22 @@ def test_maxpool2d_module() -> Tuple[bool, str]:
         if y.shape != (2, 3, 4, 4):
             return False, f"shape {y.shape}"
         
+        # Verify max pooling values
+        window = x.data[0, 0, 0:2, 0:2]
+        expected_max = np.max(window)
+        if not np.isclose(y.data[0, 0, 0, 0], expected_max):
+            return False, f"max value mismatch: {y.data[0,0,0,0]} vs {expected_max}"
+        
         loss = y.sum()
         loss.backward()
         
         if x.grad.shape != x.shape:
             return False, "gradient shape mismatch"
+        
+        # Verify gradient sparsity for max pooling
+        non_zero_grads = np.sum(x.grad != 0)
+        if non_zero_grads != y.data.size:
+            return False, f"gradient sparsity: {non_zero_grads} non-zero, expected {y.data.size}"
         
         return True, "MaxPool2d module works"
     except Exception as e:
@@ -189,6 +224,7 @@ def test_avgpool_forward_basic() -> Tuple[bool, str]:
 def test_avgpool_forward_shape() -> Tuple[bool, str]:
     """Test average pooling output shape."""
     try:
+        np.random.seed(42)
         x = np.random.randn(4, 8, 16, 16)
         out = avgpool2d_forward(x, kernel_size=2, stride=2)
         
@@ -197,6 +233,12 @@ def test_avgpool_forward_shape() -> Tuple[bool, str]:
         
         if out.shape != (4, 8, 8, 8):
             return False, f"shape {out.shape}, expected (4, 8, 8, 8)"
+        
+        # Verify average pooling value
+        window = x[0, 0, 0:2, 0:2]
+        expected_avg = np.mean(window)
+        if not np.isclose(out[0, 0, 0, 0], expected_avg):
+            return False, f"output {out[0,0,0,0]} != mean {expected_avg}"
         
         return True, "Output shape correct"
     except Exception as e:
@@ -226,7 +268,7 @@ def test_avgpool_backward_shape() -> Tuple[bool, str]:
     """Test average pooling backward output shape."""
     try:
         x_shape = (2, 4, 8, 8)
-        dy = np.random.randn(2, 4, 4, 4)
+        dy = np.ones((2, 4, 4, 4))  # Use ones for predictable gradient
         
         dx = avgpool2d_backward(dy, x_shape, kernel_size=2, stride=2)
         
@@ -235,6 +277,11 @@ def test_avgpool_backward_shape() -> Tuple[bool, str]:
         
         if dx.shape != x_shape:
             return False, f"shape {dx.shape}, expected {x_shape}"
+        
+        # With ones gradient and 2x2 pool, each input should get 1/4 = 0.25
+        expected_grad = 0.25
+        if not np.allclose(dx, expected_grad):
+            return False, f"gradient {dx[0,0,0,0]}, expected {expected_grad}"
         
         return True, "Backward shape correct"
     except Exception as e:
@@ -256,11 +303,22 @@ def test_avgpool2d_module() -> Tuple[bool, str]:
         if y.shape != (2, 3, 4, 4):
             return False, f"shape {y.shape}"
         
+        # Verify average pooling value
+        window = x.data[0, 0, 0:2, 0:2]
+        expected_avg = np.mean(window)
+        if not np.isclose(y.data[0, 0, 0, 0], expected_avg):
+            return False, f"avg mismatch: {y.data[0,0,0,0]} vs {expected_avg}"
+        
         loss = y.sum()
         loss.backward()
         
         if x.grad.shape != x.shape:
             return False, "gradient shape mismatch"
+        
+        # For sum loss with avg pooling, gradient = 1 / pool_size = 0.25
+        expected_grad = 0.25
+        if not np.allclose(x.grad, expected_grad):
+            return False, f"gradient {x.grad[0,0,0,0]}, expected {expected_grad}"
         
         return True, "AvgPool2d module works"
     except Exception as e:
@@ -270,6 +328,7 @@ def test_avgpool2d_module() -> Tuple[bool, str]:
 def test_global_avgpool_flatten() -> Tuple[bool, str]:
     """Test GlobalAvgPool2d with flatten=True."""
     try:
+        np.random.seed(42)
         gap = GlobalAvgPool2d(flatten=True)
         x = Tensor(np.random.randn(2, 16, 4, 4))
         y = gap(x)
@@ -280,6 +339,11 @@ def test_global_avgpool_flatten() -> Tuple[bool, str]:
         if y.shape != (2, 16):
             return False, f"shape {y.shape}, expected (2, 16)"
         
+        # Verify global average values
+        expected = np.mean(x.data, axis=(2, 3))
+        if not np.allclose(y.data, expected):
+            return False, f"values mismatch, diff: {np.max(np.abs(y.data - expected))}"
+        
         return True, "GlobalAvgPool flatten works"
     except Exception as e:
         return False, str(e)
@@ -288,6 +352,7 @@ def test_global_avgpool_flatten() -> Tuple[bool, str]:
 def test_global_avgpool_no_flatten() -> Tuple[bool, str]:
     """Test GlobalAvgPool2d with flatten=False."""
     try:
+        np.random.seed(42)
         gap = GlobalAvgPool2d(flatten=False)
         x = Tensor(np.random.randn(2, 16, 4, 4))
         y = gap(x)
@@ -297,6 +362,11 @@ def test_global_avgpool_no_flatten() -> Tuple[bool, str]:
         
         if y.shape != (2, 16, 1, 1):
             return False, f"shape {y.shape}, expected (2, 16, 1, 1)"
+        
+        # Verify global average values
+        expected = np.mean(x.data, axis=(2, 3), keepdims=True)
+        if not np.allclose(y.data, expected):
+            return False, f"values mismatch, diff: {np.max(np.abs(y.data - expected))}"
         
         return True, "GlobalAvgPool no flatten works"
     except Exception as e:
@@ -351,6 +421,7 @@ def test_global_avgpool_backward() -> Tuple[bool, str]:
 def test_adaptive_avgpool_shape() -> Tuple[bool, str]:
     """Test AdaptiveAvgPool2d output shape."""
     try:
+        np.random.seed(42)
         pool = AdaptiveAvgPool2d(output_size=(2, 2))
         x = Tensor(np.random.randn(2, 3, 8, 8))
         y = pool(x)
@@ -360,6 +431,12 @@ def test_adaptive_avgpool_shape() -> Tuple[bool, str]:
         
         if y.shape != (2, 3, 2, 2):
             return False, f"shape {y.shape}, expected (2, 3, 2, 2)"
+        
+        # Verify adaptive pooling produces correct averages
+        # With 8x8 -> 2x2, each output covers 4x4 region
+        expected_00 = np.mean(x.data[0, 0, 0:4, 0:4])
+        if not np.isclose(y.data[0, 0, 0, 0], expected_00, rtol=1e-5):
+            return False, f"value at (0,0): {y.data[0,0,0,0]} vs expected {expected_00}"
         
         return True, "AdaptiveAvgPool shape correct"
     except Exception as e:
@@ -386,6 +463,11 @@ def test_adaptive_avgpool_backward() -> Tuple[bool, str]:
         if np.all(x.grad == 0):
             return False, "gradient is all zeros"
         
+        # With 8x8 -> 2x2, each 4x4 region gets 1/16 gradient
+        expected_grad = 1.0 / 16.0
+        if not np.allclose(x.grad, expected_grad, rtol=1e-5):
+            return False, f"gradient {x.grad[0,0,0,0]}, expected {expected_grad}"
+        
         return True, "AdaptiveAvgPool backward works"
     except Exception as e:
         return False, str(e)
@@ -394,6 +476,7 @@ def test_adaptive_avgpool_backward() -> Tuple[bool, str]:
 def test_adaptive_avgpool_different_sizes() -> Tuple[bool, str]:
     """Test AdaptiveAvgPool2d with various input sizes."""
     try:
+        np.random.seed(42)
         pool = AdaptiveAvgPool2d(output_size=(1, 1))
         
         for h, w in [(4, 4), (7, 7), (13, 13)]:
@@ -405,6 +488,11 @@ def test_adaptive_avgpool_different_sizes() -> Tuple[bool, str]:
             
             if y.shape != (1, 3, 1, 1):
                 return False, f"shape {y.shape} for {h}x{w}"
+            
+            # Verify global average
+            expected = np.mean(x.data, axis=(2, 3), keepdims=True)
+            if not np.allclose(y.data, expected, rtol=1e-5):
+                return False, f"value mismatch for {h}x{w}"
         
         return True, "Works with different input sizes"
     except Exception as e:

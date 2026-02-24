@@ -15,10 +15,12 @@ except ImportError as e:
 
 
 def test_split_heads_shape() -> Tuple[bool, str]:
-    """Test that split_heads produces correct output shape."""
+    """Test that split_heads produces correct output shape and values."""
     try:
+        torch.manual_seed(42)
         batch, seq, d_model = 2, 8, 64
         num_heads = 4
+        d_k = d_model // num_heads
         x = torch.randn(batch, seq, d_model)
         
         result = split_heads(x, num_heads)
@@ -26,19 +28,28 @@ def test_split_heads_shape() -> Tuple[bool, str]:
         if result is None:
             return False, "split_heads returned None"
         
-        expected_shape = (batch, num_heads, seq, d_model // num_heads)
+        expected_shape = (batch, num_heads, seq, d_k)
         if result.shape != expected_shape:
             return False, f"Shape {result.shape}, expected {expected_shape}"
         
-        return True, f"Shape correct: {result.shape}"
+        # Validate actual values: result[b, h, s, :] should equal x[b, s, h*d_k:(h+1)*d_k]
+        for h in range(num_heads):
+            expected_slice = x[:, :, h*d_k:(h+1)*d_k]  # [batch, seq, d_k]
+            actual_slice = result[:, h, :, :]  # [batch, seq, d_k]
+            if not torch.allclose(actual_slice, expected_slice, atol=1e-6):
+                return False, f"Values for head {h} don't match expected"
+        
+        return True, f"Shape and values correct"
     except Exception as e:
         return False, str(e)
 
 
 def test_merge_heads_shape() -> Tuple[bool, str]:
-    """Test that merge_heads produces correct output shape."""
+    """Test that merge_heads produces correct output shape and values."""
     try:
+        torch.manual_seed(42)
         batch, num_heads, seq, d_k = 2, 4, 8, 16
+        d_model = num_heads * d_k
         x = torch.randn(batch, num_heads, seq, d_k)
         
         result = merge_heads(x)
@@ -46,11 +57,18 @@ def test_merge_heads_shape() -> Tuple[bool, str]:
         if result is None:
             return False, "merge_heads returned None"
         
-        expected_shape = (batch, seq, num_heads * d_k)
+        expected_shape = (batch, seq, d_model)
         if result.shape != expected_shape:
             return False, f"Shape {result.shape}, expected {expected_shape}"
         
-        return True, f"Shape correct: {result.shape}"
+        # Validate actual values: result[b, s, h*d_k:(h+1)*d_k] should equal x[b, h, s, :]
+        for h in range(num_heads):
+            expected_slice = x[:, h, :, :]  # [batch, seq, d_k]
+            actual_slice = result[:, :, h*d_k:(h+1)*d_k]  # [batch, seq, d_k]
+            if not torch.allclose(actual_slice, expected_slice, atol=1e-6):
+                return False, f"Values for head {h} don't match expected"
+        
+        return True, f"Shape and values correct"
     except Exception as e:
         return False, str(e)
 
@@ -81,6 +99,8 @@ def test_split_merge_inverse() -> Tuple[bool, str]:
 def test_mha_scores_shape() -> Tuple[bool, str]:
     """Test multi-head attention scores computation."""
     try:
+        import math
+        torch.manual_seed(42)
         batch, num_heads, seq, d_k = 2, 4, 8, 16
         Q = torch.randn(batch, num_heads, seq, d_k)
         K = torch.randn(batch, num_heads, seq, d_k)
@@ -98,7 +118,18 @@ def test_mha_scores_shape() -> Tuple[bool, str]:
         if weights.shape != (batch, num_heads, seq, seq):
             return False, f"Weights shape {weights.shape} incorrect"
         
-        return True, f"Shapes correct: out={output.shape}, weights={weights.shape}"
+        # Validate computation against reference
+        expected_scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d_k)
+        expected_weights = torch.softmax(expected_scores, dim=-1)
+        expected_output = torch.matmul(expected_weights, V)
+        
+        if not torch.allclose(weights, expected_weights, atol=1e-5):
+            return False, f"Weights mismatch: max diff {(weights - expected_weights).abs().max():.6f}"
+        
+        if not torch.allclose(output, expected_output, atol=1e-5):
+            return False, f"Output mismatch: max diff {(output - expected_output).abs().max():.6f}"
+        
+        return True, f"Shapes and values correct"
     except Exception as e:
         return False, str(e)
 
@@ -128,7 +159,10 @@ def test_mha_weights_sum_to_one() -> Tuple[bool, str]:
 def test_multihead_attention_module() -> Tuple[bool, str]:
     """Test the MultiHeadAttention module."""
     try:
+        import math
+        torch.manual_seed(42)
         d_model, num_heads = 64, 4
+        d_k = d_model // num_heads
         batch, seq = 2, 8
         
         mha = MultiHeadAttention(d_model, num_heads)
@@ -152,6 +186,25 @@ def test_multihead_attention_module() -> Tuple[bool, str]:
         if weights.shape != (batch, num_heads, seq, seq):
             return False, f"Weights shape {weights.shape} incorrect"
         
+        # Validate computation against manual reference
+        with torch.no_grad():
+            Q = mha.W_q(x)
+            K = mha.W_k(x)
+            V = mha.W_v(x)
+            
+            Q = Q.view(batch, seq, num_heads, d_k).transpose(1, 2)
+            K = K.view(batch, seq, num_heads, d_k).transpose(1, 2)
+            V = V.view(batch, seq, num_heads, d_k).transpose(1, 2)
+            
+            scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d_k)
+            expected_weights = torch.softmax(scores, dim=-1)
+            attn_out = torch.matmul(expected_weights, V)
+            attn_out = attn_out.transpose(1, 2).contiguous().view(batch, seq, d_model)
+            expected = mha.W_o(attn_out)
+        
+        if not torch.allclose(output, expected, atol=1e-5):
+            return False, f"Output mismatch: max diff {(output - expected).abs().max():.6f}"
+        
         return True, "MultiHeadAttention module works correctly"
     except Exception as e:
         return False, str(e)
@@ -160,6 +213,7 @@ def test_multihead_attention_module() -> Tuple[bool, str]:
 def test_self_attention_module() -> Tuple[bool, str]:
     """Test the MultiHeadSelfAttention module."""
     try:
+        torch.manual_seed(42)
         d_model, num_heads = 64, 4
         batch, seq = 2, 8
         
@@ -169,12 +223,22 @@ def test_self_attention_module() -> Tuple[bool, str]:
             return False, "attention module not initialized"
         
         x = torch.randn(batch, seq, d_model)
-        output, _ = self_attn(x)
+        output, weights = self_attn(x)
         
         if output is None:
             return False, "output is None"
         if output.shape != x.shape:
             return False, f"Output shape {output.shape} != input shape {x.shape}"
+        
+        # Validate that self-attention equals attention(x, x, x)
+        expected_output, expected_weights = self_attn.attention(x, x, x)
+        
+        if not torch.allclose(output, expected_output, atol=1e-5):
+            return False, f"Output mismatch with attention(x,x,x): max diff {(output - expected_output).abs().max():.6f}"
+        
+        if weights is not None and expected_weights is not None:
+            if not torch.allclose(weights, expected_weights, atol=1e-5):
+                return False, f"Weights mismatch with attention(x,x,x)"
         
         return True, "MultiHeadSelfAttention works correctly"
     except Exception as e:
@@ -184,6 +248,7 @@ def test_self_attention_module() -> Tuple[bool, str]:
 def test_cross_attention() -> Tuple[bool, str]:
     """Test cross-attention with different sequence lengths."""
     try:
+        torch.manual_seed(42)
         d_model, num_heads = 64, 4
         batch = 2
         seq_q, seq_k = 6, 10  # Different lengths!
@@ -201,6 +266,12 @@ def test_cross_attention() -> Tuple[bool, str]:
             return False, f"Output shape {output.shape} incorrect"
         if weights is not None and weights.shape != (batch, num_heads, seq_q, seq_k):
             return False, f"Weights shape {weights.shape} incorrect"
+        
+        # Validate that cross-attention equals attention(query, kv, kv)
+        expected_output, expected_weights = cross_attn.attention(query, kv, kv)
+        
+        if not torch.allclose(output, expected_output, atol=1e-5):
+            return False, f"Output mismatch with attention(q, kv, kv): max diff {(output - expected_output).abs().max():.6f}"
         
         return True, f"Cross-attention works (q={seq_q}, kv={seq_k})"
     except Exception as e:
@@ -254,6 +325,8 @@ def test_mha_vs_reference() -> Tuple[bool, str]:
 def test_different_head_counts() -> Tuple[bool, str]:
     """Test with various head configurations."""
     try:
+        import math
+        torch.manual_seed(42)
         d_model = 64
         batch, seq = 2, 8
         
@@ -267,6 +340,15 @@ def test_different_head_counts() -> Tuple[bool, str]:
                 return False, f"Failed for num_heads={num_heads}"
             if weights.shape[1] != num_heads:
                 return False, f"Wrong head count in weights for num_heads={num_heads}"
+            
+            # Validate attention weights sum to 1
+            row_sums = weights.sum(dim=-1)
+            if not torch.allclose(row_sums, torch.ones_like(row_sums), atol=1e-5):
+                return False, f"Weights don't sum to 1 for num_heads={num_heads}"
+            
+            # Validate output has non-trivial values (not all zeros or same as input)
+            if torch.allclose(output, torch.zeros_like(output)):
+                return False, f"Output is all zeros for num_heads={num_heads}"
         
         return True, "Works with 1, 2, 4, 8 heads"
     except Exception as e:

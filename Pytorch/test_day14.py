@@ -18,7 +18,7 @@ except ImportError as e:
 
 
 def test_sinusoidal_encoding_shape() -> Tuple[bool, str]:
-    """Test sinusoidal encoding has correct shape."""
+    """Test sinusoidal encoding has correct shape and structure."""
     try:
         max_seq_len, d_model = 100, 64
         
@@ -30,6 +30,17 @@ def test_sinusoidal_encoding_shape() -> Tuple[bool, str]:
         # Check it's not all zeros (implemented)
         if pe.abs().sum() < 1e-6:
             return False, "Not implemented (all zeros)"
+        
+        # Validate specific values: compute expected PE for position 1, dim 0
+        # PE(1, 0) = sin(1 / 10000^(0/64)) = sin(1.0)
+        expected_pe_1_0 = math.sin(1.0)
+        if not torch.allclose(pe[1, 0], torch.tensor(expected_pe_1_0), atol=1e-5):
+            return False, f"PE[1,0] = {pe[1,0].item():.6f}, expected sin(1) = {expected_pe_1_0:.6f}"
+        
+        # PE(1, 1) = cos(1 / 10000^(0/64)) = cos(1.0)
+        expected_pe_1_1 = math.cos(1.0)
+        if not torch.allclose(pe[1, 1], torch.tensor(expected_pe_1_1), atol=1e-5):
+            return False, f"PE[1,1] = {pe[1,1].item():.6f}, expected cos(1) = {expected_pe_1_1:.6f}"
         
         return True, "OK"
     except Exception as e:
@@ -79,6 +90,13 @@ def test_sinusoidal_module() -> Tuple[bool, str]:
         # Shape should be preserved
         if out.shape != x.shape:
             return False, f"Shape changed: {x.shape} -> {out.shape}"
+        
+        # Validate that positional encoding is correctly added
+        pe_expected = create_sinusoidal_encoding(max_seq_len, d_model)
+        expected_out = x + pe_expected[:20, :].unsqueeze(0)
+        
+        if not torch.allclose(out, expected_out, atol=1e-5):
+            return False, f"Output doesn't match x + PE: max diff {(out - expected_out).abs().max():.6f}"
         
         return True, "OK"
     except Exception as e:
@@ -149,6 +167,16 @@ def test_relative_position_bias() -> Tuple[bool, str]:
         # Check shape
         if bias.shape != torch.Size([num_heads, seq_len, seq_len]):
             return False, f"Expected shape [{num_heads}, {seq_len}, {seq_len}], got {list(bias.shape)}"
+        
+        # Verify it's a learnable parameter (requires_grad should be True)
+        if not bias.requires_grad:
+            return False, "Bias should require gradients (be learnable)"
+        
+        # Test that bias can be added to attention scores
+        attn_scores = torch.randn(2, num_heads, seq_len, seq_len)
+        biased_scores = attn_scores + bias
+        if biased_scores.shape != attn_scores.shape:
+            return False, "Adding bias changes shape"
         
         return True, "OK"
     except Exception as e:
@@ -226,6 +254,15 @@ def test_rope_module() -> Tuple[bool, str]:
         if out.shape != x.shape:
             return False, f"Shape changed: {x.shape} -> {out.shape}"
         
+        # Validate output matches apply_rope with the stored frequencies
+        expected_out = apply_rope(x, rope.freqs)
+        if not torch.allclose(out, expected_out, atol=1e-5):
+            return False, f"Output doesn't match apply_rope: max diff {(out - expected_out).abs().max():.6f}"
+        
+        # Position 0 should be unchanged (rotation by 0)
+        if not torch.allclose(out[:, 0, :], x[:, 0, :], atol=1e-5):
+            return False, "Position 0 should be unchanged"
+        
         return True, "OK"
     except Exception as e:
         return False, str(e)
@@ -234,6 +271,7 @@ def test_rope_module() -> Tuple[bool, str]:
 def test_transformer_embedding() -> Tuple[bool, str]:
     """Test TransformerEmbedding module."""
     try:
+        torch.manual_seed(42)
         vocab_size, d_model, max_seq_len = 10000, 128, 512
         
         emb = TransformerEmbedding(vocab_size, d_model, max_seq_len, 
@@ -247,6 +285,14 @@ def test_transformer_embedding() -> Tuple[bool, str]:
         
         if out.shape != torch.Size([4, 32, d_model]):
             return False, f"Expected shape [4, 32, {d_model}], got {list(out.shape)}"
+        
+        # Validate computation: token_embedding * sqrt(d_model) + positional_encoding
+        token_embed = emb.token_embedding(tokens) * math.sqrt(d_model)
+        pe = create_sinusoidal_encoding(max_seq_len, d_model)
+        expected = token_embed + pe[:32, :].unsqueeze(0)
+        
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, f"Output doesn't match expected: max diff {(out - expected).abs().max():.6f}"
         
         return True, "OK"
     except Exception as e:

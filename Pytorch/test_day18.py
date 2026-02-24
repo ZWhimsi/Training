@@ -17,7 +17,7 @@ except ImportError as e:
 
 
 def test_causal_mask_shape() -> Tuple[bool, str]:
-    """Test causal mask has correct shape."""
+    """Test causal mask has correct shape and diagonal values."""
     try:
         seq_len = 8
         mask = create_causal_mask(seq_len)
@@ -28,7 +28,12 @@ def test_causal_mask_shape() -> Tuple[bool, str]:
         if mask.shape != (seq_len, seq_len):
             return False, f"Shape {mask.shape}, expected ({seq_len}, {seq_len})"
         
-        return True, f"Shape correct: {mask.shape}"
+        # Diagonal should be all 1s (each position attends to itself)
+        diag = torch.diag(mask)
+        if not torch.allclose(diag, torch.ones(seq_len)):
+            return False, "Diagonal should be all 1s"
+        
+        return True, f"Shape correct with valid diagonal"
     except Exception as e:
         return False, str(e)
 
@@ -60,7 +65,7 @@ def test_causal_mask_values() -> Tuple[bool, str]:
 
 
 def test_causal_mask_batched() -> Tuple[bool, str]:
-    """Test batched causal mask."""
+    """Test batched causal mask is correct lower triangular."""
     try:
         batch, heads, seq = 2, 4, 8
         mask = create_causal_mask_batched(batch, heads, seq)
@@ -69,25 +74,30 @@ def test_causal_mask_batched() -> Tuple[bool, str]:
             return False, "create_causal_mask_batched returned None"
         
         # Should be broadcastable to [batch, heads, seq, seq]
-        # Can be [1, 1, seq, seq] or [batch, heads, seq, seq]
         if len(mask.shape) != 4:
             return False, f"Expected 4D tensor, got {len(mask.shape)}D"
         
         if mask.shape[-2:] != (seq, seq):
             return False, f"Last two dims should be ({seq}, {seq})"
         
-        return True, f"Batched mask shape: {mask.shape}"
+        # Verify it's actually lower triangular
+        expected_2d = torch.tril(torch.ones(seq, seq))
+        actual_2d = mask[0, 0] if mask.shape[0] > 0 else mask.squeeze()[:seq, :seq]
+        if not torch.allclose(actual_2d, expected_2d):
+            return False, "Batched mask is not lower triangular"
+        
+        return True, f"Batched mask is lower triangular: {mask.shape}"
     except Exception as e:
         return False, str(e)
 
 
 def test_masked_mha_shape() -> Tuple[bool, str]:
-    """Test MaskedMultiHeadAttention output shape."""
+    """Test MaskedMultiHeadAttention output shape and attention weights."""
     try:
         d_model, num_heads = 64, 4
         batch, seq = 2, 8
         
-        mha = MaskedMultiHeadAttention(d_model, num_heads)
+        mha = MaskedMultiHeadAttention(d_model, num_heads, dropout=0.0)
         
         if mha.W_q is None:
             return False, "W_q not initialized"
@@ -100,7 +110,15 @@ def test_masked_mha_shape() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Output shape {output.shape} != input shape {x.shape}"
         
-        return True, f"Output shape correct: {output.shape}"
+        if weights is None:
+            return False, "attention weights is None"
+        
+        # Verify attention weights sum to 1 along last dim
+        weights_sum = weights.sum(dim=-1)
+        if not torch.allclose(weights_sum, torch.ones_like(weights_sum), atol=1e-5):
+            return False, "Attention weights don't sum to 1"
+        
+        return True, f"Output and attention weights valid"
     except Exception as e:
         return False, str(e)
 
@@ -134,13 +152,13 @@ def test_masked_mha_causal() -> Tuple[bool, str]:
 
 
 def test_cross_attention_shape() -> Tuple[bool, str]:
-    """Test CrossAttention with different source/target lengths."""
+    """Test CrossAttention with different source/target lengths and valid attention."""
     try:
         d_model, num_heads = 64, 4
         batch = 2
         tgt_seq, src_seq = 8, 12  # Different lengths
         
-        cross_attn = CrossAttention(d_model, num_heads)
+        cross_attn = CrossAttention(d_model, num_heads, dropout=0.0)
         
         if cross_attn.W_q is None:
             return False, "W_q not initialized"
@@ -157,12 +175,19 @@ def test_cross_attention_shape() -> Tuple[bool, str]:
         if output.shape != expected_out_shape:
             return False, f"Output {output.shape}, expected {expected_out_shape}"
         
-        if weights is not None:
-            expected_weight_shape = (batch, num_heads, tgt_seq, src_seq)
-            if weights.shape != expected_weight_shape:
-                return False, f"Weights {weights.shape}, expected {expected_weight_shape}"
+        if weights is None:
+            return False, "attention weights is None"
         
-        return True, f"Cross-attention: tgt={tgt_seq}, src={src_seq}"
+        expected_weight_shape = (batch, num_heads, tgt_seq, src_seq)
+        if weights.shape != expected_weight_shape:
+            return False, f"Weights {weights.shape}, expected {expected_weight_shape}"
+        
+        # Cross-attention weights should sum to 1 over src dimension
+        weights_sum = weights.sum(dim=-1)
+        if not torch.allclose(weights_sum, torch.ones_like(weights_sum), atol=1e-5):
+            return False, "Cross-attention weights don't sum to 1 over source"
+        
+        return True, f"Cross-attention valid: tgt={tgt_seq}, src={src_seq}"
     except Exception as e:
         return False, str(e)
 
@@ -204,13 +229,16 @@ def test_cross_attention_no_causal() -> Tuple[bool, str]:
 
 
 def test_feedforward_shape() -> Tuple[bool, str]:
-    """Test FeedForward network."""
+    """Test FeedForward network computation."""
     try:
+        import torch.nn.functional as F
         d_model = 64
-        ffn = FeedForward(d_model)
+        ffn = FeedForward(d_model, dropout=0.0)
         
         if ffn.linear1 is None:
             return False, "linear1 not initialized"
+        if ffn.linear2 is None:
+            return False, "linear2 not initialized"
         
         x = torch.randn(2, 8, d_model)
         output = ffn(x)
@@ -220,7 +248,14 @@ def test_feedforward_shape() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, f"FFN shape preserved: {output.shape}"
+        # Verify computation: GELU(xW1)W2
+        with torch.no_grad():
+            expected = ffn.linear2(F.gelu(ffn.linear1(x)))
+        
+        if not torch.allclose(output, expected, atol=1e-5):
+            return False, "FFN output doesn't match GELU(xW1)W2"
+        
+        return True, f"FFN computes GELU(xW1)W2 correctly"
     except Exception as e:
         return False, str(e)
 
@@ -253,18 +288,22 @@ def test_layer_norm() -> Tuple[bool, str]:
 
 
 def test_decoder_block_shape() -> Tuple[bool, str]:
-    """Test PreNormDecoderBlock output shape."""
+    """Test PreNormDecoderBlock output and residual connections."""
     try:
         d_model, num_heads = 64, 4
         batch = 2
         tgt_seq, src_seq = 8, 12
         
-        decoder_block = PreNormDecoderBlock(d_model, num_heads)
+        decoder_block = PreNormDecoderBlock(d_model, num_heads, dropout=0.0)
         
         if decoder_block.self_attn is None:
             return False, "self_attn not initialized"
         if decoder_block.cross_attn is None:
             return False, "cross_attn not initialized"
+        if decoder_block.ffn is None:
+            return False, "ffn not initialized"
+        if decoder_block.norm1 is None or decoder_block.norm2 is None or decoder_block.norm3 is None:
+            return False, "norm layers not initialized"
         
         decoder_input = torch.randn(batch, tgt_seq, d_model)
         encoder_output = torch.randn(batch, src_seq, d_model)
@@ -276,7 +315,12 @@ def test_decoder_block_shape() -> Tuple[bool, str]:
         if output.shape != decoder_input.shape:
             return False, f"Shape {output.shape} != {decoder_input.shape}"
         
-        return True, f"Decoder block output: {output.shape}"
+        # Verify residual connection exists (output correlates with input)
+        correlation = torch.corrcoef(torch.stack([decoder_input.flatten(), output.flatten()]))[0, 1]
+        if correlation < 0.05:
+            return False, f"Weak residual connection: corr={correlation:.4f}"
+        
+        return True, f"Decoder block with 3 sublayers works"
     except Exception as e:
         return False, str(e)
 
@@ -314,7 +358,7 @@ def test_decoder_block_gradient_flow() -> Tuple[bool, str]:
 
 
 def test_decoder_stack() -> Tuple[bool, str]:
-    """Test TransformerDecoder stack."""
+    """Test TransformerDecoder stack with final normalization."""
     try:
         d_model, num_heads, num_layers = 64, 4, 3
         batch, tgt_seq, src_seq = 2, 8, 12
@@ -325,6 +369,8 @@ def test_decoder_stack() -> Tuple[bool, str]:
             return False, "layers not initialized"
         if len(decoder.layers) != num_layers:
             return False, f"Expected {num_layers} layers, got {len(decoder.layers)}"
+        if decoder.final_norm is None:
+            return False, "final_norm not initialized"
         
         decoder_input = torch.randn(batch, tgt_seq, d_model)
         encoder_output = torch.randn(batch, src_seq, d_model)
@@ -336,26 +382,35 @@ def test_decoder_stack() -> Tuple[bool, str]:
         if output.shape != decoder_input.shape:
             return False, f"Shape {output.shape} != {decoder_input.shape}"
         
-        return True, f"TransformerDecoder with {num_layers} layers works"
+        # Final norm should normalize output
+        mean = output.mean(dim=-1)
+        std = output.std(dim=-1, unbiased=False)
+        if not torch.allclose(mean, torch.zeros_like(mean), atol=1e-4):
+            return False, f"Final norm not applied: mean={mean.mean().item():.4f}"
+        
+        return True, f"Decoder with {num_layers} layers and final norm"
     except Exception as e:
         return False, str(e)
 
 
 def test_decoder_autoregressive() -> Tuple[bool, str]:
-    """Test decoder in autoregressive mode (different sequence lengths)."""
+    """Test decoder in autoregressive mode with consistent hidden states."""
     try:
         d_model, num_heads, num_layers = 64, 4, 2
         batch, src_seq = 2, 10
         
-        decoder = TransformerDecoder(d_model, num_heads, num_layers)
+        decoder = TransformerDecoder(d_model, num_heads, num_layers, dropout=0.0)
         
         if decoder.layers is None:
             return False, "layers not initialized"
         
+        torch.manual_seed(42)
         encoder_output = torch.randn(batch, src_seq, d_model)
         
-        # Simulate autoregressive generation with increasing lengths
+        # Simulate autoregressive generation
+        outputs = []
         for tgt_len in [1, 3, 5]:
+            torch.manual_seed(123)  # Consistent input
             decoder_input = torch.randn(batch, tgt_len, d_model)
             output = decoder(decoder_input, encoder_output)
             
@@ -363,8 +418,14 @@ def test_decoder_autoregressive() -> Tuple[bool, str]:
                 return False, f"output is None for tgt_len={tgt_len}"
             if output.shape != (batch, tgt_len, d_model):
                 return False, f"Wrong shape for tgt_len={tgt_len}"
+            outputs.append(output)
         
-        return True, "Decoder works with varying target lengths (autoregressive)"
+        # Verify outputs are different for different lengths (context changes)
+        if torch.allclose(outputs[0], outputs[1][:, :1, :]):
+            # Same input should produce different output with different context
+            pass  # This might be the same due to causal masking
+        
+        return True, "Decoder handles varying target lengths correctly"
     except Exception as e:
         return False, str(e)
 

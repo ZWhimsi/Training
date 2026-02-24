@@ -113,7 +113,7 @@ def test_sliding_window_attention_init() -> Tuple[bool, str]:
 
 
 def test_sliding_window_attention_forward() -> Tuple[bool, str]:
-    """Test SlidingWindowAttention forward pass."""
+    """Test SlidingWindowAttention forward pass with window pattern verification."""
     try:
         d_model, num_heads, window = 128, 4, 8
         attn = SlidingWindowAttention(d_model, num_heads, window)
@@ -122,6 +122,7 @@ def test_sliding_window_attention_forward() -> Tuple[bool, str]:
             return False, "Attention not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         output, weights = attn(x)
@@ -133,7 +134,28 @@ def test_sliding_window_attention_forward() -> Tuple[bool, str]:
         if weights.shape != expected_weights:
             return False, f"Weights shape wrong"
         
-        return True, "Forward pass works"
+        # Verify attention weights follow window pattern
+        # For causal sliding window, position i should only attend to [max(0, i-window), i]
+        for i in range(seq_len):
+            # Should attend to self
+            if weights[0, 0, i, i] < 1e-6:
+                return False, f"Position {i} should attend to self"
+            # Should NOT attend to future (if causal)
+            if i < seq_len - 1:
+                future_attn = weights[0, 0, i, i+1:].sum()
+                if future_attn > 1e-5:
+                    return False, f"Position {i} should not attend to future positions"
+        
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify attention weights sum to 1 per query position
+        attn_sums = weights.sum(dim=-1)
+        if not torch.allclose(attn_sums, torch.ones_like(attn_sums), atol=1e-4):
+            return False, "Attention weights don't sum to 1"
+        
+        return True, f"Forward pass works with valid window pattern"
     except Exception as e:
         return False, str(e)
 
@@ -228,7 +250,7 @@ def test_block_sparse_mask() -> Tuple[bool, str]:
 
 
 def test_block_sparse_attention() -> Tuple[bool, str]:
-    """Test BlockSparseAttention."""
+    """Test BlockSparseAttention produces valid output."""
     try:
         d_model, num_heads, block_size = 128, 4, 8
         attn = BlockSparseAttention(d_model, num_heads, block_size)
@@ -237,6 +259,7 @@ def test_block_sparse_attention() -> Tuple[bool, str]:
             return False, "BlockSparseAttention not initialized"
         
         batch, seq_len = 2, 32
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         output, weights = attn(x)
@@ -244,7 +267,25 @@ def test_block_sparse_attention() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, "Output shape wrong"
         
-        return True, "BlockSparseAttention works"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        # Verify attention weights sum to 1
+        attn_sums = weights.sum(dim=-1)
+        if not torch.allclose(attn_sums, torch.ones_like(attn_sums), atol=1e-4):
+            return False, "Attention weights don't sum to 1"
+        
+        # Verify attention has some sparsity (block pattern)
+        zero_ratio = (weights < 1e-5).float().mean()
+        if zero_ratio < 0.3:
+            return False, f"Block sparse should have some sparsity, got {zero_ratio:.2%} zeros"
+        
+        return True, f"BlockSparseAttention works, sparsity={zero_ratio:.1%}"
     except Exception as e:
         return False, str(e)
 
@@ -295,15 +336,17 @@ def test_attention_sinks_mask() -> Tuple[bool, str]:
 
 
 def test_attention_sinks_forward() -> Tuple[bool, str]:
-    """Test AttentionWithSinks forward pass."""
+    """Test AttentionWithSinks forward pass with sink attention verification."""
     try:
         d_model, num_heads = 128, 4
-        attn = AttentionWithSinks(d_model, num_heads, num_sink_tokens=4, window_size=16)
+        num_sinks = 4
+        attn = AttentionWithSinks(d_model, num_heads, num_sink_tokens=num_sinks, window_size=16)
         
         if attn.W_q is None:
             return False, "Attention not initialized"
         
         batch, seq_len = 2, 32
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         output, weights = attn(x)
@@ -311,13 +354,31 @@ def test_attention_sinks_forward() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, "Output shape wrong"
         
-        return True, "AttentionWithSinks forward works"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        # Verify attention weights sum to 1
+        attn_sums = weights.sum(dim=-1)
+        if not torch.allclose(attn_sums, torch.ones_like(attn_sums), atol=1e-4):
+            return False, "Attention weights don't sum to 1"
+        
+        # Verify sink tokens receive attention (positions near end should attend to sinks)
+        sink_attn = weights[0, 0, -1, :num_sinks].sum()  # Last position's attention to sinks
+        if sink_attn < 0.01:
+            return False, f"Sink tokens should receive some attention, got {sink_attn:.4f}"
+        
+        return True, f"AttentionWithSinks works, sink attention={sink_attn:.3f}"
     except Exception as e:
         return False, str(e)
 
 
 def test_local_global_attention() -> Tuple[bool, str]:
-    """Test LocalGlobalAttention."""
+    """Test LocalGlobalAttention with global token verification."""
     try:
         d_model, num_heads, local_window = 128, 4, 8
         attn = LocalGlobalAttention(d_model, num_heads, local_window)
@@ -326,6 +387,7 @@ def test_local_global_attention() -> Tuple[bool, str]:
             return False, "LocalGlobalAttention not initialized"
         
         batch, seq_len = 2, 32
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         global_indices = torch.tensor([0])  # CLS token
         
@@ -334,7 +396,25 @@ def test_local_global_attention() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, "Output shape wrong"
         
-        return True, "LocalGlobalAttention works"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        # Verify attention weights sum to 1
+        attn_sums = weights.sum(dim=-1)
+        if not torch.allclose(attn_sums, torch.ones_like(attn_sums), atol=1e-4):
+            return False, "Attention weights don't sum to 1"
+        
+        # Verify global token (position 0) receives attention from all positions
+        global_attn_received = weights[0, 0, :, 0].mean()  # Mean attention to global token
+        if global_attn_received < 0.01:
+            return False, f"Global token should receive attention, got mean={global_attn_received:.4f}"
+        
+        return True, f"LocalGlobalAttention works, global attn received={global_attn_received:.3f}"
     except Exception as e:
         return False, str(e)
 

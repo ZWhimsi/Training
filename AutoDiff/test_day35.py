@@ -46,6 +46,11 @@ def test_tensor_creation() -> Tuple[bool, str]:
         t = Tensor([1, 2, 3])
         if t.shape != (3,):
             return False, f"shape {t.shape}"
+        
+        # Verify values are stored correctly
+        if not np.allclose(t.data, [1, 2, 3]):
+            return False, f"values {t.data}"
+        
         return True, "Tensor creation works"
     except Exception as e:
         return False, str(e)
@@ -100,9 +105,19 @@ def test_tensor_matmul() -> Tuple[bool, str]:
         if c.shape != (3, 5):
             return False, f"shape {c.shape}"
         
+        # Verify actual matmul values
+        expected = a.data @ b.data
+        if not np.allclose(c.data, expected):
+            return False, "matmul values incorrect"
+        
         c.sum().backward()
         if a.grad.shape != a.shape:
             return False, "grad shape mismatch"
+        
+        # For sum loss, grad_a = ones @ b.T
+        expected_grad_a = np.ones((3, 5)) @ b.data.T
+        if not np.allclose(a.grad, expected_grad_a, rtol=1e-5):
+            return False, "grad values incorrect"
         
         return True, "Matmul works"
     except Exception as e:
@@ -172,9 +187,17 @@ def test_tensor_reshape() -> Tuple[bool, str]:
         if b.shape != (3, 4):
             return False, f"shape {b.shape}"
         
+        # Verify values are preserved
+        if not np.allclose(b.data.flatten(), a.data):
+            return False, "values not preserved"
+        
         b.sum().backward()
         if a.grad.shape != (12,):
             return False, "grad shape mismatch"
+        
+        # For sum, gradient should be all ones
+        if not np.allclose(a.grad, 1.0):
+            return False, f"grad {a.grad[0]}, expected 1.0"
         
         return True, "Reshape works"
     except Exception as e:
@@ -188,12 +211,18 @@ def test_tensor_reshape() -> Tuple[bool, str]:
 def test_parameter() -> Tuple[bool, str]:
     """Test Parameter class."""
     try:
-        p = Parameter(np.random.randn(3, 4))
+        np.random.seed(42)
+        data = np.random.randn(3, 4)
+        p = Parameter(data)
         
         if not isinstance(p, Tensor):
             return False, "not a Tensor"
         if p.shape != (3, 4):
             return False, f"shape {p.shape}"
+        
+        # Verify values are stored correctly
+        if not np.allclose(p.data, data):
+            return False, "values not stored correctly"
         
         return True, "Parameter works"
     except Exception as e:
@@ -212,9 +241,18 @@ def test_linear_layer() -> Tuple[bool, str]:
         if y.shape != (4, 5):
             return False, f"shape {y.shape}"
         
+        # Verify linear computation: y = x @ W^T + b
+        expected = x.data @ layer.weight.data.T + layer.bias.data
+        if not np.allclose(y.data, expected, rtol=1e-5):
+            return False, "output values incorrect"
+        
         y.sum().backward()
         if np.all(layer.weight.grad == 0):
             return False, "no gradient"
+        
+        # Bias gradient = batch_size = 4
+        if not np.allclose(layer.bias.grad, 4.0):
+            return False, f"bias grad {layer.bias.grad[0]}, expected 4.0"
         
         return True, "Linear layer works"
     except Exception as e:
@@ -241,6 +279,16 @@ def test_sequential() -> Tuple[bool, str]:
         if len(params) != 4:
             return False, f"param count {len(params)}"
         
+        # Verify output is finite
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        
+        # Verify backward works
+        y.sum().backward()
+        for p in params:
+            if not np.all(np.isfinite(p.grad)):
+                return False, "gradient contains NaN or Inf"
+        
         return True, "Sequential works"
     except Exception as e:
         return False, str(e)
@@ -258,9 +306,19 @@ def test_conv2d() -> Tuple[bool, str]:
         if y.shape != (2, 16, 8, 8):
             return False, f"shape {y.shape}"
         
+        # Verify output is finite and not all zeros
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        if np.all(y.data == 0):
+            return False, "output is all zeros"
+        
         y.sum().backward()
         if np.all(conv.weight.grad == 0):
             return False, "no gradient"
+        
+        # Verify gradients are finite
+        if not np.all(np.isfinite(conv.weight.grad)):
+            return False, "weight grad contains NaN or Inf"
         
         return True, "Conv2d works"
     except Exception as e:
@@ -270,6 +328,7 @@ def test_conv2d() -> Tuple[bool, str]:
 def test_maxpool2d() -> Tuple[bool, str]:
     """Test MaxPool2d layer."""
     try:
+        np.random.seed(42)
         pool = MaxPool2d(kernel_size=2)
         
         x = Tensor(np.random.randn(2, 3, 8, 8))
@@ -278,9 +337,19 @@ def test_maxpool2d() -> Tuple[bool, str]:
         if y.shape != (2, 3, 4, 4):
             return False, f"shape {y.shape}"
         
+        # Verify pooling is actually taking max
+        expected_val = np.max(x.data[0, 0, 0:2, 0:2])
+        if not np.isclose(y.data[0, 0, 0, 0], expected_val):
+            return False, f"pooled value {y.data[0,0,0,0]} vs expected {expected_val}"
+        
         y.sum().backward()
         if x.grad.shape != x.shape:
             return False, "grad shape mismatch"
+        
+        # Gradient should be sparse (only max positions get gradient)
+        non_zero_count = np.sum(x.grad != 0)
+        if non_zero_count != y.data.size:
+            return False, f"gradient sparsity: {non_zero_count} vs {y.data.size}"
         
         return True, "MaxPool2d works"
     except Exception as e:
@@ -302,7 +371,12 @@ def test_batchnorm2d() -> Tuple[bool, str]:
         
         mean = np.mean(y.data, axis=(0, 2, 3))
         if not np.allclose(mean, 0, atol=1e-5):
-            return False, "not normalized"
+            return False, "mean not normalized to 0"
+        
+        # Verify variance is approximately 1
+        var = np.var(y.data, axis=(0, 2, 3))
+        if not np.allclose(var, 1, atol=0.1):
+            return False, f"variance not normalized to 1: {var[0]}"
         
         return True, "BatchNorm2d works"
     except Exception as e:
@@ -322,6 +396,11 @@ def test_dropout() -> Tuple[bool, str]:
         zero_ratio = np.mean(y.data == 0)
         if not (0.3 < zero_ratio < 0.7):
             return False, f"drop ratio {zero_ratio}"
+        
+        # Non-zero values should be scaled by 1/(1-p) = 2
+        non_zero_vals = y.data[y.data != 0]
+        if not np.allclose(non_zero_vals, 2.0, rtol=1e-5):
+            return False, f"scaling incorrect: {non_zero_vals[0]} vs 2.0"
         
         dropout._training = False
         y2 = dropout(x)
@@ -352,9 +431,19 @@ def test_cross_entropy() -> Tuple[bool, str]:
         if loss.data < 0:
             return False, "negative loss"
         
+        # Verify actual loss value
+        probs = softmax(logits.data)
+        expected_loss = -np.mean(np.log(probs[np.arange(2), targets]))
+        if not np.isclose(loss.data, expected_loss, rtol=1e-5):
+            return False, f"loss {loss.data} vs expected {expected_loss}"
+        
         loss.backward()
         if np.all(logits.grad == 0):
             return False, "no gradient"
+        
+        # Gradient rows should sum to approximately 0
+        if not np.allclose(logits.grad.sum(axis=1), 0, atol=1e-6):
+            return False, "grad rows should sum to ~0"
         
         return True, "CrossEntropyLoss works"
     except Exception as e:
@@ -391,6 +480,16 @@ def test_softmax() -> Tuple[bool, str]:
         
         if not np.allclose(probs.sum(axis=1), 1):
             return False, "doesn't sum to 1"
+        
+        # Verify actual softmax values
+        exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+        expected = exp_x / exp_x.sum(axis=1, keepdims=True)
+        if not np.allclose(probs, expected):
+            return False, "values incorrect"
+        
+        # Verify ordering (larger inputs -> larger probs)
+        if not (probs[0, 2] > probs[0, 1] > probs[0, 0]):
+            return False, "ordering incorrect"
         
         x_large = np.array([[1000, 1001, 1002]])
         probs_large = softmax(x_large)
@@ -431,6 +530,7 @@ def test_adam() -> Tuple[bool, str]:
     """Test Adam optimizer."""
     try:
         w = Tensor(np.array([1.0, 2.0, 3.0]))
+        original = w.data.copy()
         optimizer = Adam([w], lr=0.1)
         
         for _ in range(5):
@@ -439,6 +539,14 @@ def test_adam() -> Tuple[bool, str]:
         
         if np.allclose(w.data, [1, 2, 3]):
             return False, "no update"
+        
+        # Weights should have decreased (positive gradient = decrease)
+        if not np.all(w.data < original):
+            return False, "weights should decrease with positive gradient"
+        
+        # Values should be finite
+        if not np.all(np.isfinite(w.data)):
+            return False, "weights contain NaN or Inf"
         
         return True, "Adam works"
     except Exception as e:
@@ -452,6 +560,7 @@ def test_adam() -> Tuple[bool, str]:
 def test_synthetic_data() -> Tuple[bool, str]:
     """Test synthetic MNIST generation."""
     try:
+        np.random.seed(42)
         data = generate_synthetic_mnist(n_samples=100, n_classes=10)
         
         if data is None:
@@ -467,6 +576,10 @@ def test_synthetic_data() -> Tuple[bool, str]:
         if not np.all((y >= 0) & (y < 10)):
             return False, "invalid labels"
         
+        # Verify data is finite
+        if not np.all(np.isfinite(X)):
+            return False, "X contains NaN or Inf"
+        
         return True, "Synthetic data works"
     except Exception as e:
         return False, str(e)
@@ -475,8 +588,19 @@ def test_synthetic_data() -> Tuple[bool, str]:
 def test_data_loader() -> Tuple[bool, str]:
     """Test DataLoader."""
     try:
-        X = np.random.randn(100, 10)
-        y = np.random.randint(0, 5, 100)
+        np.random.seed(42)
+        X = np.arange(1000).reshape(100, 10).astype(float)
+        y = np.arange(100)
+        
+        # Test without shuffle first
+        loader_no_shuffle = DataLoader(X, y, batch_size=32, shuffle=False)
+        batches_ns = list(loader_no_shuffle)
+        
+        # Verify first batch values
+        if not np.allclose(batches_ns[0][0], X[:32]):
+            return False, "batch values incorrect"
+        if not np.allclose(batches_ns[0][1], y[:32]):
+            return False, "batch labels incorrect"
         
         loader = DataLoader(X, y, batch_size=32, shuffle=True)
         
@@ -514,6 +638,16 @@ def test_simple_cnn() -> Tuple[bool, str]:
         if y.shape != (2, 10):
             return False, f"shape {y.shape}"
         
+        # Verify output is finite
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        
+        # Different inputs should give different outputs
+        x2 = Tensor(np.random.randn(2, 1, 28, 28))
+        y2 = model(x2)
+        if np.allclose(y.data, y2.data):
+            return False, "same output for different inputs"
+        
         return True, "SimpleCNN forward works"
     except Exception as e:
         return False, str(e)
@@ -546,6 +680,11 @@ def test_simple_cnn_backward() -> Tuple[bool, str]:
         has_grad = any(np.any(p.grad != 0) for p in model.parameters())
         if not has_grad:
             return False, "no gradients"
+        
+        # Verify all gradients are finite
+        for p in model.parameters():
+            if not np.all(np.isfinite(p.grad)):
+                return False, "gradient contains NaN or Inf"
         
         return True, "SimpleCNN backward works"
     except Exception as e:
@@ -627,6 +766,7 @@ def test_full_training() -> Tuple[bool, str]:
 def test_im2col_col2im() -> Tuple[bool, str]:
     """Test im2col and col2im functions."""
     try:
+        np.random.seed(42)
         x = np.random.randn(2, 3, 8, 8)
         
         col = im2col(x, 3, 3, stride=1, padding=1)
@@ -634,10 +774,18 @@ def test_im2col_col2im() -> Tuple[bool, str]:
         if col.shape[0] != 2 * 8 * 8:
             return False, f"col shape {col.shape}"
         
+        # Verify col contains finite values
+        if not np.all(np.isfinite(col)):
+            return False, "im2col output contains NaN or Inf"
+        
         x_reconstructed = col2im(col, x.shape, 3, 3, stride=1, padding=1)
         
         if x_reconstructed.shape != x.shape:
             return False, "reconstruction shape mismatch"
+        
+        # Verify reconstruction is finite
+        if not np.all(np.isfinite(x_reconstructed)):
+            return False, "col2im output contains NaN or Inf"
         
         return True, "im2col/col2im work"
     except Exception as e:

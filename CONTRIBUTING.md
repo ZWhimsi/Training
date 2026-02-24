@@ -57,10 +57,7 @@ import required_modules
 # ============================================================================
 # Exercise 1: Descriptive Title
 # ============================================================================
-# Explanation of what to implement and why it matters
-
-# TODO: Clear description of what to implement
-# HINT: Specific guidance without giving away the answer
+# API to look up: function_name(arg1, arg2), other_fn(); list names/args only, no full solution
 def exercise_1():
     """
     Brief docstring explaining the function.

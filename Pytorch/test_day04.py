@@ -24,8 +24,12 @@ def test_simple_layer() -> Tuple[bool, str]:
             return False, "bias is None"
         
         if layer.weight.shape != (5, 10):
-            return False, f"Weight shape wrong: {layer.weight.shape}"
+            return False, f"Weight shape wrong: {layer.weight.shape}, expected (5, 10)"
+        if layer.bias.shape != (5,):
+            return False, f"Bias shape wrong: {layer.bias.shape}, expected (5,)"
         
+        # Test forward pass with known values
+        torch.manual_seed(42)
         x = torch.randn(4, 10)
         out = layer(x)
         
@@ -33,6 +37,11 @@ def test_simple_layer() -> Tuple[bool, str]:
             return False, "forward returned None"
         if out.shape != (4, 5):
             return False, f"Output shape wrong: {out.shape}"
+        
+        # Verify computation: y = x @ W.T + b
+        expected = x @ layer.weight.T + layer.bias
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, f"Forward computation wrong: got {out[0]}, expected {expected[0]}"
         
         return True, "SimpleLayer works"
     except Exception as e:
@@ -46,6 +55,13 @@ def test_two_layer_net() -> Tuple[bool, str]:
         if model.fc1 is None or model.fc2 is None:
             return False, "Layers are None"
         
+        # Verify layer shapes
+        if model.fc1.weight.shape != (20, 10):
+            return False, f"fc1 weight shape: {model.fc1.weight.shape}, expected (20, 10)"
+        if model.fc2.weight.shape != (5, 20):
+            return False, f"fc2 weight shape: {model.fc2.weight.shape}, expected (5, 20)"
+        
+        torch.manual_seed(42)
         x = torch.randn(4, 10)
         out = model(x)
         
@@ -53,6 +69,12 @@ def test_two_layer_net() -> Tuple[bool, str]:
             return False, "forward returned None"
         if out.shape != (4, 5):
             return False, f"Output shape: {out.shape}, expected (4, 5)"
+        
+        # Verify computation: relu(x @ W1.T + b1) @ W2.T + b2
+        expected = torch.relu(model.fc1(x))
+        expected = model.fc2(expected)
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, f"Forward computation wrong"
         
         return True, "TwoLayerNet forward OK"
     except Exception as e:
@@ -86,12 +108,27 @@ def test_parameter_info() -> Tuple[bool, str]:
             return False, f"Expected 2 params, got {len(info)}"
         
         weight_info = [i for i in info if 'weight' in i['name']][0]
-        if weight_info['shape'] is None:
-            return False, "Shape is None"
-        if weight_info['requires_grad'] is None:
-            return False, "requires_grad is None"
+        bias_info = [i for i in info if 'bias' in i['name']][0]
         
-        return True, "Parameter info extracted"
+        # Validate weight shape
+        if weight_info['shape'] is None:
+            return False, "weight shape is None"
+        if weight_info['shape'] != (5, 10):
+            return False, f"weight shape: got {weight_info['shape']}, expected (5, 10)"
+        
+        # Validate bias shape
+        if bias_info['shape'] is None:
+            return False, "bias shape is None"
+        if bias_info['shape'] != (5,):
+            return False, f"bias shape: got {bias_info['shape']}, expected (5,)"
+        
+        # Validate requires_grad
+        if weight_info['requires_grad'] != True:
+            return False, f"weight requires_grad: got {weight_info['requires_grad']}, expected True"
+        if bias_info['requires_grad'] != True:
+            return False, f"bias requires_grad: got {bias_info['requires_grad']}, expected True"
+        
+        return True, "Parameter info correct"
     except Exception as e:
         return False, str(e)
 

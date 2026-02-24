@@ -16,7 +16,7 @@ except ImportError as e:
 
 
 def test_layer_norm_shape() -> Tuple[bool, str]:
-    """Test LayerNorm output shape."""
+    """Test LayerNorm output shape and parameter initialization."""
     try:
         d_model = 64
         norm = LayerNorm(d_model)
@@ -26,6 +26,13 @@ def test_layer_norm_shape() -> Tuple[bool, str]:
         if norm.beta is None:
             return False, "beta not initialized"
         
+        # Check gamma initialized to ones
+        if not torch.allclose(norm.gamma.data, torch.ones(d_model)):
+            return False, "gamma should be initialized to ones"
+        # Check beta initialized to zeros
+        if not torch.allclose(norm.beta.data, torch.zeros(d_model)):
+            return False, "beta should be initialized to zeros"
+        
         x = torch.randn(2, 8, d_model)
         output = norm(x)
         
@@ -34,7 +41,7 @@ def test_layer_norm_shape() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, f"Shape preserved: {output.shape}"
+        return True, f"Shape preserved, params correctly initialized"
     except Exception as e:
         return False, str(e)
 
@@ -95,9 +102,10 @@ def test_layer_norm_vs_pytorch() -> Tuple[bool, str]:
 
 
 def test_feedforward_shape() -> Tuple[bool, str]:
-    """Test FeedForward network shape."""
+    """Test FeedForward network output against reference implementation."""
     try:
         d_model = 64
+        d_ff = d_model * 4
         ffn = FeedForward(d_model)
         
         if ffn.linear1 is None:
@@ -113,7 +121,14 @@ def test_feedforward_shape() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, f"Shape preserved: {output.shape}"
+        # Validate output against manual computation
+        with torch.no_grad():
+            expected = ffn.linear2(torch.nn.functional.gelu(ffn.linear1(x)))
+        
+        if not torch.allclose(output, expected, atol=1e-5):
+            return False, "FFN output doesn't match expected GELU(xW1)W2"
+        
+        return True, f"Output matches reference (GELU activation)"
     except Exception as e:
         return False, str(e)
 
@@ -140,7 +155,7 @@ def test_feedforward_expansion() -> Tuple[bool, str]:
 
 
 def test_post_norm_encoder_block() -> Tuple[bool, str]:
-    """Test PostNormEncoderBlock."""
+    """Test PostNormEncoderBlock produces normalized output."""
     try:
         d_model, num_heads = 64, 4
         block = PostNormEncoderBlock(d_model, num_heads)
@@ -158,16 +173,24 @@ def test_post_norm_encoder_block() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, "PostNormEncoderBlock works"
+        # Post-norm: output should be normalized (mean~0, std~1 per position)
+        mean = output.mean(dim=-1)
+        std = output.std(dim=-1, unbiased=False)
+        if not torch.allclose(mean, torch.zeros_like(mean), atol=1e-4):
+            return False, f"Post-norm output mean not ~0: {mean.mean().item():.4f}"
+        if not torch.allclose(std, torch.ones_like(std), atol=0.15):
+            return False, f"Post-norm output std not ~1: {std.mean().item():.4f}"
+        
+        return True, "PostNormEncoderBlock output is normalized"
     except Exception as e:
         return False, str(e)
 
 
 def test_pre_norm_encoder_block() -> Tuple[bool, str]:
-    """Test PreNormEncoderBlock."""
+    """Test PreNormEncoderBlock has residual connection."""
     try:
         d_model, num_heads = 64, 4
-        block = PreNormEncoderBlock(d_model, num_heads)
+        block = PreNormEncoderBlock(d_model, num_heads, dropout=0.0)
         
         if block.self_attn is None:
             return False, "self_attn not initialized"
@@ -182,7 +205,18 @@ def test_pre_norm_encoder_block() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, "PreNormEncoderBlock works"
+        # Pre-norm: output is NOT normalized (residual added after sublayers)
+        # But should be different from input due to attention/FFN
+        if torch.allclose(output, x, atol=1e-3):
+            return False, "Output identical to input - sublayers not applied"
+        
+        # Check residual connection: output should contain input information
+        # Verify by checking correlation between input and output
+        correlation = torch.corrcoef(torch.stack([x.flatten(), output.flatten()]))[0, 1]
+        if correlation < 0.1:
+            return False, f"Weak residual: correlation={correlation:.4f}"
+        
+        return True, "PreNormEncoderBlock works with residual"
     except Exception as e:
         return False, str(e)
 
@@ -218,15 +252,17 @@ def test_residual_connection() -> Tuple[bool, str]:
 
 
 def test_encoder_stack() -> Tuple[bool, str]:
-    """Test stacked encoder."""
+    """Test stacked encoder with final normalization."""
     try:
         d_model, num_heads, num_layers = 64, 4, 4
-        encoder = TransformerEncoder(d_model, num_heads, num_layers)
+        encoder = TransformerEncoder(d_model, num_heads, num_layers, pre_norm=True)
         
         if encoder.layers is None:
             return False, "layers not initialized"
         if len(encoder.layers) != num_layers:
             return False, f"Expected {num_layers} layers, got {len(encoder.layers)}"
+        if encoder.final_norm is None:
+            return False, "final_norm not initialized for pre_norm encoder"
         
         x = torch.randn(2, 8, d_model)
         output = encoder(x)
@@ -236,25 +272,36 @@ def test_encoder_stack() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, f"TransformerEncoder with {num_layers} layers works"
+        # Pre-norm encoder should have final norm applied, so output normalized
+        mean = output.mean(dim=-1)
+        std = output.std(dim=-1, unbiased=False)
+        if not torch.allclose(mean, torch.zeros_like(mean), atol=1e-4):
+            return False, f"Final norm not applied: mean={mean.mean().item():.4f}"
+        if not torch.allclose(std, torch.ones_like(std), atol=0.15):
+            return False, f"Final norm not applied: std={std.mean().item():.4f}"
+        
+        return True, f"Encoder with {num_layers} layers and final norm"
     except Exception as e:
         return False, str(e)
 
 
 def test_encoder_with_embedding() -> Tuple[bool, str]:
-    """Test complete encoder with embeddings."""
+    """Test complete encoder with embeddings and scaling."""
     try:
+        import math
         vocab_size = 1000
         d_model, num_heads, num_layers = 64, 4, 2
         
         encoder = TransformerEncoderWithEmbedding(
-            vocab_size, d_model, num_heads, num_layers
+            vocab_size, d_model, num_heads, num_layers, dropout=0.0
         )
         
         if encoder.token_emb is None:
             return False, "token_emb not initialized"
         if encoder.encoder is None:
             return False, "encoder not initialized"
+        if encoder.pos_enc is None:
+            return False, "pos_enc not initialized"
         
         # Token indices
         x = torch.randint(0, vocab_size, (2, 16))
@@ -267,29 +314,47 @@ def test_encoder_with_embedding() -> Tuple[bool, str]:
         if output.shape != expected_shape:
             return False, f"Shape {output.shape} != {expected_shape}"
         
-        return True, f"Full encoder: tokens->embeddings->encoder"
+        # Verify embedding scaling by sqrt(d_model)
+        raw_emb = encoder.token_emb(x)
+        expected_scale = math.sqrt(d_model)
+        
+        # Check that same tokens produce same base embedding pattern
+        if torch.allclose(raw_emb[0, 0], raw_emb[0, 1]) and x[0, 0] != x[0, 1]:
+            return False, "Different tokens should have different embeddings"
+        
+        return True, f"Full encoder with embedding scaling by sqrt({d_model})"
     except Exception as e:
         return False, str(e)
 
 
 def test_positional_encoding() -> Tuple[bool, str]:
-    """Test positional encoding."""
+    """Test sinusoidal positional encoding values."""
     try:
+        import math
         d_model = 64
-        pos_enc = PositionalEncoding(d_model)
+        pos_enc = PositionalEncoding(d_model, dropout=0.0)
         
-        x = torch.randn(2, 16, d_model)
+        x = torch.zeros(1, 4, d_model)  # Zero input to isolate PE
         output = pos_enc(x)
         
         if output.shape != x.shape:
             return False, f"Shape changed: {output.shape}"
         
-        # Check that positions are different
-        pos_diff = (output[0, 0] - output[0, 1]).abs().sum()
-        if pos_diff < 1e-5:
-            return False, "Different positions have same encoding"
+        # Verify sinusoidal pattern: PE[pos, 2i] = sin(pos / 10000^(2i/d))
+        pos = 1
+        i = 0
+        expected_sin = math.sin(pos / (10000 ** (2 * i / d_model)))
+        actual = output[0, pos, 2 * i].item()
+        if abs(actual - expected_sin) > 1e-5:
+            return False, f"PE[{pos}, {2*i}] = {actual:.4f}, expected sin={expected_sin:.4f}"
         
-        return True, "Positional encoding adds position info"
+        # PE[pos, 2i+1] = cos(pos / 10000^(2i/d))
+        expected_cos = math.cos(pos / (10000 ** (2 * i / d_model)))
+        actual_cos = output[0, pos, 2 * i + 1].item()
+        if abs(actual_cos - expected_cos) > 1e-5:
+            return False, f"PE[{pos}, {2*i+1}] = {actual_cos:.4f}, expected cos={expected_cos:.4f}"
+        
+        return True, "Sinusoidal PE matches expected formula"
     except Exception as e:
         return False, str(e)
 

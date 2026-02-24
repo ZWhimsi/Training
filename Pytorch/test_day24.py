@@ -41,7 +41,7 @@ def test_expert_init() -> Tuple[bool, str]:
 
 
 def test_expert_forward() -> Tuple[bool, str]:
-    """Test Expert forward pass."""
+    """Test Expert forward pass computes FFN correctly."""
     try:
         d_model = 256
         expert = Expert(d_model)
@@ -49,13 +49,29 @@ def test_expert_forward() -> Tuple[bool, str]:
         if expert.w1 is None:
             return False, "Expert not initialized"
         
+        torch.manual_seed(42)
         x = torch.randn(2, 16, d_model)
         output = expert(x)
         
         if output.shape != x.shape:
             return False, f"Output shape {output.shape} != {x.shape}"
         
-        return True, "Expert forward works"
+        # Verify by computing manually: w2(gelu(w1(x)))
+        with torch.no_grad():
+            expected = expert.w1(x)
+            expected = F.gelu(expected)
+            if expert.dropout is not None:
+                expert.dropout.eval()
+            expected = expert.w2(expected)
+        
+        if not torch.allclose(output, expected, atol=1e-5):
+            return False, "Expert output doesn't match expected FFN computation"
+        
+        # Verify output is not trivially zero
+        if output.abs().sum() == 0:
+            return False, "Expert output is all zeros"
+        
+        return True, f"Expert forward matches FFN: w2(gelu(w1(x)))"
     except Exception as e:
         return False, str(e)
 
@@ -78,7 +94,7 @@ def test_router_init() -> Tuple[bool, str]:
 
 
 def test_router_forward() -> Tuple[bool, str]:
-    """Test Router forward pass."""
+    """Test Router forward pass computes linear projection correctly."""
     try:
         d_model, num_experts = 256, 8
         router = Router(d_model, num_experts)
@@ -87,6 +103,7 @@ def test_router_forward() -> Tuple[bool, str]:
             return False, "Router not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         logits = router(x)
         
@@ -94,7 +111,18 @@ def test_router_forward() -> Tuple[bool, str]:
         if logits.shape != expected_shape:
             return False, f"Logits shape {logits.shape} != {expected_shape}"
         
-        return True, "Router forward works"
+        # Verify router computes x @ W (linear projection)
+        with torch.no_grad():
+            expected_logits = F.linear(x, router.gate.weight, router.gate.bias if hasattr(router.gate, 'bias') and router.gate.bias is not None else None)
+        
+        if not torch.allclose(logits, expected_logits, atol=1e-5):
+            return False, "Router logits don't match expected linear projection"
+        
+        # Verify logits are not all zeros
+        if logits.abs().sum() == 0:
+            return False, "Router logits are all zeros"
+        
+        return True, f"Router forward matches linear projection, logits range=[{logits.min():.2f}, {logits.max():.2f}]"
     except Exception as e:
         return False, str(e)
 
@@ -241,7 +269,7 @@ def test_sparse_moe_init() -> Tuple[bool, str]:
 
 
 def test_sparse_moe_forward() -> Tuple[bool, str]:
-    """Test SparseMoE forward pass."""
+    """Test SparseMoE forward pass produces weighted expert combination."""
     try:
         d_model, num_experts = 128, 4
         moe = SparseMoE(d_model, num_experts, top_k=2)
@@ -250,6 +278,7 @@ def test_sparse_moe_forward() -> Tuple[bool, str]:
             return False, "MoE not initialized"
         
         batch, seq_len = 2, 8
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         output, aux_loss = moe(x)
@@ -259,7 +288,23 @@ def test_sparse_moe_forward() -> Tuple[bool, str]:
         if not torch.is_tensor(aux_loss) or aux_loss.numel() != 1:
             return False, "aux_loss should be scalar tensor"
         
-        return True, "SparseMoE forward works"
+        # Verify output is not zeros (experts did computation)
+        if output.abs().sum() == 0:
+            return False, "MoE output is all zeros"
+        
+        # Verify output is different from input (transformation happened)
+        if torch.allclose(output, x, atol=1e-3):
+            return False, "MoE output is same as input"
+        
+        # Verify aux_loss is non-negative (it's a sum of products of probabilities)
+        if aux_loss < 0:
+            return False, f"aux_loss should be non-negative, got {aux_loss.item()}"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "MoE output contains NaN or Inf"
+        
+        return True, f"SparseMoE forward works, aux_loss={aux_loss.item():.4f}, output std={output.std():.4f}"
     except Exception as e:
         return False, str(e)
 
@@ -314,7 +359,7 @@ def test_batched_moe_init() -> Tuple[bool, str]:
 
 
 def test_batched_moe_forward() -> Tuple[bool, str]:
-    """Test BatchedMoE forward pass."""
+    """Test BatchedMoE forward pass produces valid output."""
     try:
         d_model, num_experts = 128, 4
         moe = BatchedMoE(d_model, num_experts, top_k=2)
@@ -323,6 +368,7 @@ def test_batched_moe_forward() -> Tuple[bool, str]:
             return False, "BatchedMoE not initialized"
         
         batch, seq_len = 2, 8
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         output, aux_loss = moe(x)
@@ -330,13 +376,31 @@ def test_batched_moe_forward() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Output shape wrong"
         
-        return True, "BatchedMoE forward works"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "BatchedMoE output is all zeros"
+        
+        # Verify output is different from input
+        if torch.allclose(output, x, atol=1e-3):
+            return False, "BatchedMoE output is same as input"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "BatchedMoE output contains NaN or Inf"
+        
+        # Verify aux_loss is valid
+        if not torch.is_tensor(aux_loss) or aux_loss.numel() != 1:
+            return False, "aux_loss should be scalar tensor"
+        if aux_loss < 0:
+            return False, "aux_loss should be non-negative"
+        
+        return True, f"BatchedMoE forward works, aux_loss={aux_loss.item():.4f}"
     except Exception as e:
         return False, str(e)
 
 
 def test_moe_transformer_block() -> Tuple[bool, str]:
-    """Test MoE Transformer block."""
+    """Test MoE Transformer block with attention + MoE."""
     try:
         d_model, num_heads, num_experts = 128, 4, 4
         block = MoETransformerBlock(d_model, num_heads, num_experts, top_k=2)
@@ -347,6 +411,7 @@ def test_moe_transformer_block() -> Tuple[bool, str]:
             return False, "attention not initialized"
         
         batch, seq_len = 2, 8
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         output, aux_loss = block(x)
@@ -354,7 +419,24 @@ def test_moe_transformer_block() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Output shape wrong"
         
-        return True, "MoE Transformer block works"
+        # Verify output is not zeros
+        if output.abs().sum() == 0:
+            return False, "Block output is all zeros"
+        
+        # Verify residual connection (output correlates with input)
+        correlation = F.cosine_similarity(output.flatten(), x.flatten(), dim=0)
+        if correlation < 0.1:
+            return False, f"Residual connection may not work: correlation={correlation:.3f}"
+        
+        # Verify aux_loss is valid
+        if not torch.is_tensor(aux_loss) or aux_loss.numel() != 1:
+            return False, "aux_loss should be scalar tensor"
+        
+        # Verify output has reasonable values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Block output contains NaN or Inf"
+        
+        return True, f"MoE Transformer block works, correlation={correlation:.3f}"
     except Exception as e:
         return False, str(e)
 

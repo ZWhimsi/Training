@@ -107,7 +107,7 @@ def test_kv_down_projection_init() -> Tuple[bool, str]:
 
 
 def test_kv_down_projection_forward() -> Tuple[bool, str]:
-    """Test KVDownProjection forward pass."""
+    """Test KVDownProjection forward pass applies linear + norm."""
     try:
         d_model, d_latent = 512, 128
         proj = KVDownProjection(d_model, d_latent)
@@ -116,6 +116,7 @@ def test_kv_down_projection_forward() -> Tuple[bool, str]:
             return False, "proj not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, d_model)
         c = proj(x)
         
@@ -123,7 +124,21 @@ def test_kv_down_projection_forward() -> Tuple[bool, str]:
         if c.shape != expected_shape:
             return False, f"Output shape {c.shape} != {expected_shape}"
         
-        return True, f"Output shape: {c.shape}"
+        # Verify output is not zeros
+        if c.abs().sum() == 0:
+            return False, "Output is all zeros"
+        
+        # Verify normalization was applied (RMS should be approximately 1)
+        rms = c.pow(2).mean(dim=-1).sqrt()
+        if not torch.allclose(rms, torch.ones_like(rms), atol=0.2):
+            return False, f"RMSNorm may not be applied correctly, mean RMS={rms.mean():.4f}"
+        
+        # Verify compression happened
+        compression_ratio = d_model / d_latent
+        if compression_ratio < 2:
+            return False, f"Expected compression ratio >= 2, got {compression_ratio}"
+        
+        return True, f"KVDownProjection works, RMS={rms.mean():.4f}"
     except Exception as e:
         return False, str(e)
 
@@ -220,7 +235,7 @@ def test_decoupled_rope_key_init() -> Tuple[bool, str]:
 
 
 def test_decoupled_rope_key_forward() -> Tuple[bool, str]:
-    """Test DecoupledRoPEKey forward pass."""
+    """Test DecoupledRoPEKey forward pass with content and RoPE verification."""
     try:
         d_model, d_latent, num_heads, head_dim, rope_dim = 512, 128, 8, 64, 32
         key_proj = DecoupledRoPEKey(d_model, d_latent, num_heads, head_dim, rope_dim)
@@ -229,6 +244,7 @@ def test_decoupled_rope_key_forward() -> Tuple[bool, str]:
             return False, "key_proj not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, d_model)
         c_kv = torch.randn(batch, seq, d_latent)
         
@@ -239,7 +255,27 @@ def test_decoupled_rope_key_forward() -> Tuple[bool, str]:
         if k_rope.shape != (batch, seq, num_heads, rope_dim):
             return False, f"k_rope shape wrong"
         
-        return True, f"k_content: {k_content.shape}, k_rope: {k_rope.shape}"
+        # Verify k_content comes from c_kv (up projection)
+        with torch.no_grad():
+            expected_content = key_proj.up_proj_k(c_kv)
+            expected_content = expected_content.view(batch, seq, num_heads, head_dim)
+        
+        if not torch.allclose(k_content, expected_content, atol=1e-5):
+            return False, "k_content doesn't match expected up projection"
+        
+        # Verify k_rope has different values at different positions (rotation applied)
+        pos0 = k_rope[0, 0, 0]
+        pos1 = k_rope[0, 1, 0]
+        if torch.allclose(pos0, pos1, atol=1e-5):
+            return False, "k_rope should have different values at different positions (RoPE)"
+        
+        # Verify outputs are not zeros
+        if k_content.abs().sum() == 0:
+            return False, "k_content is all zeros"
+        if k_rope.abs().sum() == 0:
+            return False, "k_rope is all zeros"
+        
+        return True, f"Decoupled: content from latent, rope position-dependent"
     except Exception as e:
         return False, str(e)
 
@@ -355,11 +391,12 @@ def test_mla_query_compression_forward() -> Tuple[bool, str]:
 
 
 def test_mla_attention_scores() -> Tuple[bool, str]:
-    """Test combined MLA attention score computation."""
+    """Test combined MLA attention score computation matches formula."""
     try:
         batch, num_heads, seq_q, seq_k = 2, 8, 16, 24
         head_dim, rope_dim = 64, 32
         
+        torch.manual_seed(42)
         q_content = torch.randn(batch, num_heads, seq_q, head_dim)
         q_rope = torch.randn(batch, num_heads, seq_q, rope_dim)
         k_content = torch.randn(batch, num_heads, seq_k, head_dim)
@@ -374,7 +411,22 @@ def test_mla_attention_scores() -> Tuple[bool, str]:
         if scores.abs().sum() == 0:
             return False, "Scores are all zero"
         
-        return True, f"Scores shape: {scores.shape}"
+        # Verify formula: scores = (q_content @ k_content.T + q_rope @ k_rope.T) * scale
+        total_dim = head_dim + rope_dim
+        scale = total_dim ** -0.5
+        
+        content_scores = torch.matmul(q_content, k_content.transpose(-2, -1))
+        rope_scores = torch.matmul(q_rope, k_rope.transpose(-2, -1))
+        expected_scores = (content_scores + rope_scores) * scale
+        
+        if not torch.allclose(scores, expected_scores, atol=1e-4):
+            return False, "Scores don't match expected formula"
+        
+        # Verify scores have reasonable range
+        if torch.isnan(scores).any() or torch.isinf(scores).any():
+            return False, "Scores contain NaN or Inf"
+        
+        return True, f"Scores match: (q_c @ k_c.T + q_r @ k_r.T) * scale"
     except Exception as e:
         return False, str(e)
 

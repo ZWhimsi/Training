@@ -20,7 +20,7 @@ except ImportError as e:
 
 
 def test_xavier_uniform_shape() -> Tuple[bool, str]:
-    """Test Xavier uniform preserves tensor shape."""
+    """Test Xavier uniform preserves shape and produces uniform distribution."""
     try:
         tensor = torch.empty(128, 64)
         result = xavier_uniform_(tensor)
@@ -30,7 +30,15 @@ def test_xavier_uniform_shape() -> Tuple[bool, str]:
         if result.shape != (128, 64):
             return False, f"Shape changed: {result.shape}"
         
-        return True, f"Shape preserved: {result.shape}"
+        # Check it's roughly uniform (not all same value)
+        if result.std().item() < 0.01:
+            return False, "Values not uniformly distributed"
+        
+        # Mean should be close to 0 for uniform in [-a, a]
+        if abs(result.mean().item()) > 0.1:
+            return False, f"Mean not centered: {result.mean().item():.4f}"
+        
+        return True, f"Uniform distribution, mean~0"
     except Exception as e:
         return False, str(e)
 
@@ -106,17 +114,29 @@ def test_xavier_vs_pytorch() -> Tuple[bool, str]:
 
 
 def test_kaiming_uniform_shape() -> Tuple[bool, str]:
-    """Test Kaiming uniform preserves shape."""
+    """Test Kaiming uniform preserves shape and has correct bounds."""
     try:
-        tensor = torch.empty(128, 64)
-        result = kaiming_uniform_(tensor)
+        fan_in = 64
+        tensor = torch.empty(128, fan_in)
+        result = kaiming_uniform_(tensor, mode='fan_in', nonlinearity='relu')
         
         if result is None:
             return False, "Function returned None"
         if result.shape != (128, 64):
             return False, f"Shape changed: {result.shape}"
         
-        return True, f"Shape preserved: {result.shape}"
+        # For ReLU: gain = sqrt(2), std = gain / sqrt(fan_in)
+        # bound = sqrt(3) * std
+        expected_std = math.sqrt(2.0) / math.sqrt(fan_in)
+        expected_bound = math.sqrt(3) * expected_std
+        
+        # Check values are within bounds
+        if result.max().item() > expected_bound * 1.05:
+            return False, f"Max {result.max().item():.4f} > bound {expected_bound:.4f}"
+        if result.min().item() < -expected_bound * 1.05:
+            return False, f"Min {result.min().item():.4f} < -bound"
+        
+        return True, f"Values in [-{expected_bound:.4f}, {expected_bound:.4f}]"
     except Exception as e:
         return False, str(e)
 
@@ -192,7 +212,7 @@ def test_kaiming_leaky_relu() -> Tuple[bool, str]:
 
 
 def test_orthogonal_shape() -> Tuple[bool, str]:
-    """Test orthogonal initialization preserves shape."""
+    """Test orthogonal initialization preserves shape and has unit norm rows."""
     try:
         tensor = torch.empty(64, 64)
         result = orthogonal_(tensor)
@@ -202,7 +222,12 @@ def test_orthogonal_shape() -> Tuple[bool, str]:
         if result.shape != (64, 64):
             return False, f"Shape changed: {result.shape}"
         
-        return True, f"Shape preserved: {result.shape}"
+        # Rows should have approximately unit norm (for gain=1)
+        row_norms = result.norm(dim=1)
+        if not torch.allclose(row_norms, torch.ones(64), atol=0.01):
+            return False, f"Row norms not ~1: mean={row_norms.mean().item():.4f}"
+        
+        return True, f"Orthogonal with unit row norms"
     except Exception as e:
         return False, str(e)
 
@@ -346,7 +371,7 @@ def test_truncated_normal() -> Tuple[bool, str]:
 
 
 def test_init_transformer_weights() -> Tuple[bool, str]:
-    """Test Transformer-specific initialization."""
+    """Test Transformer-specific initialization with correct statistics."""
     try:
         d_model = 64
         
@@ -359,7 +384,23 @@ def test_init_transformer_weights() -> Tuple[bool, str]:
             if not torch.allclose(linear.bias, torch.zeros_like(linear.bias)):
                 return False, "Bias not zeros"
         
-        return True, "Transformer init applied"
+        # Weight should have reasonable std (Xavier: sqrt(2/(fan_in+fan_out)))
+        expected_std = math.sqrt(2.0 / (d_model + d_model))
+        actual_std = linear.weight.std().item()
+        if abs(actual_std - expected_std) > 0.1:
+            return False, f"Weight std {actual_std:.4f} not ~{expected_std:.4f}"
+        
+        # Test on embedding
+        emb = nn.Embedding(1000, d_model)
+        init_transformer_weights(emb, d_model)
+        
+        # Embedding std should be ~sqrt(1/d_model)
+        expected_emb_std = math.sqrt(1.0 / d_model)
+        actual_emb_std = emb.weight.std().item()
+        if abs(actual_emb_std - expected_emb_std) > 0.1:
+            return False, f"Embedding std {actual_emb_std:.4f} not ~{expected_emb_std:.4f}"
+        
+        return True, "Transformer init with correct std"
     except Exception as e:
         return False, str(e)
 

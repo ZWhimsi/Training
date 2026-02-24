@@ -15,6 +15,7 @@ except ImportError as e:
 
 def test_simple_dataset() -> Tuple[bool, str]:
     try:
+        torch.manual_seed(42)
         X = torch.randn(100, 10)
         y = torch.randint(0, 3, (100,))
         dataset = SimpleDataset(X, y)
@@ -23,14 +24,22 @@ def test_simple_dataset() -> Tuple[bool, str]:
             return False, "Not implemented"
         
         if len(dataset) != 100:
-            return False, f"Length: {len(dataset)}"
+            return False, f"Length: got {len(dataset)}, expected 100"
         
-        sample_x, sample_y = dataset[0]
-        if sample_x is None:
-            return False, "__getitem__ not implemented"
-        
-        if sample_x.shape != torch.Size([10]):
-            return False, f"Sample shape: {sample_x.shape}"
+        # Test multiple indices and verify VALUES
+        for idx in [0, 50, 99]:
+            sample_x, sample_y = dataset[idx]
+            if sample_x is None:
+                return False, f"__getitem__[{idx}] returned None"
+            
+            if sample_x.shape != torch.Size([10]):
+                return False, f"Sample shape: got {sample_x.shape}, expected (10,)"
+            
+            # Verify the returned values match the original data
+            if not torch.equal(sample_x, X[idx]):
+                return False, f"X[{idx}] doesn't match original: got {sample_x[:3]}, expected {X[idx][:3]}"
+            if sample_y != y[idx]:
+                return False, f"y[{idx}] doesn't match: got {sample_y}, expected {y[idx]}"
         
         return True, "OK"
     except Exception as e:
@@ -62,11 +71,12 @@ def test_transform_dataset() -> Tuple[bool, str]:
 
 def test_custom_collate() -> Tuple[bool, str]:
     try:
-        batch = [
-            (torch.randn(10), torch.tensor(0)),
-            (torch.randn(10), torch.tensor(1)),
-            (torch.randn(10), torch.tensor(2)),
-        ]
+        torch.manual_seed(42)
+        # Create batch with known values
+        x0, y0 = torch.randn(10), torch.tensor(0)
+        x1, y1 = torch.randn(10), torch.tensor(1)
+        x2, y2 = torch.randn(10), torch.tensor(2)
+        batch = [(x0, y0), (x1, y1), (x2, y2)]
         
         x_batch, y_batch = custom_collate(batch)
         
@@ -74,10 +84,22 @@ def test_custom_collate() -> Tuple[bool, str]:
             return False, "Not implemented"
         
         if x_batch.shape != torch.Size([3, 10]):
-            return False, f"X shape: {x_batch.shape}"
+            return False, f"X shape: got {x_batch.shape}, expected (3, 10)"
         
         if y_batch.shape != torch.Size([3]):
-            return False, f"Y shape: {y_batch.shape}"
+            return False, f"Y shape: got {y_batch.shape}, expected (3,)"
+        
+        # Verify VALUES are correctly stacked
+        if not torch.equal(x_batch[0], x0):
+            return False, f"x_batch[0] doesn't match original"
+        if not torch.equal(x_batch[1], x1):
+            return False, f"x_batch[1] doesn't match original"
+        if not torch.equal(x_batch[2], x2):
+            return False, f"x_batch[2] doesn't match original"
+        
+        expected_y = torch.tensor([0, 1, 2])
+        if not torch.equal(y_batch, expected_y):
+            return False, f"y_batch: got {y_batch}, expected {expected_y}"
         
         return True, "OK"
     except Exception as e:

@@ -16,6 +16,7 @@ except ImportError as e:
 
 def test_attention_basic() -> Tuple[bool, str]:
     try:
+        torch.manual_seed(42)
         Q = torch.randn(2, 4, 8)
         K = torch.randn(2, 4, 8)
         V = torch.randn(2, 4, 8)
@@ -32,7 +33,19 @@ def test_attention_basic() -> Tuple[bool, str]:
         if weights.shape != (2, 4, 4):
             return False, f"Weights shape {weights.shape}, expected (2,4,4)"
         
-        return True, f"Shapes OK: out={output.shape}, weights={weights.shape}"
+        # Validate actual computation
+        d_k = Q.shape[-1]
+        expected_scores = torch.matmul(Q, K.transpose(-2, -1)) / (d_k ** 0.5)
+        expected_weights = F.softmax(expected_scores, dim=-1)
+        expected_output = torch.matmul(expected_weights, V)
+        
+        if not torch.allclose(weights, expected_weights, atol=1e-5):
+            return False, f"Weights mismatch: max diff {(weights - expected_weights).abs().max():.6f}"
+        
+        if not torch.allclose(output, expected_output, atol=1e-5):
+            return False, f"Output mismatch: max diff {(output - expected_output).abs().max():.6f}"
+        
+        return True, f"Shapes and values OK"
     except Exception as e:
         return False, str(e)
 
@@ -79,6 +92,7 @@ def test_attention_vs_pytorch() -> Tuple[bool, str]:
 
 def test_self_attention_module() -> Tuple[bool, str]:
     try:
+        torch.manual_seed(42)
         d_model = 16
         module = SelfAttention(d_model)
         
@@ -92,6 +106,20 @@ def test_self_attention_module() -> Tuple[bool, str]:
             return False, "output is None"
         if output.shape != x.shape:
             return False, f"Shape mismatch: {output.shape} vs {x.shape}"
+        
+        # Validate computation: Q, K, V projections -> attention -> output projection
+        with torch.no_grad():
+            Q = module.W_q(x)
+            K = module.W_k(x)
+            V = module.W_v(x)
+            d_k = Q.shape[-1]
+            scores = torch.matmul(Q, K.transpose(-2, -1)) / (d_k ** 0.5)
+            attn_weights = F.softmax(scores, dim=-1)
+            attn_output = torch.matmul(attn_weights, V)
+            expected = module.W_o(attn_output)
+        
+        if not torch.allclose(output, expected, atol=1e-5):
+            return False, f"Output doesn't match expected: max diff {(output - expected).abs().max():.6f}"
         
         return True, f"SelfAttention module OK"
     except Exception as e:

@@ -66,27 +66,36 @@ def test_tensor_properties() -> Tuple[bool, str]:
 def test_tensor_indexing() -> Tuple[bool, str]:
     try:
         t = torch.arange(20).reshape(4, 5).float()
+        # t is:
+        # [[ 0,  1,  2,  3,  4],
+        #  [ 5,  6,  7,  8,  9],
+        #  [10, 11, 12, 13, 14],
+        #  [15, 16, 17, 18, 19]]
         result = tensor_indexing(t)
         
         if result['first_row'] is None:
             return False, "first_row is None"
-        if not torch.equal(result['first_row'], t[0]):
-            return False, "first_row wrong"
+        expected_first_row = torch.tensor([0., 1., 2., 3., 4.])
+        if not torch.equal(result['first_row'], expected_first_row):
+            return False, f"first_row: got {result['first_row']}, expected {expected_first_row}"
         
         if result['last_col'] is None:
             return False, "last_col is None"
-        if not torch.equal(result['last_col'], t[:, -1]):
-            return False, "last_col wrong"
+        expected_last_col = torch.tensor([4., 9., 14., 19.])
+        if not torch.equal(result['last_col'], expected_last_col):
+            return False, f"last_col: got {result['last_col']}, expected {expected_last_col}"
         
         if result['top_left_2x2'] is None:
             return False, "top_left_2x2 is None"
-        if result['top_left_2x2'].shape != (2, 2):
-            return False, "top_left_2x2 shape wrong"
+        expected_top_left = torch.tensor([[0., 1.], [5., 6.]])
+        if not torch.equal(result['top_left_2x2'], expected_top_left):
+            return False, f"top_left_2x2: got {result['top_left_2x2']}, expected {expected_top_left}"
         
         if result['every_other_row'] is None:
             return False, "every_other_row is None"
-        if result['every_other_row'].shape[0] != 2:
-            return False, "every_other_row wrong"
+        expected_every_other = torch.tensor([[0., 1., 2., 3., 4.], [10., 11., 12., 13., 14.]])
+        if not torch.equal(result['every_other_row'], expected_every_other):
+            return False, f"every_other_row: got {result['every_other_row']}, expected {expected_every_other}"
         
         return True, "Indexing correct"
     except Exception as e:
@@ -95,20 +104,42 @@ def test_tensor_indexing() -> Tuple[bool, str]:
 
 def test_reshape_tensors() -> Tuple[bool, str]:
     try:
-        t = torch.arange(12).float()
+        t = torch.arange(12).float()  # [0, 1, 2, ..., 11]
         result = reshape_tensors(t)
         
-        if result['as_3x4'] is None or result['as_3x4'].shape != (3, 4):
-            return False, "3x4 reshape failed"
+        # Test 3x4 reshape - must have correct shape AND values
+        if result['as_3x4'] is None:
+            return False, "as_3x4 is None"
+        if result['as_3x4'].shape != (3, 4):
+            return False, f"as_3x4 shape: got {result['as_3x4'].shape}, expected (3, 4)"
+        expected_3x4 = torch.tensor([[0., 1., 2., 3.], [4., 5., 6., 7.], [8., 9., 10., 11.]])
+        if not torch.equal(result['as_3x4'], expected_3x4):
+            return False, f"as_3x4 values wrong: got {result['as_3x4']}, expected {expected_3x4}"
         
-        if result['as_2x6'] is None or result['as_2x6'].shape != (2, 6):
-            return False, "2x6 reshape failed"
+        # Test 2x6 reshape - must have correct shape AND values
+        if result['as_2x6'] is None:
+            return False, "as_2x6 is None"
+        if result['as_2x6'].shape != (2, 6):
+            return False, f"as_2x6 shape: got {result['as_2x6'].shape}, expected (2, 6)"
+        expected_2x6 = torch.tensor([[0., 1., 2., 3., 4., 5.], [6., 7., 8., 9., 10., 11.]])
+        if not torch.equal(result['as_2x6'], expected_2x6):
+            return False, f"as_2x6 values wrong: got {result['as_2x6']}, expected {expected_2x6}"
         
-        if result['as_flat'] is None or result['as_flat'].shape != (12,):
-            return False, "flatten failed"
+        # Test flatten - must have correct shape AND values
+        if result['as_flat'] is None:
+            return False, "as_flat is None"
+        if result['as_flat'].shape != (12,):
+            return False, f"as_flat shape: got {result['as_flat'].shape}, expected (12,)"
+        if not torch.equal(result['as_flat'], t):
+            return False, f"as_flat values wrong"
         
-        if result['with_batch_dim'] is None or result['with_batch_dim'].shape != (1, 12):
-            return False, "batch dim failed"
+        # Test batch dim - must have correct shape AND values
+        if result['with_batch_dim'] is None:
+            return False, "with_batch_dim is None"
+        if result['with_batch_dim'].shape != (1, 12):
+            return False, f"with_batch_dim shape: got {result['with_batch_dim'].shape}, expected (1, 12)"
+        if not torch.equal(result['with_batch_dim'].squeeze(), t):
+            return False, f"with_batch_dim values wrong"
         
         return True, "Reshaping correct"
     except Exception as e:

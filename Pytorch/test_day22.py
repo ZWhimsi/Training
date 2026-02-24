@@ -37,7 +37,7 @@ def test_memory_savings_calculation() -> Tuple[bool, str]:
 
 
 def test_repeat_kv_shape() -> Tuple[bool, str]:
-    """Test repeat_kv output shape."""
+    """Test repeat_kv output shape and memory layout."""
     try:
         batch, num_kv_heads, seq_len, head_dim = 2, 4, 10, 64
         num_repeats = 4
@@ -49,7 +49,11 @@ def test_repeat_kv_shape() -> Tuple[bool, str]:
         if output.shape != expected_shape:
             return False, f"Shape {output.shape} != {expected_shape}"
         
-        return True, f"Output shape correct: {output.shape}"
+        # Verify output is contiguous (important for attention)
+        if not output.is_contiguous():
+            return False, "Output is not contiguous"
+        
+        return True, f"Shape correct and contiguous: {output.shape}"
     except Exception as e:
         return False, str(e)
 
@@ -82,7 +86,7 @@ def test_repeat_kv_values() -> Tuple[bool, str]:
 
 
 def test_repeat_kv_no_repeat() -> Tuple[bool, str]:
-    """Test repeat_kv with num_repeats=1 (no-op)."""
+    """Test repeat_kv with num_repeats=1 returns same values."""
     try:
         x = torch.randn(2, 4, 10, 64)
         output = repeat_kv(x, 1)
@@ -90,13 +94,17 @@ def test_repeat_kv_no_repeat() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape changed with num_repeats=1"
         
-        return True, "No-op case handled correctly"
+        # With no repeat, output should equal input
+        if not torch.allclose(output, x, atol=1e-6):
+            return False, "Output differs from input with num_repeats=1"
+        
+        return True, "No-op returns identical values"
     except Exception as e:
         return False, str(e)
 
 
 def test_gqa_projection_shapes() -> Tuple[bool, str]:
-    """Test GQAProjection output shapes."""
+    """Test GQAProjection output shapes and computation."""
     try:
         d_model, num_heads, num_kv_heads = 256, 8, 2
         proj = GQAProjection(d_model, num_heads, num_kv_heads)
@@ -123,7 +131,14 @@ def test_gqa_projection_shapes() -> Tuple[bool, str]:
         if v.shape != expected_kv:
             return False, f"V shape {v.shape} != {expected_kv}"
         
-        return True, f"Shapes: Q={q.shape}, K={k.shape}, V={v.shape}"
+        # Verify Q, K, V are computed from input (different input = different output)
+        x2 = torch.randn(batch, seq_len, d_model)
+        q2, k2, v2 = proj(x2)
+        
+        if torch.allclose(q, q2, atol=1e-4):
+            return False, "Different inputs produce same Q"
+        
+        return True, f"Q={q.shape}, KV={k.shape} (fewer heads)"
     except Exception as e:
         return False, str(e)
 
@@ -157,13 +172,15 @@ def test_gqa_projection_params() -> Tuple[bool, str]:
 
 
 def test_gqa_forward() -> Tuple[bool, str]:
-    """Test GroupedQueryAttention forward pass."""
+    """Test GroupedQueryAttention forward pass and output projection."""
     try:
         d_model, num_heads, num_kv_heads = 256, 8, 2
-        gqa = GroupedQueryAttention(d_model, num_heads, num_kv_heads)
+        gqa = GroupedQueryAttention(d_model, num_heads, num_kv_heads, dropout=0.0)
         
         if gqa.projection is None:
             return False, "GQA projection not initialized"
+        if gqa.W_o is None:
+            return False, "Output projection W_o not initialized"
         
         batch, seq_len = 2, 16
         x = torch.randn(batch, seq_len, d_model)
@@ -176,7 +193,15 @@ def test_gqa_forward() -> Tuple[bool, str]:
         if attn.shape != expected_attn:
             return False, f"Attention shape {attn.shape} != {expected_attn}"
         
-        return True, "GQA forward pass works"
+        # Verify output is different from input (attention applied)
+        if torch.allclose(output, x, atol=1e-3):
+            return False, "Output identical to input (no attention applied)"
+        
+        # Verify output has valid values
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        return True, "GQA produces valid attention output"
     except Exception as e:
         return False, str(e)
 
@@ -255,13 +280,13 @@ def test_mqa_is_gqa_special_case() -> Tuple[bool, str]:
 
 
 def test_gqa_vs_mha_output_shape() -> Tuple[bool, str]:
-    """Test that GQA and MHA produce same output shape."""
+    """Test that GQA and MHA produce same output shape with valid attention."""
     try:
         d_model, num_heads = 128, 4
         num_kv_heads = 2
         
-        gqa = GroupedQueryAttention(d_model, num_heads, num_kv_heads)
-        mha = StandardMultiHeadAttention(d_model, num_heads)
+        gqa = GroupedQueryAttention(d_model, num_heads, num_kv_heads, dropout=0.0)
+        mha = StandardMultiHeadAttention(d_model, num_heads, dropout=0.0)
         
         if gqa.projection is None:
             return False, "GQA not initialized"
@@ -276,7 +301,16 @@ def test_gqa_vs_mha_output_shape() -> Tuple[bool, str]:
         if gqa_attn.shape != mha_attn.shape:
             return False, f"Attention shapes differ"
         
-        return True, "GQA and MHA have same output shapes"
+        # Both should have valid attention weights (sum to 1)
+        gqa_sum = gqa_attn.sum(dim=-1)
+        mha_sum = mha_attn.sum(dim=-1)
+        
+        if not torch.allclose(gqa_sum, torch.ones_like(gqa_sum), atol=1e-5):
+            return False, "GQA attention doesn't sum to 1"
+        if not torch.allclose(mha_sum, torch.ones_like(mha_sum), atol=1e-5):
+            return False, "MHA attention doesn't sum to 1"
+        
+        return True, "GQA and MHA both produce valid attention"
     except Exception as e:
         return False, str(e)
 
@@ -305,15 +339,19 @@ def test_memory_comparison() -> Tuple[bool, str]:
 
 
 def test_gqa_transformer_block() -> Tuple[bool, str]:
-    """Test GQA Transformer block."""
+    """Test GQA Transformer block with residual connections."""
     try:
         d_model, num_heads, num_kv_heads = 128, 4, 2
-        block = GQATransformerBlock(d_model, num_heads, num_kv_heads)
+        block = GQATransformerBlock(d_model, num_heads, num_kv_heads, dropout=0.0)
         
         if block.attention is None:
             return False, "Attention not initialized"
         if block.norm1 is None:
             return False, "norm1 not initialized"
+        if block.norm2 is None:
+            return False, "norm2 not initialized"
+        if block.ffn is None:
+            return False, "ffn not initialized"
         
         x = torch.randn(2, 8, d_model)
         output = block(x)
@@ -321,7 +359,16 @@ def test_gqa_transformer_block() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Output shape {output.shape} != {x.shape}"
         
-        return True, "GQA Transformer block works"
+        # Verify residual connection (output correlates with input)
+        correlation = torch.corrcoef(torch.stack([x.flatten(), output.flatten()]))[0, 1]
+        if correlation < 0.05:
+            return False, f"Weak residual: corr={correlation:.4f}"
+        
+        # Verify block actually transforms input
+        if torch.allclose(output, x, atol=1e-3):
+            return False, "Output identical to input"
+        
+        return True, "GQA block with residual connections"
     except Exception as e:
         return False, str(e)
 

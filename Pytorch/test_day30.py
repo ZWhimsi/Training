@@ -53,12 +53,14 @@ def test_rms_norm_forward() -> Tuple[bool, str]:
     """Test RMSNorm forward pass."""
     try:
         dim = 64
-        norm = RMSNorm(dim)
+        eps = 1e-6
+        norm = RMSNorm(dim, eps)
         
         if norm.weight is None:
             return False, "RMSNorm not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, dim) * 10  # Large values
         
         out = norm(x)
@@ -66,15 +68,19 @@ def test_rms_norm_forward() -> Tuple[bool, str]:
         if out.shape != x.shape:
             return False, f"Output shape {out.shape} != input shape {x.shape}"
         
-        # Check normalization effect
-        rms_in = torch.sqrt(torch.mean(x ** 2, dim=-1))
+        # Compute expected RMSNorm output: x / sqrt(mean(x²) + eps) * weight
+        rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + eps)
+        expected = (x / rms) * norm.weight
+        
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, "RMSNorm output doesn't match formula: x / sqrt(mean(x²) + eps) * weight"
+        
+        # Output RMS should be close to 1 (with default weight of ones)
         rms_out = torch.sqrt(torch.mean(out ** 2, dim=-1))
+        if not torch.allclose(rms_out, torch.ones_like(rms_out), atol=0.1):
+            return False, f"Output RMS should be ~1, got {rms_out.mean():.2f}"
         
-        # Output should be more normalized (closer to 1)
-        if rms_out.mean() > rms_in.mean():
-            return False, "RMSNorm didn't reduce variance"
-        
-        return True, f"RMSNorm works, RMS: {rms_in.mean():.2f} -> {rms_out.mean():.2f}"
+        return True, f"RMSNorm verified, output RMS: {rms_out.mean():.2f}"
     except Exception as e:
         return False, str(e)
 
@@ -89,18 +95,33 @@ def test_rms_norm_vs_layer_norm() -> Tuple[bool, str]:
         if rms_norm.weight is None:
             return False, "RMSNorm not initialized"
         
+        torch.manual_seed(42)
         x = torch.randn(2, 16, dim) + 5  # Non-zero mean
+        
+        # Set weight to ones for fair comparison
+        with torch.no_grad():
+            rms_norm.weight.fill_(1.0)
         
         rms_out = rms_norm(x)
         ln_out = layer_norm(x)
         
-        # They should produce different outputs (RMS doesn't center)
-        diff = (rms_out - ln_out).abs().mean()
+        # RMSNorm should NOT center (mean may not be 0)
+        rms_mean = rms_out.mean(dim=-1)
+        ln_mean = ln_out.mean(dim=-1)
         
+        # LayerNorm centers the output (mean ~0), RMSNorm does not
+        if torch.allclose(rms_mean, torch.zeros_like(rms_mean), atol=0.1):
+            return False, "RMSNorm should NOT center the data (mean != 0)"
+        
+        if not torch.allclose(ln_mean, torch.zeros_like(ln_mean), atol=0.01):
+            return False, "LayerNorm should center the data (mean ~0)"
+        
+        # They should produce different outputs
+        diff = (rms_out - ln_out).abs().mean()
         if diff < 0.01:
             return False, "RMSNorm output too similar to LayerNorm"
         
-        return True, f"RMSNorm differs from LayerNorm by {diff:.3f}"
+        return True, f"RMSNorm differs (no centering), diff={diff:.3f}"
     except Exception as e:
         return False, str(e)
 
@@ -133,6 +154,7 @@ def test_swiglu_ffn_forward() -> Tuple[bool, str]:
             return False, "SwiGLU FFN not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         out = ffn(x)
@@ -140,7 +162,16 @@ def test_swiglu_ffn_forward() -> Tuple[bool, str]:
         if out.shape != x.shape:
             return False, f"Output shape {out.shape} != input shape {x.shape}"
         
-        return True, f"SwiGLU FFN output shape: {out.shape}"
+        # Verify SwiGLU formula: (silu(W_gate(x)) * W_up(x)) @ W_down
+        gate = F.silu(ffn.w_gate(x))  # silu is swish
+        up = ffn.w_up(x)
+        hidden = gate * up
+        expected = ffn.w_down(hidden)
+        
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, "SwiGLU output doesn't match formula: silu(W_gate(x)) * W_up(x) @ W_down"
+        
+        return True, f"SwiGLU FFN verified with formula"
     except Exception as e:
         return False, str(e)
 
@@ -201,6 +232,7 @@ def test_mla_forward() -> Tuple[bool, str]:
             return False, "MLA not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, config.d_model)
         
         out, attn_weights, kv_cache = mla(x)
@@ -212,7 +244,20 @@ def test_mla_forward() -> Tuple[bool, str]:
         if attn_weights.shape != expected_attn:
             return False, f"Attention shape {attn_weights.shape} != {expected_attn}"
         
-        return True, f"MLA forward: {x.shape} -> {out.shape}"
+        # Verify attention weights are valid probabilities (sum to 1 along last dim)
+        attn_sums = attn_weights.sum(dim=-1)
+        if not torch.allclose(attn_sums, torch.ones_like(attn_sums), atol=1e-5):
+            return False, "Attention weights don't sum to 1"
+        
+        # Verify attention weights are non-negative
+        if (attn_weights < -1e-6).any():
+            return False, "Attention weights should be non-negative"
+        
+        # Verify KV compression is used (latent_dim < full KV dim)
+        if mla.latent_dim >= config.num_kv_heads * mla.head_dim:
+            return False, "MLA should use KV compression"
+        
+        return True, f"MLA forward verified with valid attention"
     except Exception as e:
         return False, str(e)
 
@@ -252,11 +297,12 @@ def test_mla_kv_cache() -> Tuple[bool, str]:
             return False, "MLA not initialized"
         
         batch = 2
+        torch.manual_seed(42)
         
         # Prefill with prompt
         prompt_len = 8
         x_prompt = torch.randn(batch, prompt_len, config.d_model)
-        out1, _, kv_cache = mla(x_prompt)
+        out1, attn1, kv_cache = mla(x_prompt)
         
         if kv_cache is None:
             return False, "KV cache not returned"
@@ -270,7 +316,7 @@ def test_mla_kv_cache() -> Tuple[bool, str]:
         
         # Generate with cache
         x_new = torch.randn(batch, 1, config.d_model)
-        out2, _, new_cache = mla(x_new, kv_cache=kv_cache)
+        out2, attn2, new_cache = mla(x_new, kv_cache=kv_cache)
         
         if new_cache is None:
             return False, "Cache not updated"
@@ -279,7 +325,13 @@ def test_mla_kv_cache() -> Tuple[bool, str]:
         if new_k.shape[2] != prompt_len + 1:
             return False, f"Cache not extended: {new_k.shape[2]} != {prompt_len + 1}"
         
-        return True, "KV caching works correctly"
+        # Verify cached portion is preserved
+        if not torch.allclose(new_k[:, :, :prompt_len, :], k_cache, atol=1e-5):
+            return False, "K cache portion not preserved during extension"
+        if not torch.allclose(new_v[:, :, :prompt_len, :], v_cache, atol=1e-5):
+            return False, "V cache portion not preserved during extension"
+        
+        return True, "KV caching verified with value preservation"
     except Exception as e:
         return False, str(e)
 
@@ -337,6 +389,7 @@ def test_deepseek_block_forward() -> Tuple[bool, str]:
             return False, "Block not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, config.d_model)
         mask = create_causal_mask(seq_len)
         
@@ -345,7 +398,21 @@ def test_deepseek_block_forward() -> Tuple[bool, str]:
         if out.shape != x.shape:
             return False, f"Output shape {out.shape} != {x.shape}"
         
-        return True, f"Block output: {out.shape}"
+        # Verify block transforms the input
+        if torch.allclose(out, x, atol=1e-3):
+            return False, "Block output too similar to input"
+        
+        # Verify attention is causal (upper triangle should be ~0 after softmax)
+        upper_tri = torch.triu(attn_weights[0, 0], diagonal=1)
+        if upper_tri.abs().sum() > 1e-5:
+            return False, "Attention should be causal"
+        
+        # Verify attention weights are valid
+        attn_sums = attn_weights.sum(dim=-1)
+        if not torch.allclose(attn_sums, torch.ones_like(attn_sums), atol=1e-5):
+            return False, "Attention weights should sum to 1"
+        
+        return True, f"Block verified with causal attention"
     except Exception as e:
         return False, str(e)
 
@@ -419,7 +486,8 @@ def test_rope_init() -> Tuple[bool, str]:
     """Test RoPE initialization."""
     try:
         dim = 64
-        rope = RotaryEmbedding(dim)
+        base = 10000.0
+        rope = RotaryEmbedding(dim, base=base)
         
         cos, sin = rope(torch.tensor([0]), seq_len=16)
         
@@ -428,7 +496,18 @@ def test_rope_init() -> Tuple[bool, str]:
         if sin.shape != (16, dim // 2):
             return False, f"sin shape {sin.shape} != (16, {dim // 2})"
         
-        return True, f"RoPE initialized: cos/sin shape {cos.shape}"
+        # Verify cos²+ sin² = 1
+        sum_sq = cos ** 2 + sin ** 2
+        if not torch.allclose(sum_sq, torch.ones_like(sum_sq), atol=1e-5):
+            return False, "cos² + sin² should equal 1"
+        
+        # Verify position 0 has cos=1, sin=0 for first frequency
+        if abs(cos[0, 0] - 1.0) > 1e-5:
+            return False, "cos(0) should be 1"
+        if abs(sin[0, 0]) > 1e-5:
+            return False, "sin(0) should be 0"
+        
+        return True, f"RoPE verified: cos²+sin²=1"
     except Exception as e:
         return False, str(e)
 
@@ -438,6 +517,7 @@ def test_apply_rope() -> Tuple[bool, str]:
     try:
         batch, num_heads, seq_len, head_dim = 2, 4, 16, 64
         
+        torch.manual_seed(42)
         q = torch.randn(batch, num_heads, seq_len, head_dim)
         k = torch.randn(batch, num_heads // 2, seq_len, head_dim)
         
@@ -457,7 +537,18 @@ def test_apply_rope() -> Tuple[bool, str]:
         if torch.allclose(k, k_rot):
             return False, "RoPE didn't modify K"
         
-        return True, "RoPE applied to Q and K"
+        # RoPE should preserve vector norms (rotation preserves magnitude)
+        q_norm = q.norm(dim=-1)
+        q_rot_norm = q_rot.norm(dim=-1)
+        if not torch.allclose(q_norm, q_rot_norm, atol=1e-4):
+            return False, "RoPE should preserve vector norms"
+        
+        k_norm = k.norm(dim=-1)
+        k_rot_norm = k_rot.norm(dim=-1)
+        if not torch.allclose(k_norm, k_rot_norm, atol=1e-4):
+            return False, "RoPE should preserve K vector norms"
+        
+        return True, "RoPE verified with norm preservation"
     except Exception as e:
         return False, str(e)
 

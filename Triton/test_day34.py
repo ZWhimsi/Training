@@ -75,7 +75,13 @@ def test_numerical_stability() -> Tuple[bool, str]:
         if torch.isnan(dQ).any():
             return False, "NaN in dQ"
         
-        return True, "stable OK"
+        ref_dQ = reference_dq(Q, K, V, dO)
+        
+        max_err = (dQ - ref_dQ).abs().max().item()
+        if not torch.allclose(dQ, ref_dQ, atol=0.1, rtol=0.1):
+            return False, f"dQ mismatch: {max_err:.6f}"
+        
+        return True, f"stable OK (err={max_err:.4f})"
     except Exception as e:
         return False, str(e)
 

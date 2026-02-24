@@ -81,6 +81,7 @@ def test_stats_stored() -> Tuple[bool, str]:
         V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
         
         output, L, M = flash_attention_v2(Q, K, V)
+        expected = reference_attention(Q, K, V)
         
         if L.shape != (batch, n_heads, seq_len):
             return False, f"L shape: {L.shape}"
@@ -90,7 +91,11 @@ def test_stats_stored() -> Tuple[bool, str]:
         if torch.isnan(L).any() or torch.isnan(M).any():
             return False, "NaN in stats"
         
-        return True, "stats OK"
+        if not torch.allclose(output, expected, atol=1e-2, rtol=1e-2):
+            max_err = (output - expected).abs().max().item()
+            return False, f"Output mismatch: {max_err:.4f}"
+        
+        return True, "stats and output OK"
     except Exception as e:
         return False, str(e)
 

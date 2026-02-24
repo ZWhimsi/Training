@@ -81,7 +81,17 @@ def test_numerical_stability() -> Tuple[bool, str]:
         if torch.isnan(dK).any() or torch.isnan(dV).any():
             return False, "NaN in gradients"
         
-        return True, "stable OK"
+        _, ref_dK, ref_dV = reference_backward(Q, K, V, dO)
+        
+        dk_err = (dK - ref_dK).abs().max().item()
+        dv_err = (dV - ref_dV).abs().max().item()
+        
+        if not torch.allclose(dK, ref_dK, atol=0.1, rtol=0.1):
+            return False, f"dK mismatch: {dk_err:.6f}"
+        if not torch.allclose(dV, ref_dV, atol=0.1, rtol=0.1):
+            return False, f"dV mismatch: {dv_err:.6f}"
+        
+        return True, f"stable OK (dK={dk_err:.4f}, dV={dv_err:.4f})"
     except Exception as e:
         return False, str(e)
 

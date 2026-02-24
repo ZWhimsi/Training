@@ -76,7 +76,7 @@ def test_flash_attention_asymmetric() -> Tuple[bool, str]:
 
 
 def test_flash_attention_output_sum() -> Tuple[bool, str]:
-    """Test that output is valid (not NaN, reasonable values)."""
+    """Test that output is valid and matches reference."""
     try:
         B, H, M, N, D = 1, 1, 64, 64, 32
         Q = torch.randn(B, H, M, D, device='cuda', dtype=torch.float32)
@@ -84,6 +84,7 @@ def test_flash_attention_output_sum() -> Tuple[bool, str]:
         V = torch.randn(B, H, N, D, device='cuda', dtype=torch.float32)
         
         result = flash_attention_forward(Q, K, V)
+        expected = standard_attention(Q, K, V)
         
         if torch.any(torch.isnan(result)):
             return False, "Output contains NaN"
@@ -91,13 +92,17 @@ def test_flash_attention_output_sum() -> Tuple[bool, str]:
         if torch.any(torch.isinf(result)):
             return False, "Output contains Inf"
         
-        return True, "Output is valid (no NaN/Inf)"
+        if not torch.allclose(result, expected, atol=1e-2, rtol=1e-2):
+            max_diff = (result - expected).abs().max().item()
+            return False, f"Values mismatch: {max_diff:.4f}"
+        
+        return True, "Output valid and matches reference"
     except Exception as e:
         return False, str(e)
 
 
 def test_memory_efficiency() -> Tuple[bool, str]:
-    """Verify Flash Attention uses less memory."""
+    """Verify Flash Attention produces correct output on larger inputs."""
     try:
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
@@ -107,11 +112,14 @@ def test_memory_efficiency() -> Tuple[bool, str]:
         K = torch.randn(B, H, N, D, device='cuda', dtype=torch.float32)
         V = torch.randn(B, H, N, D, device='cuda', dtype=torch.float32)
         
-        # Note: This is a conceptual test
-        # Flash attention should use O(M) memory, not O(M*N)
-        _ = flash_attention_forward(Q, K, V)
+        result = flash_attention_forward(Q, K, V)
+        expected = standard_attention(Q, K, V)
         
-        return True, "Memory efficiency: O(N) vs O(N^2)"
+        if not torch.allclose(result, expected, atol=1e-2, rtol=1e-2):
+            max_diff = (result - expected).abs().max().item()
+            return False, f"Values mismatch: {max_diff:.4f}"
+        
+        return True, "Large input OK, O(N) memory"
     except Exception as e:
         return False, str(e)
 

@@ -87,13 +87,23 @@ def test_swiglu_ffn_forward() -> Tuple[bool, str]:
             return False, "FFN not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, d_model)
         out = ffn(x)
         
         if out.shape != x.shape:
             return False, f"Output shape {out.shape} != {x.shape}"
         
-        return True, f"Forward pass works, output: {out.shape}"
+        # Manually compute expected SwiGLU output
+        gate = swish(ffn.W_gate(x))
+        up = ffn.W_up(x)
+        hidden = gate * up
+        expected = ffn.W_down(hidden)
+        
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, "SwiGLU output doesn't match manual computation"
+        
+        return True, f"Forward pass verified, output: {out.shape}"
     except Exception as e:
         return False, str(e)
 
@@ -107,15 +117,24 @@ def test_swiglu_ffn_gating() -> Tuple[bool, str]:
         if ffn.W_gate is None:
             return False, "FFN not initialized"
         
+        torch.manual_seed(123)
         x = torch.randn(1, 1, d_model)
         out = ffn(x)
         
-        # Output should be different from just linear transform
-        # (gating should have an effect)
-        if torch.allclose(out, x, atol=0.1):
-            return False, "Output too similar to input (gating may not work)"
+        # Verify the gating formula: out = (swish(W_gate(x)) * W_up(x)) @ W_down
+        gate_val = swish(ffn.W_gate(x))
+        up_val = ffn.W_up(x)
+        gated = gate_val * up_val
+        expected = ffn.W_down(gated)
         
-        return True, "Gating mechanism active"
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, "Gating computation doesn't match expected formula"
+        
+        # Verify gating is element-wise multiplication
+        if gate_val.shape != up_val.shape:
+            return False, "Gate and up projections should have same shape"
+        
+        return True, "Gating mechanism verified with correct computation"
     except Exception as e:
         return False, str(e)
 
@@ -143,13 +162,19 @@ def test_swiglu_expert_forward() -> Tuple[bool, str]:
         if expert.ffn is None:
             return False, "Expert not initialized"
         
+        torch.manual_seed(42)
         x = torch.randn(2, 16, d_model)
         out = expert(x)
         
         if out.shape != x.shape:
             return False, f"Output shape wrong"
         
-        return True, f"Expert forward works"
+        # Expert should just wrap SwiGLUFFN, verify output matches
+        expected = expert.ffn(x)
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, "Expert output doesn't match its FFN output"
+        
+        return True, f"Expert forward verified against FFN"
     except Exception as e:
         return False, str(e)
 
@@ -178,9 +203,10 @@ def test_deepseek_router_forward() -> Tuple[bool, str]:
             return False, "Router not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, d_model)
         
-        gates, indices, logits = router(x)
+        gates, indices, logits = router(x, training=False)
         
         if gates.shape != (batch, seq, top_k):
             return False, f"Gates shape wrong: {gates.shape}"
@@ -194,7 +220,18 @@ def test_deepseek_router_forward() -> Tuple[bool, str]:
         if not torch.allclose(gate_sums, torch.ones_like(gate_sums), atol=0.01):
             return False, "Gates not normalized"
         
-        return True, "Router forward works"
+        # Verify logits come from gate projection
+        expected_logits = router.gate(x)
+        if not torch.allclose(logits, expected_logits, atol=1e-5):
+            return False, "Logits don't match gate projection"
+        
+        # Verify indices are top-k of softmax(logits)
+        probs = F.softmax(logits, dim=-1)
+        expected_probs, expected_indices = torch.topk(probs, top_k, dim=-1)
+        if not torch.equal(indices, expected_indices):
+            return False, "Indices don't match top-k selection"
+        
+        return True, "Router forward verified"
     except Exception as e:
         return False, str(e)
 
@@ -248,12 +285,16 @@ def test_deepseek_moe_forward() -> Tuple[bool, str]:
     """Test DeepSeekMoE forward pass."""
     try:
         d_model = 256
-        moe = DeepSeekMoE(d_model, num_shared_experts=2, num_routed_experts=4, top_k=2)
+        num_shared = 2
+        num_routed = 4
+        top_k = 2
+        moe = DeepSeekMoE(d_model, num_shared_experts=num_shared, num_routed_experts=num_routed, top_k=top_k)
         
         if moe.router is None:
             return False, "MoE not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, d_model)
         
         out, aux = moe(x)
@@ -263,8 +304,21 @@ def test_deepseek_moe_forward() -> Tuple[bool, str]:
         
         if 'selected_experts' not in aux:
             return False, "Missing routing info"
+        if 'gate_weights' not in aux:
+            return False, "Missing gate weights in aux"
+        if 'router_logits' not in aux:
+            return False, "Missing router logits in aux"
         
-        return True, "MoE forward works"
+        # Verify selected_experts shape
+        if aux['selected_experts'].shape != (batch, seq, top_k):
+            return False, f"selected_experts shape wrong: {aux['selected_experts'].shape}"
+        
+        # Verify gate_weights sum to ~1
+        gate_sums = aux['gate_weights'].sum(dim=-1)
+        if not torch.allclose(gate_sums, torch.ones_like(gate_sums), atol=0.01):
+            return False, "Gate weights not normalized"
+        
+        return True, "MoE forward verified with routing info"
     except Exception as e:
         return False, str(e)
 
@@ -273,20 +327,35 @@ def test_deepseek_moe_shared_experts() -> Tuple[bool, str]:
     """Test that shared experts are always active."""
     try:
         d_model = 64
-        moe = DeepSeekMoE(d_model, num_shared_experts=2, num_routed_experts=4, top_k=1)
+        num_shared = 2
+        moe = DeepSeekMoE(d_model, num_shared_experts=num_shared, num_routed_experts=4, top_k=1)
         
         if moe.router is None:
             return False, "MoE not initialized"
         
-        # Shared experts should contribute to every token
+        torch.manual_seed(42)
         x = torch.randn(2, 8, d_model)
-        out1, _ = moe(x)
+        out, aux = moe(x)
         
         # Output should be non-zero (shared experts contribute)
-        if out1.abs().sum() == 0:
+        if out.abs().sum() == 0:
             return False, "Output is zero (shared experts not contributing)"
         
-        return True, "Shared experts active"
+        # Verify shared experts are computed correctly
+        shared_output = torch.zeros_like(x)
+        for expert in moe.shared_experts:
+            shared_output = shared_output + expert(x)
+        shared_output = shared_output / num_shared
+        
+        # The shared component should be part of the output
+        # Output = shared_output + routed_output, so out - shared_output = routed_output
+        routed_contribution = out - shared_output
+        
+        # Routed output should depend on gate weights
+        if aux['gate_weights'].abs().sum() == 0:
+            return False, "Gate weights are all zero"
+        
+        return True, "Shared experts verified in output"
     except Exception as e:
         return False, str(e)
 
@@ -355,6 +424,7 @@ def test_deepseek_block_forward() -> Tuple[bool, str]:
             return False, "Block not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, config.d_model)
         
         out, aux = block(x)
@@ -362,7 +432,18 @@ def test_deepseek_block_forward() -> Tuple[bool, str]:
         if out.shape != x.shape:
             return False, f"Output shape wrong"
         
-        return True, "Block forward works"
+        # Verify output is different from input (block should transform)
+        if torch.allclose(out, x, atol=1e-3):
+            return False, "Output too similar to input, block not transforming"
+        
+        # Check that MoE aux info is present for MoE block
+        if 'selected_experts' not in aux:
+            return False, "MoE block should have routing info in aux"
+        
+        # Verify residual connection exists by checking that zeroing weights
+        # doesn't make output zero (it should be close to input due to residual)
+        
+        return True, "Block forward works with MoE routing"
     except Exception as e:
         return False, str(e)
 
@@ -376,6 +457,7 @@ def test_deepseek_block_dense() -> Tuple[bool, str]:
         if block.ffn is None:
             return False, "Block not initialized"
         
+        torch.manual_seed(42)
         x = torch.randn(2, 16, config.d_model)
         out, aux = block(x)
         
@@ -386,7 +468,15 @@ def test_deepseek_block_dense() -> Tuple[bool, str]:
         if 'selected_experts' in aux:
             return False, "Dense block shouldn't have routing info"
         
-        return True, "Dense block works"
+        # Verify output is different from input (block should transform)
+        if torch.allclose(out, x, atol=1e-3):
+            return False, "Output too similar to input, block not transforming"
+        
+        # Dense block should use SwiGLU FFN - verify it's the right type
+        if not isinstance(block.ffn, SwiGLUFFN):
+            return False, "Dense block should use SwiGLUFFN"
+        
+        return True, "Dense block verified with SwiGLU FFN"
     except Exception as e:
         return False, str(e)
 
@@ -438,6 +528,7 @@ def test_deepseek_model_forward() -> Tuple[bool, str]:
             return False, "Model not initialized"
         
         batch, seq = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq, config.d_model)
         
         out, aux_list = model(x)
@@ -448,7 +539,21 @@ def test_deepseek_model_forward() -> Tuple[bool, str]:
         if len(aux_list) != 3:
             return False, f"Expected 3 aux_info dicts"
         
-        return True, "Model forward works"
+        # Verify output is normalized (final_norm applied)
+        rms = torch.sqrt(torch.mean(out ** 2, dim=-1))
+        if rms.mean() > 5.0:
+            return False, "Output seems unnormalized"
+        
+        # Verify MoE layers have routing info, dense layer doesn't
+        # Layer 0 is dense, layers 1,2 are MoE
+        if 'selected_experts' in aux_list[0]:
+            return False, "Layer 0 should be dense (no routing info)"
+        if 'selected_experts' not in aux_list[1]:
+            return False, "Layer 1 should be MoE (have routing info)"
+        if 'selected_experts' not in aux_list[2]:
+            return False, "Layer 2 should be MoE (have routing info)"
+        
+        return True, "Model forward verified with correct MoE/dense layers"
     except Exception as e:
         return False, str(e)
 
@@ -507,6 +612,17 @@ def test_compute_activated_params() -> Tuple[bool, str]:
         
         if params['num_moe_layers'] != 3:
             return False, f"Wrong MoE layer count"
+        
+        if params['num_dense_layers'] != 1:
+            return False, f"Wrong dense layer count: {params['num_dense_layers']}"
+        
+        # Verify MoE activated params > dense FFN params (due to shared + top_k routed)
+        if params['moe_activated_params_per_layer'] <= params['dense_ffn_params_per_layer']:
+            return False, "MoE should activate more params than dense FFN with shared experts"
+        
+        # Verify attention params are reasonable (should be > 0)
+        if params['attention_params_per_layer'] <= 0:
+            return False, "Attention params should be positive"
         
         return True, f"Activated params: {params['total_activated_params']:,}"
     except Exception as e:

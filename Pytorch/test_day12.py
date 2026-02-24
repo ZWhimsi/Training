@@ -218,11 +218,21 @@ def test_train_step_with_l2() -> Tuple[bool, str]:
         
         x = torch.randn(16, 10)
         y = torch.randint(0, 3, (16,))
+        weight_decay = 0.1
         
         # Store initial weights
         initial_weight = model[0].weight.clone()
         
-        loss = train_step_with_l2(model, x, y, loss_fn, optimizer, weight_decay=0.1)
+        # Compute expected loss manually
+        with torch.no_grad():
+            pred = model(x)
+            base_loss = loss_fn(pred, y)
+            l2_penalty = torch.tensor(0.0)
+            for param in model.parameters():
+                l2_penalty = l2_penalty + (param ** 2).sum()
+            expected_loss = base_loss + (weight_decay / 2) * l2_penalty
+        
+        loss = train_step_with_l2(model, x, y, loss_fn, optimizer, weight_decay=weight_decay)
         
         if loss == 0.0:
             return False, "Not implemented"
@@ -230,6 +240,10 @@ def test_train_step_with_l2() -> Tuple[bool, str]:
         # Weights should have changed
         if torch.allclose(model[0].weight, initial_weight):
             return False, "Weights not updated"
+        
+        # Validate loss value includes L2 penalty
+        if not abs(loss - expected_loss.item()) < 0.1:
+            return False, f"Loss {loss:.4f} doesn't match expected {expected_loss.item():.4f} (including L2 penalty)"
         
         return True, f"OK (loss={loss:.4f})"
     except Exception as e:

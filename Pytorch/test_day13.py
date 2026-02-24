@@ -195,6 +195,7 @@ def test_masked_embedding_mean() -> Tuple[bool, str]:
 def test_simple_text_classifier() -> Tuple[bool, str]:
     """Test SimpleTextClassifier."""
     try:
+        torch.manual_seed(42)
         model = SimpleTextClassifier(
             vocab_size=1000, embedding_dim=64, 
             num_classes=3, padding_idx=0
@@ -211,6 +212,20 @@ def test_simple_text_classifier() -> Tuple[bool, str]:
         
         if output.shape != torch.Size([8, 3]):
             return False, f"Expected shape [8, 3], got {list(output.shape)}"
+        
+        # Validate actual computation: embedding -> masked_mean -> fc
+        with torch.no_grad():
+            embeddings = model.embedding(token_ids)
+            mask = token_ids == model.padding_idx
+            mask_expanded = mask.unsqueeze(-1)
+            embeddings_masked = embeddings.masked_fill(mask_expanded, 0)
+            summed = embeddings_masked.sum(dim=1)
+            lengths = (~mask).sum(dim=1, keepdim=True).float().clamp(min=1)
+            pooled = summed / lengths
+            expected = model.fc(pooled)
+        
+        if not torch.allclose(output, expected, atol=1e-5):
+            return False, f"Output doesn't match expected computation: max diff {(output - expected).abs().max():.6f}"
         
         return True, "OK"
     except Exception as e:

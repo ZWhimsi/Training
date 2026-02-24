@@ -176,12 +176,14 @@ def test_train_eval_difference() -> Tuple[bool, str]:
 def test_conv_bn_relu() -> Tuple[bool, str]:
     """Test ConvBNReLU block."""
     try:
+        torch.manual_seed(42)
         block = ConvBNReLU(3, 64, kernel_size=3, padding=1)
         
         if block.conv is None:
             return False, "Not implemented"
         
         x = torch.randn(4, 3, 32, 32)
+        block.train()
         out = block(x)
         
         # Check output shape
@@ -196,6 +198,15 @@ def test_conv_bn_relu() -> Tuple[bool, str]:
         if block.conv.bias is not None:
             return False, "Conv should have bias=False"
         
+        # Validate actual computation: Conv -> BN -> ReLU
+        with torch.no_grad():
+            conv_out = block.conv(x)
+            bn_out = block.bn(conv_out)
+            expected = torch.relu(bn_out)
+        
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, f"Output doesn't match Conv->BN->ReLU: max diff {(out - expected).abs().max():.6f}"
+        
         return True, "OK"
     except Exception as e:
         return False, str(e)
@@ -204,12 +215,14 @@ def test_conv_bn_relu() -> Tuple[bool, str]:
 def test_mlp_with_batch_norm() -> Tuple[bool, str]:
     """Test MLP with batch normalization."""
     try:
+        torch.manual_seed(42)
         model = MLPWithBatchNorm(input_dim=64, hidden_dim=128, output_dim=10)
         
         if model.fc1 is None:
             return False, "Not implemented"
         
         x = torch.randn(32, 64)
+        model.train()
         out = model(x)
         
         # Check output shape
@@ -220,6 +233,19 @@ def test_mlp_with_batch_norm() -> Tuple[bool, str]:
         if model.bn1 is None or model.bn2 is None:
             return False, "Missing batch norm layers"
         
+        # Validate actual computation: fc1 -> bn1 -> relu -> fc2 -> bn2 -> relu -> fc3
+        with torch.no_grad():
+            h1 = model.fc1(x)
+            h1 = model.bn1(h1)
+            h1 = model.relu(h1)
+            h2 = model.fc2(h1)
+            h2 = model.bn2(h2)
+            h2 = model.relu(h2)
+            expected = model.fc3(h2)
+        
+        if not torch.allclose(out, expected, atol=1e-5):
+            return False, f"Output doesn't match expected MLP computation: max diff {(out - expected).abs().max():.6f}"
+        
         return True, "OK"
     except Exception as e:
         return False, str(e)
@@ -228,17 +254,33 @@ def test_mlp_with_batch_norm() -> Tuple[bool, str]:
 def test_batch_norm_gradient_flow() -> Tuple[bool, str]:
     """Test that gradients flow through batch norm."""
     try:
+        torch.manual_seed(42)
         bn = ManualBatchNorm1d(32)
+        pytorch_bn = nn.BatchNorm1d(32)
+        
+        # Copy parameters
+        pytorch_bn.weight.data = bn.gamma.data.clone()
+        pytorch_bn.bias.data = bn.beta.data.clone()
+        pytorch_bn.running_mean.data = bn.running_mean.data.clone()
+        pytorch_bn.running_var.data = bn.running_var.data.clone()
+        
         bn.train()
+        pytorch_bn.train()
         
         x = torch.randn(16, 32, requires_grad=True)
+        x_ref = x.clone().detach().requires_grad_(True)
+        
         out = bn(x)
+        out_ref = pytorch_bn(x_ref)
         
         if torch.allclose(out, x):
             return False, "Not implemented"
         
         loss = out.sum()
         loss.backward()
+        
+        loss_ref = out_ref.sum()
+        loss_ref.backward()
         
         if x.grad is None:
             return False, "No gradient for input"
@@ -248,6 +290,13 @@ def test_batch_norm_gradient_flow() -> Tuple[bool, str]:
         
         if bn.beta.grad is None:
             return False, "No gradient for beta"
+        
+        # Validate gradient values against PyTorch
+        if not torch.allclose(x.grad, x_ref.grad, atol=1e-5):
+            return False, f"Input gradient mismatch: max diff {(x.grad - x_ref.grad).abs().max():.6f}"
+        
+        if not torch.allclose(bn.gamma.grad, pytorch_bn.weight.grad, atol=1e-5):
+            return False, f"Gamma gradient mismatch: max diff {(bn.gamma.grad - pytorch_bn.weight.grad).abs().max():.6f}"
         
         return True, "OK"
     except Exception as e:

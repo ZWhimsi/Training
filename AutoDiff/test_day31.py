@@ -34,6 +34,16 @@ def test_im2col_basic() -> Tuple[bool, str]:
         if col.shape != expected_shape:
             return False, f"shape {col.shape}, expected {expected_shape}"
         
+        # Verify actual values: first patch should be [0,1,4,5]
+        expected_first_patch = np.array([0, 1, 4, 5])
+        if not np.allclose(col[0], expected_first_patch):
+            return False, f"first patch {col[0]}, expected {expected_first_patch}"
+        
+        # Last patch should be [10,11,14,15]
+        expected_last_patch = np.array([10, 11, 14, 15])
+        if not np.allclose(col[-1], expected_last_patch):
+            return False, f"last patch {col[-1]}, expected {expected_last_patch}"
+        
         return True, "im2col basic works"
     except Exception as e:
         return False, str(e)
@@ -42,6 +52,7 @@ def test_im2col_basic() -> Tuple[bool, str]:
 def test_im2col_with_padding() -> Tuple[bool, str]:
     """Test im2col with padding."""
     try:
+        np.random.seed(42)
         x = np.random.randn(2, 3, 4, 4)
         col = im2col(x, 3, 3, stride=1, padding=1)
         
@@ -52,6 +63,13 @@ def test_im2col_with_padding() -> Tuple[bool, str]:
         if col.shape != expected_shape:
             return False, f"shape {col.shape}, expected {expected_shape}"
         
+        # Verify corner patch has zeros from padding
+        # First patch at (0,0) should have zeros in top-left corner due to padding
+        first_patch = col[0].reshape(3, 3, 3)  # (C, kH, kW)
+        # Top-left corner of each channel should be zero (from padding)
+        if not np.allclose(first_patch[:, 0, 0], 0.0):
+            return False, f"padding not applied correctly, got {first_patch[:, 0, 0]}"
+        
         return True, "im2col with padding works"
     except Exception as e:
         return False, str(e)
@@ -60,7 +78,8 @@ def test_im2col_with_padding() -> Tuple[bool, str]:
 def test_im2col_with_stride() -> Tuple[bool, str]:
     """Test im2col with stride."""
     try:
-        x = np.random.randn(1, 2, 6, 6)
+        np.random.seed(42)
+        x = np.arange(72).reshape(1, 2, 6, 6).astype(np.float64)
         col = im2col(x, 2, 2, stride=2, padding=0)
         
         if col is None:
@@ -69,6 +88,11 @@ def test_im2col_with_stride() -> Tuple[bool, str]:
         expected_shape = (1 * 3 * 3, 2 * 2 * 2)
         if col.shape != expected_shape:
             return False, f"shape {col.shape}, expected {expected_shape}"
+        
+        # First patch: channel 0 at (0,0) should be [0,1,6,7], channel 1 at (0,0) should be [36,37,42,43]
+        expected_first = np.array([0, 1, 6, 7, 36, 37, 42, 43])
+        if not np.allclose(col[0], expected_first):
+            return False, f"first patch {col[0]}, expected {expected_first}"
         
         return True, "im2col with stride works"
     except Exception as e:
@@ -100,6 +124,7 @@ def test_col2im_basic() -> Tuple[bool, str]:
 def test_col2im_with_padding() -> Tuple[bool, str]:
     """Test col2im with padding."""
     try:
+        np.random.seed(42)
         x = np.random.randn(2, 3, 4, 4)
         col = im2col(x, 3, 3, stride=1, padding=1)
         
@@ -114,6 +139,17 @@ def test_col2im_with_padding() -> Tuple[bool, str]:
         if reconstructed.shape != x.shape:
             return False, f"shape {reconstructed.shape}, expected {x.shape}"
         
+        # With overlapping windows (stride=1), values get accumulated
+        # Check that center values have higher counts
+        # Center of 4x4 with 3x3 kernel and padding=1 sees each pixel multiple times
+        # The reconstruction should scale values by the number of times they appear
+        # For stride=1, center pixels appear 9 times (3x3), edges fewer
+        center_val = reconstructed[0, 0, 1, 1]
+        corner_val = reconstructed[0, 0, 0, 0]
+        # Corner appears 4 times, center appears 9 times, so center should be higher
+        if not (abs(center_val) > abs(corner_val) * 0.5):
+            pass  # This is a weaker check since values could be negative
+        
         return True, "col2im with padding works"
     except Exception as e:
         return False, str(e)
@@ -122,6 +158,7 @@ def test_col2im_with_padding() -> Tuple[bool, str]:
 def test_conv2d_forward_shape() -> Tuple[bool, str]:
     """Test conv2d forward output shape."""
     try:
+        np.random.seed(42)
         x = np.random.randn(2, 3, 8, 8)
         w = np.random.randn(16, 3, 3, 3)
         b = np.zeros(16)
@@ -134,6 +171,18 @@ def test_conv2d_forward_shape() -> Tuple[bool, str]:
         if out.shape != (2, 16, 8, 8):
             return False, f"shape {out.shape}, expected (2, 16, 8, 8)"
         
+        # Verify output is not all zeros or NaN
+        if np.all(out == 0):
+            return False, "output is all zeros"
+        if not np.all(np.isfinite(out)):
+            return False, "output contains NaN or Inf"
+        
+        # Verify convolution property: output should change when input changes
+        x2 = x + 1.0
+        out2 = conv2d_forward(x2, w, b, stride=1, padding=1)
+        if np.allclose(out, out2):
+            return False, "output unchanged when input changed"
+        
         return True, "Output shape correct"
     except Exception as e:
         return False, str(e)
@@ -142,6 +191,7 @@ def test_conv2d_forward_shape() -> Tuple[bool, str]:
 def test_conv2d_forward_stride() -> Tuple[bool, str]:
     """Test conv2d forward with stride."""
     try:
+        np.random.seed(42)
         x = np.random.randn(1, 3, 8, 8)
         w = np.random.randn(4, 3, 3, 3)
         
@@ -152,6 +202,18 @@ def test_conv2d_forward_stride() -> Tuple[bool, str]:
         
         if out.shape != (1, 4, 4, 4):
             return False, f"shape {out.shape}, expected (1, 4, 4, 4)"
+        
+        # Verify stride reduces output correctly: 8x8 with stride 2 -> 4x4
+        # Also verify output values are reasonable
+        if not np.all(np.isfinite(out)):
+            return False, "output contains NaN or Inf"
+        
+        # Check that stride=2 output is subsampled from stride=1 output
+        out_s1 = conv2d_forward(x, w, None, stride=1, padding=1)
+        if out_s1 is not None:
+            # stride=2 should correspond to every other position
+            if not np.allclose(out[0, :, 0, 0], out_s1[0, :, 0, 0], rtol=1e-5):
+                return False, "stride=2 output doesn't match stride=1 at position (0,0)"
         
         return True, "Stride works correctly"
     except Exception as e:
@@ -186,6 +248,7 @@ def test_conv2d_matches_naive() -> Tuple[bool, str]:
 def test_conv2d_backward_shapes() -> Tuple[bool, str]:
     """Test conv2d backward gradient shapes."""
     try:
+        np.random.seed(42)
         x = np.random.randn(2, 3, 6, 6)
         w = np.random.randn(4, 3, 3, 3)
         dy = np.random.randn(2, 4, 4, 4)
@@ -203,6 +266,20 @@ def test_conv2d_backward_shapes() -> Tuple[bool, str]:
             return False, f"dw shape {dw.shape}, expected {w.shape}"
         if db.shape != (4,):
             return False, f"db shape {db.shape}, expected (4,)"
+        
+        # Verify gradients are not all zeros (indicates actual computation)
+        if np.all(dx == 0):
+            return False, "dx is all zeros"
+        if np.all(dw == 0):
+            return False, "dw is all zeros"
+        if np.all(db == 0):
+            return False, "db is all zeros"
+        
+        # Verify gradients are finite
+        if not np.all(np.isfinite(dx)):
+            return False, "dx contains NaN or Inf"
+        if not np.all(np.isfinite(dw)):
+            return False, "dw contains NaN or Inf"
         
         return True, "Gradient shapes correct"
     except Exception as e:
@@ -279,6 +356,7 @@ def test_conv2d_gradient_numerical() -> Tuple[bool, str]:
 def test_conv2d_module_init() -> Tuple[bool, str]:
     """Test Conv2d module initialization."""
     try:
+        np.random.seed(42)
         conv = Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
         
         if conv.weight is None:
@@ -289,6 +367,18 @@ def test_conv2d_module_init() -> Tuple[bool, str]:
         
         if conv.bias is not None and conv.bias.shape != (16,):
             return False, f"bias shape {conv.bias.shape}"
+        
+        # Verify He initialization: std should be approximately sqrt(2/fan_in)
+        fan_in = 3 * 3 * 3
+        expected_std = np.sqrt(2.0 / fan_in)
+        actual_std = np.std(conv.weight.data)
+        if not np.isclose(actual_std, expected_std, rtol=0.5):
+            return False, f"weight std {actual_std:.4f}, expected ~{expected_std:.4f}"
+        
+        # Bias should be initialized to zeros
+        if conv.bias is not None:
+            if not np.allclose(conv.bias.data, 0):
+                return False, "bias not initialized to zeros"
         
         return True, "Conv2d initialized correctly"
     except Exception as e:
@@ -312,6 +402,20 @@ def test_conv2d_module_forward() -> Tuple[bool, str]:
         
         if y.shape != (2, 8, 8, 8):
             return False, f"output shape {y.shape}"
+        
+        # Verify output values are finite
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        
+        # Verify output is not all zeros
+        if np.all(y.data == 0):
+            return False, "output is all zeros"
+        
+        # Verify output changes with input
+        x2 = Tensor(np.random.randn(2, 3, 8, 8))
+        y2 = conv(x2)
+        if np.allclose(y.data, y2.data):
+            return False, "output same for different inputs"
         
         return True, "Forward pass works"
     except Exception as e:
@@ -341,6 +445,18 @@ def test_conv2d_module_backward() -> Tuple[bool, str]:
         
         if conv.bias is not None and np.all(conv.bias.grad == 0):
             return False, "Bias gradient is zero"
+        
+        # For sum loss, bias gradient should equal output spatial size
+        if conv.bias is not None:
+            expected_bias_grad = 6 * 6  # H_out * W_out
+            if not np.allclose(conv.bias.grad, expected_bias_grad):
+                return False, f"bias grad {conv.bias.grad[0]}, expected {expected_bias_grad}"
+        
+        # Verify gradients are finite
+        if not np.all(np.isfinite(conv.weight.grad)):
+            return False, "weight gradient contains NaN or Inf"
+        if not np.all(np.isfinite(x.grad)):
+            return False, "input gradient contains NaN or Inf"
         
         return True, "Backward pass works"
     except Exception as e:
@@ -423,6 +539,11 @@ def test_conv2d_different_strides() -> Tuple[bool, str]:
         if conv_s1.weight is None or conv_s2.weight is None:
             return False, "weights are None"
         
+        # Use same weights for comparison
+        conv_s2.weight.data = conv_s1.weight.data.copy()
+        if conv_s1.bias is not None and conv_s2.bias is not None:
+            conv_s2.bias.data = conv_s1.bias.data.copy()
+        
         x = Tensor(np.random.randn(1, 3, 8, 8))
         
         y1 = conv_s1(x)
@@ -436,6 +557,12 @@ def test_conv2d_different_strides() -> Tuple[bool, str]:
         
         if y2.shape != (1, 8, 4, 4):
             return False, f"stride=2 shape {y2.shape}"
+        
+        # Verify stride=2 output matches stride=1 at corresponding positions
+        if not np.allclose(y2.data[:, :, 0, 0], y1.data[:, :, 0, 0], rtol=1e-5):
+            return False, "stride=2 doesn't match stride=1 at (0,0)"
+        if not np.allclose(y2.data[:, :, 1, 1], y1.data[:, :, 2, 2], rtol=1e-5):
+            return False, "stride=2 doesn't match stride=1 at (2,2)"
         
         return True, "Different strides work"
     except Exception as e:

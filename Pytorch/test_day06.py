@@ -130,6 +130,7 @@ def test_huber_loss() -> Tuple[bool, str]:
 
 def test_focal_loss() -> Tuple[bool, str]:
     try:
+        torch.manual_seed(42)
         logits = torch.randn(8, 10)
         target = torch.randint(0, 10, (8,))
         
@@ -144,6 +145,16 @@ def test_focal_loss() -> Tuple[bool, str]:
             return False, "Should return scalar"
         if result.item() < 0:
             return False, "Loss should be positive"
+        
+        # Compute expected focal loss manually
+        ce_loss = F.cross_entropy(logits, target, reduction='none')
+        p = torch.exp(-ce_loss)
+        focal_weight = 0.25 * (1 - p) ** 2.0
+        expected = (focal_weight * ce_loss).mean()
+        
+        err = (result - expected).abs().item()
+        if err > 1e-5:
+            return False, f"Error: {err:.6f}, got {result.item():.4f}, expected {expected.item():.4f}"
         
         return True, f"OK (loss={result.item():.4f})"
     except Exception as e:

@@ -56,17 +56,28 @@ def test_checkpoint() -> Tuple[bool, str]:
         with tempfile.NamedTemporaryFile(suffix='.pt', delete=False) as f:
             path = f.name
         
+        torch.manual_seed(42)
         model = create_model()
-        optimizer = torch.optim.Adam(model.parameters())
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         
+        # Do a training step to update optimizer state
+        x = torch.randn(4, 10)
+        y = torch.randint(0, 3, (4,))
+        loss = nn.CrossEntropyLoss()(model(x), y)
+        loss.backward()
+        optimizer.step()
+        
+        # Save checkpoint
         save_checkpoint(model, optimizer, epoch=5, loss=0.123, path=path)
         
         if not os.path.exists(path):
             os.unlink(path)
             return False, "File not created"
         
+        # Create new model and optimizer
+        torch.manual_seed(42)
         new_model = create_model()
-        new_optimizer = torch.optim.Adam(new_model.parameters())
+        new_optimizer = torch.optim.Adam(new_model.parameters(), lr=0.001)
         
         info = load_checkpoint(new_model, new_optimizer, path)
         
@@ -74,9 +85,21 @@ def test_checkpoint() -> Tuple[bool, str]:
             os.unlink(path)
             return False, "Not implemented"
         
+        # Verify epoch matches
         if info['epoch'] != 5:
             os.unlink(path)
-            return False, f"Epoch: {info['epoch']}"
+            return False, f"Epoch: got {info['epoch']}, expected 5"
+        
+        # Verify loss matches
+        if abs(info['loss'] - 0.123) > 1e-5:
+            os.unlink(path)
+            return False, f"Loss: got {info['loss']}, expected 0.123"
+        
+        # Verify model parameters match
+        for p1, p2 in zip(model.parameters(), new_model.parameters()):
+            if not torch.allclose(p1, p2):
+                os.unlink(path)
+                return False, "Model parameters don't match after loading"
         
         os.unlink(path)
         return True, f"OK (epoch={info['epoch']}, loss={info['loss']:.3f})"
@@ -96,7 +119,22 @@ def test_inspect_state_dict() -> Tuple[bool, str]:
         if len(info) != 4:
             return False, f"Expected 4 entries, got {len(info)}"
         
-        return True, f"OK ({len(info)} entries)"
+        # Verify shapes are correct
+        expected_shapes = {
+            '0.weight': (32, 10),
+            '0.bias': (32,),
+            '2.weight': (3, 32),
+            '2.bias': (3,)
+        }
+        
+        for name, (shape, dtype) in info.items():
+            if name in expected_shapes:
+                if shape != expected_shapes[name]:
+                    return False, f"{name} shape: got {shape}, expected {expected_shapes[name]}"
+            if dtype != torch.float32:
+                return False, f"{name} dtype: got {dtype}, expected torch.float32"
+        
+        return True, f"OK ({len(info)} entries with correct shapes)"
     except Exception as e:
         return False, str(e)
 
@@ -133,6 +171,19 @@ def test_prepare_inference() -> Tuple[bool, str]:
         if model.training:
             return False, "Still in training mode"
         
+        # Check requires_grad is disabled for all parameters
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                return False, f"{name} still has requires_grad=True"
+        
+        # Verify model can still produce output
+        x = torch.randn(2, 10)
+        output = model(x)
+        if output.shape != (2, 3):
+            return False, f"Output shape wrong: {output.shape}"
+        if torch.isnan(output).any():
+            return False, "Output contains NaN"
+        
         return True, "OK"
     except Exception as e:
         return False, str(e)
@@ -140,7 +191,9 @@ def test_prepare_inference() -> Tuple[bool, str]:
 
 def test_trace_model() -> Tuple[bool, str]:
     try:
+        torch.manual_seed(42)
         model = create_model()
+        model.eval()
         example_input = torch.randn(1, 10)
         
         traced = trace_model(model, example_input)
@@ -148,10 +201,25 @@ def test_trace_model() -> Tuple[bool, str]:
         if traced is None:
             return False, "Not implemented"
         
-        # Test traced model
-        output = traced(example_input)
-        if output.shape != torch.Size([1, 3]):
-            return False, f"Output shape: {output.shape}"
+        # Test traced model produces same output as original
+        with torch.no_grad():
+            original_output = model(example_input)
+            traced_output = traced(example_input)
+        
+        if traced_output.shape != torch.Size([1, 3]):
+            return False, f"Output shape: {traced_output.shape}, expected (1, 3)"
+        
+        if not torch.allclose(traced_output, original_output, atol=1e-5):
+            return False, f"Traced output differs: {traced_output} vs {original_output}"
+        
+        # Test with different input
+        test_input = torch.randn(4, 10)
+        with torch.no_grad():
+            original_test = model(test_input)
+            traced_test = traced(test_input)
+        
+        if not torch.allclose(traced_test, original_test, atol=1e-5):
+            return False, "Traced model gives different output for new input"
         
         return True, "OK"
     except Exception as e:

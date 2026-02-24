@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import sys
 from typing import Tuple
 
@@ -32,7 +33,13 @@ def test_create_kv_cache() -> Tuple[bool, str]:
         if cache.seq_len != 0:
             return False, f"Initial seq_len should be 0, got {cache.seq_len}"
         
-        return True, f"Cache created with shape {expected_shape}"
+        # Verify cache is initialized with zeros
+        if cache.k_cache.abs().sum() != 0:
+            return False, "K cache should be initialized with zeros"
+        if cache.v_cache.abs().sum() != 0:
+            return False, "V cache should be initialized with zeros"
+        
+        return True, f"Cache created with shape {expected_shape}, initialized to zeros"
     except Exception as e:
         return False, str(e)
 
@@ -87,7 +94,13 @@ def test_get_cached_kv() -> Tuple[bool, str]:
         if v.shape != expected_shape:
             return False, f"Retrieved V shape wrong"
         
-        return True, "Retrieved only valid entries"
+        # Verify retrieved values match what was cached
+        if not torch.allclose(k, new_k):
+            return False, "Retrieved K values don't match cached values"
+        if not torch.allclose(v, new_v):
+            return False, "Retrieved V values don't match cached values"
+        
+        return True, "Retrieved values match cached entries"
     except Exception as e:
         return False, str(e)
 
@@ -122,6 +135,7 @@ def test_cached_attention_prefill() -> Tuple[bool, str]:
             return False, "Attention not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         output, cache = attn(x, cache=None)
@@ -131,7 +145,19 @@ def test_cached_attention_prefill() -> Tuple[bool, str]:
         if cache.seq_len != seq_len:
             return False, f"Cache seq_len {cache.seq_len} != {seq_len}"
         
-        return True, f"Prefill works: cached {cache.seq_len} tokens"
+        # Verify output is not just zeros (actual computation happened)
+        if output.abs().sum() == 0:
+            return False, "Output is all zeros - no computation happened"
+        
+        # Verify output has reasonable values (not NaN or Inf)
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf values"
+        
+        # Verify the output is different from input (projection happened)
+        if torch.allclose(output, x, atol=1e-3):
+            return False, "Output is same as input - no transformation applied"
+        
+        return True, f"Prefill works: cached {cache.seq_len} tokens, output mean={output.mean():.4f}"
     except Exception as e:
         return False, str(e)
 
@@ -148,6 +174,7 @@ def test_cached_attention_decode() -> Tuple[bool, str]:
         batch = 2
         
         # Prefill with 16 tokens
+        torch.manual_seed(42)
         x = torch.randn(batch, 16, d_model)
         _, cache = attn(x)
         
@@ -161,7 +188,17 @@ def test_cached_attention_decode() -> Tuple[bool, str]:
         if cache.seq_len != 17:
             return False, f"Cache should have 17 tokens, got {cache.seq_len}"
         
-        return True, "Single-token decode works"
+        # Verify output has valid values
+        if output.abs().sum() == 0:
+            return False, "Decode output is all zeros"
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Decode output contains NaN or Inf"
+        
+        # Verify output is transformed (not just passthrough)
+        if torch.allclose(output, x_single, atol=1e-3):
+            return False, "Output is same as input - attention not applied"
+        
+        return True, f"Single-token decode works, output mean={output.mean():.4f}"
     except Exception as e:
         return False, str(e)
 
@@ -210,6 +247,7 @@ def test_cached_transformer_block() -> Tuple[bool, str]:
             return False, "norm1 not initialized"
         
         batch, seq_len = 2, 8
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         output, cache = block(x)
@@ -217,7 +255,20 @@ def test_cached_transformer_block() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Output shape wrong"
         
-        return True, "CachedTransformerBlock works"
+        # Verify output has valid values
+        if output.abs().sum() == 0:
+            return False, "Block output is all zeros"
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Block output contains NaN or Inf"
+        
+        # Verify residual connection is working (output shouldn't be too different from input)
+        # Pre-norm block: output = x + attn(norm(x)) + ffn(norm(x + attn_out))
+        # So output should correlate with input due to residual
+        correlation = F.cosine_similarity(output.flatten(), x.flatten(), dim=0)
+        if correlation < 0.1:
+            return False, f"Residual connection may not work: correlation={correlation:.3f}"
+        
+        return True, f"CachedTransformerBlock works, output-input correlation={correlation:.3f}"
     except Exception as e:
         return False, str(e)
 
@@ -259,6 +310,7 @@ def test_cached_transformer_forward() -> Tuple[bool, str]:
             return False, "layers not initialized"
         
         batch, seq_len = 2, 16
+        torch.manual_seed(42)
         tokens = torch.randint(0, vocab_size, (batch, seq_len))
         
         logits, caches = model(tokens)
@@ -267,7 +319,18 @@ def test_cached_transformer_forward() -> Tuple[bool, str]:
         if logits.shape != expected_shape:
             return False, f"Logits shape {logits.shape} != {expected_shape}"
         
-        return True, "CachedTransformer forward works"
+        # Verify logits have valid values
+        if logits.abs().sum() == 0:
+            return False, "Logits are all zeros"
+        if torch.isnan(logits).any() or torch.isinf(logits).any():
+            return False, "Logits contain NaN or Inf"
+        
+        # Verify logits can be used for softmax (reasonable range)
+        probs = F.softmax(logits, dim=-1)
+        if not torch.allclose(probs.sum(dim=-1), torch.ones(batch, seq_len), atol=1e-5):
+            return False, "Softmax of logits doesn't sum to 1"
+        
+        return True, f"CachedTransformer forward works, logits range=[{logits.min():.2f}, {logits.max():.2f}]"
     except Exception as e:
         return False, str(e)
 
@@ -358,7 +421,7 @@ def test_cache_memory_computation() -> Tuple[bool, str]:
 
 
 def test_cache_consistency() -> Tuple[bool, str]:
-    """Test that cached and non-cached attention produce same results."""
+    """Test that cached and non-cached attention produce same results for prefill."""
     try:
         d_model, num_heads = 128, 4
         attn = CachedAttention(d_model, num_heads)
@@ -367,22 +430,31 @@ def test_cache_consistency() -> Tuple[bool, str]:
             return False, "Attention not initialized"
         
         batch, seq_len = 2, 10
+        torch.manual_seed(42)
         x = torch.randn(batch, seq_len, d_model)
         
         # Non-cached: process all at once
         output_full, _ = attn(x, cache=None)
         
-        # Cached: process incrementally
-        output_prefill, cache = attn(x[:, :5, :], cache=None)
-        output_decode, _ = attn(x[:, 5:, :], cache)
-        output_cached = torch.cat([output_prefill, output_decode], dim=1)
+        # Process same input with cache creation
+        output_with_cache, cache = attn(x, cache=None)
         
-        # Results should be similar (not exact due to different attention patterns)
-        # But shapes should match
-        if output_full.shape != output_cached.shape:
-            return False, "Shapes don't match"
+        # Same input should produce same output whether cache is returned or not
+        if not torch.allclose(output_full, output_with_cache, atol=1e-5):
+            return False, "Full pass and cached pass produce different results for same input"
         
-        return True, "Cache maintains consistency"
+        # Verify cache was populated correctly
+        if cache.seq_len != seq_len:
+            return False, f"Cache seq_len {cache.seq_len} != {seq_len}"
+        
+        # Verify cached KV contains actual computed values (not zeros)
+        k, v = get_cached_kv(cache)
+        if k.abs().sum() == 0:
+            return False, "Cached K values are all zeros"
+        if v.abs().sum() == 0:
+            return False, "Cached V values are all zeros"
+        
+        return True, f"Cache maintains consistency, output diff={torch.abs(output_full - output_with_cache).max():.6f}"
     except Exception as e:
         return False, str(e)
 

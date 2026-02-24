@@ -67,6 +67,7 @@ def test_relu_backward() -> Tuple[bool, str]:
 def test_flatten() -> Tuple[bool, str]:
     """Test Flatten layer."""
     try:
+        np.random.seed(42)
         flatten = Flatten()
         x = Tensor(np.random.randn(2, 3, 4, 4))
         y = flatten(x)
@@ -74,9 +75,18 @@ def test_flatten() -> Tuple[bool, str]:
         if y.shape != (2, 48):
             return False, f"shape {y.shape}"
         
+        # Verify values are preserved (just reshaped)
+        expected = x.data.reshape(2, -1)
+        if not np.allclose(y.data, expected):
+            return False, "values not preserved during flatten"
+        
         y.sum().backward()
         if x.grad.shape != x.shape:
             return False, "grad shape mismatch"
+        
+        # For sum loss, gradient should be all ones
+        if not np.allclose(x.grad, 1.0):
+            return False, f"gradient {x.grad[0,0,0,0]}, expected 1.0"
         
         return True, "Flatten works"
     except Exception as e:
@@ -94,6 +104,11 @@ def test_linear_forward() -> Tuple[bool, str]:
         
         if y.shape != (4, 5):
             return False, f"shape {y.shape}"
+        
+        # Verify linear computation: y = x @ W^T + b
+        expected = x.data @ linear.weight.data.T + linear.bias.data
+        if not np.allclose(y.data, expected, rtol=1e-5):
+            return False, f"output mismatch, max diff: {np.max(np.abs(y.data - expected))}"
         
         return True, "Linear forward works"
     except Exception as e:
@@ -115,6 +130,16 @@ def test_linear_backward() -> Tuple[bool, str]:
         if np.all(linear.bias.grad == 0):
             return False, "bias grad is zero"
         
+        # For sum loss, bias gradient = batch_size = 4
+        expected_bias_grad = 4.0
+        if not np.allclose(linear.bias.grad, expected_bias_grad):
+            return False, f"bias grad {linear.bias.grad[0]}, expected {expected_bias_grad}"
+        
+        # Weight gradient = sum of outer products = sum(x) for each output
+        expected_weight_grad = np.ones((4, 5)).T @ x.data  # (5, 10)
+        if not np.allclose(linear.weight.grad, expected_weight_grad, rtol=1e-5):
+            return False, "weight grad mismatch"
+        
         return True, "Linear backward works"
     except Exception as e:
         return False, str(e)
@@ -134,6 +159,11 @@ def test_dropout_training() -> Tuple[bool, str]:
         if not (0.3 < zero_ratio < 0.7):
             return False, f"drop ratio {zero_ratio}"
         
+        # Non-zero values should be scaled by 1/(1-p) = 2
+        non_zero_vals = y.data[y.data != 0]
+        if not np.allclose(non_zero_vals, 2.0, rtol=1e-5):
+            return False, f"non-zero values should be 2.0, got {non_zero_vals[0]}"
+        
         return True, "Dropout training works"
     except Exception as e:
         return False, str(e)
@@ -145,11 +175,15 @@ def test_dropout_eval() -> Tuple[bool, str]:
         dropout = Dropout(p=0.5)
         dropout._training = False
         
-        x = Tensor(np.ones((10, 10)))
+        x = Tensor(np.ones((10, 10)) * 3.0)
         y = dropout(x)
         
         if not np.allclose(y.data, x.data):
             return False, "should be identity in eval"
+        
+        # Explicitly verify value preservation
+        if not np.allclose(y.data, 3.0):
+            return False, f"values not preserved: {y.data[0,0]} vs 3.0"
         
         return True, "Dropout eval works"
     except Exception as e:
@@ -176,6 +210,16 @@ def test_sequential() -> Tuple[bool, str]:
         if len(params) != 4:
             return False, f"params count {len(params)}"
         
+        # Verify output is finite
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        
+        # Verify backward works
+        y.sum().backward()
+        for p in params:
+            if not np.all(np.isfinite(p.grad)):
+                return False, "gradient contains NaN or Inf"
+        
         return True, "Sequential works"
     except Exception as e:
         return False, str(e)
@@ -198,6 +242,14 @@ def test_conv_block_forward() -> Tuple[bool, str]:
         
         if y.shape != (2, 32, 8, 8):
             return False, f"shape {y.shape}"
+        
+        # Verify ReLU is applied (no negative values)
+        if np.any(y.data < 0):
+            return False, "ReLU not applied (found negative values)"
+        
+        # Verify output is finite
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
         
         return True, "ConvBlock forward works"
     except Exception as e:
@@ -229,6 +281,13 @@ def test_conv_block_backward() -> Tuple[bool, str]:
         if not has_grad:
             return False, "no gradients"
         
+        # Verify gradients are finite
+        for p in params:
+            if not np.all(np.isfinite(p.grad)):
+                return False, "parameter gradient contains NaN or Inf"
+        if not np.all(np.isfinite(x.grad)):
+            return False, "input gradient contains NaN or Inf"
+        
         return True, "ConvBlock backward works"
     except Exception as e:
         return False, str(e)
@@ -251,6 +310,12 @@ def test_residual_block_same_dim() -> Tuple[bool, str]:
         
         if y.shape != (2, 32, 8, 8):
             return False, f"shape {y.shape}"
+        
+        # Verify output is finite and ReLU applied
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        if np.any(y.data < 0):
+            return False, "ReLU not applied"
         
         return True, "ResidualBlock same dim works"
     except Exception as e:
@@ -275,6 +340,16 @@ def test_residual_block_downsample() -> Tuple[bool, str]:
         if y.shape != (2, 64, 4, 4):
             return False, f"shape {y.shape}"
         
+        # Verify spatial dimensions reduced by stride=2
+        if y.shape[2] != x.shape[2] // 2:
+            return False, f"height not halved: {y.shape[2]} vs {x.shape[2]//2}"
+        if y.shape[3] != x.shape[3] // 2:
+            return False, f"width not halved: {y.shape[3]} vs {x.shape[3]//2}"
+        
+        # Verify output is finite
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        
         return True, "ResidualBlock downsample works"
     except Exception as e:
         return False, str(e)
@@ -297,6 +372,17 @@ def test_lenet_forward() -> Tuple[bool, str]:
         
         if y.shape != (2, 10):
             return False, f"shape {y.shape}"
+        
+        # Verify output is finite
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        
+        # Output should be logits (unbounded)
+        # Different inputs should produce different outputs
+        x2 = Tensor(np.random.randn(2, 1, 28, 28))
+        y2 = model(x2)
+        if np.allclose(y.data, y2.data):
+            return False, "same output for different inputs"
         
         return True, "LeNet forward works"
     except Exception as e:
@@ -326,6 +412,15 @@ def test_lenet_backward() -> Tuple[bool, str]:
         if not has_grad:
             return False, "no gradients"
         
+        # Verify all gradients are finite
+        for p in params:
+            if not np.all(np.isfinite(p.grad)):
+                return False, "gradient contains NaN or Inf"
+        
+        # Verify input gradient exists and is finite
+        if not np.all(np.isfinite(x.grad)):
+            return False, "input gradient contains NaN or Inf"
+        
         return True, "LeNet backward works"
     except Exception as e:
         return False, str(e)
@@ -349,6 +444,16 @@ def test_simple_cnn_forward() -> Tuple[bool, str]:
         if y.shape != (2, 10):
             return False, f"shape {y.shape}"
         
+        # Verify output is finite
+        if not np.all(np.isfinite(y.data)):
+            return False, "output contains NaN or Inf"
+        
+        # Different inputs should give different outputs
+        x2 = Tensor(np.random.randn(2, 3, 32, 32))
+        y2 = model(x2)
+        if np.allclose(y.data, y2.data):
+            return False, "same output for different inputs"
+        
         return True, "SimpleCNN forward works"
     except Exception as e:
         return False, str(e)
@@ -357,6 +462,7 @@ def test_simple_cnn_forward() -> Tuple[bool, str]:
 def test_global_avg_pool() -> Tuple[bool, str]:
     """Test GlobalAvgPool layer."""
     try:
+        np.random.seed(42)
         gap = GlobalAvgPool()
         x = Tensor(np.random.randn(2, 16, 4, 4))
         y = gap(x)
@@ -372,6 +478,11 @@ def test_global_avg_pool() -> Tuple[bool, str]:
         if x.grad.shape != x.shape:
             return False, "grad shape mismatch"
         
+        # Gradient should be uniform: 1 / (H * W) = 1 / 16
+        expected_grad = 1.0 / (4 * 4)
+        if not np.allclose(x.grad, expected_grad):
+            return False, f"grad {x.grad[0,0,0,0]} vs expected {expected_grad}"
+        
         return True, "GlobalAvgPool works"
     except Exception as e:
         return False, str(e)
@@ -385,6 +496,16 @@ def test_softmax() -> Tuple[bool, str]:
         
         if not np.allclose(probs.sum(axis=1), 1):
             return False, "doesn't sum to 1"
+        
+        # Verify actual softmax values
+        exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+        expected = exp_x / exp_x.sum(axis=1, keepdims=True)
+        if not np.allclose(probs, expected):
+            return False, f"values mismatch"
+        
+        # Third element should be largest
+        if not np.all(probs[:, 2] > probs[:, 1]) or not np.all(probs[:, 1] > probs[:, 0]):
+            return False, "ordering incorrect"
         
         x_large = np.array([[1000, 1001, 1002]])
         probs_large = softmax(x_large)
@@ -416,6 +537,12 @@ def test_cross_entropy_forward() -> Tuple[bool, str]:
         if loss.data < 0:
             return False, "loss should be positive"
         
+        # Manually compute expected loss
+        probs = softmax(logits.data)
+        expected_loss = -np.mean(np.log(probs[np.arange(2), targets]))
+        if not np.isclose(loss.data, expected_loss, rtol=1e-5):
+            return False, f"loss {loss.data} vs expected {expected_loss}"
+        
         return True, "CrossEntropy forward works"
     except Exception as e:
         return False, str(e)
@@ -424,6 +551,7 @@ def test_cross_entropy_forward() -> Tuple[bool, str]:
 def test_cross_entropy_backward() -> Tuple[bool, str]:
     """Test CrossEntropyLoss backward."""
     try:
+        np.random.seed(42)
         loss_fn = CrossEntropyLoss()
         
         logits = Tensor(np.random.randn(4, 5))
@@ -441,6 +569,14 @@ def test_cross_entropy_backward() -> Tuple[bool, str]:
         
         if not np.allclose(logits.grad.sum(axis=1), 0, atol=1e-6):
             return False, "grad rows should sum to ~0"
+        
+        # Verify gradient formula: grad = (softmax(logits) - one_hot(targets)) / N
+        probs = softmax(logits.data)
+        expected_grad = probs.copy()
+        expected_grad[np.arange(4), targets] -= 1
+        expected_grad /= 4
+        if not np.allclose(logits.grad, expected_grad, rtol=1e-5):
+            return False, f"gradient mismatch, max diff: {np.max(np.abs(logits.grad - expected_grad))}"
         
         return True, "CrossEntropy backward works"
     except Exception as e:
@@ -488,11 +624,21 @@ def test_sgd_momentum() -> Tuple[bool, str]:
         w = Tensor(np.array([1.0, 2.0, 3.0]))
         optimizer = SGD([w], lr=0.1, momentum=0.9)
         
+        # First step: velocity = grad = [1,1,1], update = velocity
         w.grad = np.array([1.0, 1.0, 1.0])
         optimizer.step()
+        # w = [1,2,3] - 0.1 * [1,1,1] = [0.9, 1.9, 2.9]
+        expected_after_step1 = np.array([0.9, 1.9, 2.9])
+        if not np.allclose(w.data, expected_after_step1):
+            return False, f"step 1: {w.data} vs {expected_after_step1}"
         
+        # Second step: velocity = 0.9*[1,1,1] + [1,1,1] = [1.9,1.9,1.9]
         w.grad = np.array([1.0, 1.0, 1.0])
         optimizer.step()
+        # w = [0.9,1.9,2.9] - 0.1 * [1.9,1.9,1.9] = [0.71, 1.71, 2.71]
+        expected_after_step2 = np.array([0.71, 1.71, 2.71])
+        if not np.allclose(w.data, expected_after_step2):
+            return False, f"step 2: {w.data} vs {expected_after_step2}"
         
         return True, "SGD momentum works"
     except Exception as e:

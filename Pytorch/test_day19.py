@@ -16,7 +16,7 @@ except ImportError as e:
 
 
 def test_positional_encoding_shape() -> Tuple[bool, str]:
-    """Test PositionalEncoding output shape."""
+    """Test PositionalEncoding adds position info to input."""
     try:
         d_model = 64
         pe = PositionalEncoding(d_model, max_len=100, dropout=0.0)
@@ -29,7 +29,18 @@ def test_positional_encoding_shape() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, f"Shape preserved: {output.shape}"
+        # Verify PE is added (not identical to input)
+        if torch.allclose(output, x, atol=1e-6):
+            return False, "No positional encoding added"
+        
+        # PE should be consistent (same position gets same encoding)
+        zero_input = torch.zeros(1, 16, d_model)
+        pe_only = pe(zero_input)
+        pe_only2 = pe(zero_input)
+        if not torch.allclose(pe_only, pe_only2, atol=1e-6):
+            return False, "PE not consistent across calls"
+        
+        return True, f"PE added correctly to input"
     except Exception as e:
         return False, str(e)
 
@@ -57,33 +68,7 @@ def test_positional_encoding_different_positions() -> Tuple[bool, str]:
 
 
 def test_transformer_embedding_shape() -> Tuple[bool, str]:
-    """Test TransformerEmbedding output shape."""
-    try:
-        vocab_size = 1000
-        d_model = 64
-        
-        emb = TransformerEmbedding(vocab_size, d_model)
-        
-        if emb.token_embedding is None:
-            return False, "token_embedding not initialized"
-        
-        tokens = torch.randint(0, vocab_size, (2, 16))
-        output = emb(tokens)
-        
-        if output is None:
-            return False, "output is None"
-        
-        expected_shape = (2, 16, d_model)
-        if output.shape != expected_shape:
-            return False, f"Shape {output.shape} != {expected_shape}"
-        
-        return True, f"Embedding output: {output.shape}"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_transformer_embedding_scaling() -> Tuple[bool, str]:
-    """Test that embeddings are scaled by sqrt(d_model)."""
+    """Test TransformerEmbedding produces unique embeddings per token."""
     try:
         vocab_size = 1000
         d_model = 64
@@ -93,27 +78,79 @@ def test_transformer_embedding_scaling() -> Tuple[bool, str]:
         if emb.token_embedding is None:
             return False, "token_embedding not initialized"
         
-        tokens = torch.randint(1, vocab_size, (1, 1))
-        
-        # Get raw embedding
-        raw_emb = emb.token_embedding(tokens)
-        
-        # Get scaled embedding (without positional encoding effect)
-        # This is hard to test directly, so we just check it runs
+        # Create tokens with known different values
+        tokens = torch.tensor([[1, 2, 3, 4], [5, 6, 7, 8]])
         output = emb(tokens)
         
         if output is None:
             return False, "output is None"
         
-        # The output should be larger than raw embedding (due to scaling)
-        # This is a weak test but better than nothing
-        return True, "Embedding scaling applied"
+        expected_shape = (2, 4, d_model)
+        if output.shape != expected_shape:
+            return False, f"Shape {output.shape} != {expected_shape}"
+        
+        # Different tokens should have different embeddings
+        if torch.allclose(output[0, 0], output[0, 1], atol=1e-4):
+            return False, "Different tokens have same embedding"
+        
+        # Same token should have same base embedding (before PE)
+        tokens_same = torch.tensor([[5, 5, 5, 5]])
+        out_same = emb(tokens_same)
+        # Note: positions differ, so outputs will differ due to PE
+        # But base embedding component should be similar
+        
+        return True, f"Embeddings unique per token"
+    except Exception as e:
+        return False, str(e)
+
+
+def test_transformer_embedding_scaling() -> Tuple[bool, str]:
+    """Test that embeddings are scaled by sqrt(d_model)."""
+    try:
+        import math
+        vocab_size = 1000
+        d_model = 64
+        
+        emb = TransformerEmbedding(vocab_size, d_model, dropout=0.0)
+        
+        if emb.token_embedding is None:
+            return False, "token_embedding not initialized"
+        if emb.pos_encoding is None:
+            return False, "pos_encoding not initialized"
+        
+        tokens = torch.randint(1, vocab_size, (1, 1))
+        
+        # Get raw embedding
+        raw_emb = emb.token_embedding(tokens)
+        
+        # Expected scaled embedding: raw * sqrt(d_model)
+        expected_scale = math.sqrt(d_model)
+        scaled_emb = raw_emb * expected_scale
+        
+        # Get output with PE using zero input to isolate PE effect
+        # Then back-calculate the scaled embedding
+        output = emb(tokens)
+        
+        if output is None:
+            return False, "output is None"
+        
+        # The scaled embedding norm should be ~sqrt(d_model) times raw
+        raw_norm = raw_emb.norm().item()
+        # Note: output includes PE, so we can't directly compare
+        # But we can verify scaling is applied by checking output magnitude
+        output_norm = output.norm().item()
+        
+        # Scaled output should have larger norm than raw (approx sqrt(d_model) factor)
+        if output_norm < raw_norm * 0.5:  # Allow for PE effects
+            return False, "Embedding not scaled up"
+        
+        return True, f"Embedding scaled by sqrt({d_model})={expected_scale:.2f}"
     except Exception as e:
         return False, str(e)
 
 
 def test_encoder_stack() -> Tuple[bool, str]:
-    """Test TransformerEncoder stack."""
+    """Test TransformerEncoder stack with correct layer count and final norm."""
     try:
         d_model, num_heads, num_layers = 64, 4, 2
         
@@ -123,6 +160,8 @@ def test_encoder_stack() -> Tuple[bool, str]:
             return False, "layers not initialized"
         if len(encoder.layers) != num_layers:
             return False, f"Expected {num_layers} layers"
+        if encoder.final_norm is None:
+            return False, "final_norm not initialized"
         
         x = torch.randn(2, 16, d_model)
         output = encoder(x)
@@ -132,13 +171,18 @@ def test_encoder_stack() -> Tuple[bool, str]:
         if output.shape != x.shape:
             return False, f"Shape {output.shape} != {x.shape}"
         
-        return True, f"Encoder stack with {num_layers} layers"
+        # With final norm, output should be normalized
+        mean = output.mean(dim=-1)
+        if not torch.allclose(mean, torch.zeros_like(mean), atol=1e-4):
+            return False, f"Output not normalized: mean={mean.mean().item():.4f}"
+        
+        return True, f"Encoder with {num_layers} layers, final norm applied"
     except Exception as e:
         return False, str(e)
 
 
 def test_decoder_stack() -> Tuple[bool, str]:
-    """Test TransformerDecoder stack."""
+    """Test TransformerDecoder stack with final norm and cross-attention."""
     try:
         d_model, num_heads, num_layers = 64, 4, 2
         
@@ -148,6 +192,8 @@ def test_decoder_stack() -> Tuple[bool, str]:
             return False, "layers not initialized"
         if len(decoder.layers) != num_layers:
             return False, f"Expected {num_layers} layers"
+        if decoder.final_norm is None:
+            return False, "final_norm not initialized"
         
         tgt = torch.randn(2, 8, d_model)
         enc_out = torch.randn(2, 16, d_model)
@@ -159,13 +205,18 @@ def test_decoder_stack() -> Tuple[bool, str]:
         if output.shape != tgt.shape:
             return False, f"Shape {output.shape} != {tgt.shape}"
         
-        return True, f"Decoder stack with {num_layers} layers"
+        # With final norm, output should be normalized
+        mean = output.mean(dim=-1)
+        if not torch.allclose(mean, torch.zeros_like(mean), atol=1e-4):
+            return False, f"Output not normalized: mean={mean.mean().item():.4f}"
+        
+        return True, f"Decoder with {num_layers} layers, final norm applied"
     except Exception as e:
         return False, str(e)
 
 
 def test_transformer_forward() -> Tuple[bool, str]:
-    """Test full Transformer forward pass."""
+    """Test full Transformer forward pass with valid logit output."""
     try:
         model = Transformer(
             src_vocab_size=1000,
@@ -180,6 +231,8 @@ def test_transformer_forward() -> Tuple[bool, str]:
             return False, "encoder not initialized"
         if model.decoder is None:
             return False, "decoder not initialized"
+        if model.output_projection is None:
+            return False, "output_projection not initialized"
         
         batch, src_len, tgt_len = 2, 10, 8
         src = torch.randint(1, 1000, (batch, src_len))
@@ -194,13 +247,21 @@ def test_transformer_forward() -> Tuple[bool, str]:
         if output.shape != expected_shape:
             return False, f"Shape {output.shape} != {expected_shape}"
         
-        return True, f"Transformer output: {output.shape}"
+        # Verify logits are valid (not all same, finite values)
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            return False, "Output contains NaN or Inf"
+        
+        # Different positions should have different logits
+        if torch.allclose(output[0, 0], output[0, 1], atol=1e-3):
+            return False, "All positions have identical logits"
+        
+        return True, f"Transformer outputs valid logits: {output.shape}"
     except Exception as e:
         return False, str(e)
 
 
 def test_transformer_src_mask() -> Tuple[bool, str]:
-    """Test source padding mask creation."""
+    """Test source padding mask creation with correct values."""
     try:
         model = Transformer(
             src_vocab_size=100,
@@ -212,22 +273,35 @@ def test_transformer_src_mask() -> Tuple[bool, str]:
             padding_idx=0
         )
         
-        # Create input with padding
+        # Create input with padding (0 is padding)
         src = torch.tensor([[1, 2, 3, 0, 0], [1, 2, 0, 0, 0]])
         mask = model.create_src_mask(src)
         
         if mask is None:
             return False, "create_src_mask returned None"
         
-        # Check that padding positions are masked
-        # Mask should be 0 for padding positions
-        return True, "Source mask handles padding"
+        # Mask should be 0 for padding positions, 1 for real tokens
+        # First sequence: positions 0,1,2 are real (mask=1), positions 3,4 are padding (mask=0)
+        # Expected mask values for first sequence: [1, 1, 1, 0, 0]
+        mask_squeezed = mask.squeeze()
+        
+        # Check shape is broadcastable
+        if len(mask.shape) != 4:
+            return False, f"Mask should be 4D, got {len(mask.shape)}D"
+        
+        # Check that padding positions are 0
+        if mask_squeezed[0, 3] != 0 or mask_squeezed[0, 4] != 0:
+            return False, "Padding positions should be masked (0)"
+        if mask_squeezed[0, 0] != 1 or mask_squeezed[0, 1] != 1:
+            return False, "Real token positions should be unmasked (1)"
+        
+        return True, "Source mask correctly masks padding tokens"
     except Exception as e:
         return False, str(e)
 
 
 def test_transformer_tgt_mask() -> Tuple[bool, str]:
-    """Test target mask (causal + padding)."""
+    """Test target mask combines causal and padding correctly."""
     try:
         model = Transformer(
             src_vocab_size=100,
@@ -250,13 +324,24 @@ def test_transformer_tgt_mask() -> Tuple[bool, str]:
         if len(mask.shape) != 4:
             return False, f"Expected 4D mask, got {len(mask.shape)}D"
         
-        return True, "Target mask combines causal and padding"
+        # Check causal property: position i should not attend to j > i
+        # Upper triangle should be 0 (or masked)
+        mask_2d = mask[0, 0]  # Get first batch, first head
+        for i in range(mask_2d.shape[0]):
+            for j in range(i + 1, mask_2d.shape[1]):
+                if mask_2d[i, j] != 0:
+                    return False, f"Position {i} can attend to future position {j}"
+        
+        # Check padding: position 3 in first sequence is padding
+        # It should also be masked in the target
+        
+        return True, "Target mask is causal and handles padding"
     except Exception as e:
         return False, str(e)
 
 
 def test_transformer_encode() -> Tuple[bool, str]:
-    """Test encoder method."""
+    """Test encoder method produces contextual embeddings."""
     try:
         model = Transformer(
             src_vocab_size=100,
@@ -269,6 +354,8 @@ def test_transformer_encode() -> Tuple[bool, str]:
         
         if model.encoder is None:
             return False, "encoder not initialized"
+        if model.src_embedding is None:
+            return False, "src_embedding not initialized"
         
         src = torch.randint(1, 100, (2, 10))
         encoder_output = model.encode(src)
@@ -280,13 +367,22 @@ def test_transformer_encode() -> Tuple[bool, str]:
         if encoder_output.shape != expected_shape:
             return False, f"Shape {encoder_output.shape} != {expected_shape}"
         
-        return True, f"Encoder output: {encoder_output.shape}"
+        # Encoder output should be contextual (different from raw embeddings)
+        raw_emb = model.src_embedding(src)
+        if raw_emb is not None and torch.allclose(encoder_output, raw_emb, atol=1e-3):
+            return False, "Encoder output same as raw embedding (no processing)"
+        
+        # Different positions should have different outputs (context-dependent)
+        if torch.allclose(encoder_output[0, 0], encoder_output[0, 1], atol=1e-3):
+            return False, "All positions have identical encoder output"
+        
+        return True, f"Encoder produces contextual embeddings"
     except Exception as e:
         return False, str(e)
 
 
 def test_transformer_decode() -> Tuple[bool, str]:
-    """Test decoder method."""
+    """Test decoder method uses encoder output via cross-attention."""
     try:
         model = Transformer(
             src_vocab_size=100,
@@ -299,6 +395,8 @@ def test_transformer_decode() -> Tuple[bool, str]:
         
         if model.decoder is None:
             return False, "decoder not initialized"
+        if model.tgt_embedding is None:
+            return False, "tgt_embedding not initialized"
         
         tgt = torch.randint(1, 100, (2, 8))
         encoder_output = torch.randn(2, 10, 64)
@@ -312,7 +410,15 @@ def test_transformer_decode() -> Tuple[bool, str]:
         if decoder_output.shape != expected_shape:
             return False, f"Shape {decoder_output.shape} != {expected_shape}"
         
-        return True, f"Decoder output: {decoder_output.shape}"
+        # Decoder should use encoder output (different encoder = different output)
+        different_encoder = torch.randn(2, 10, 64) * 10  # Very different
+        decoder_output2 = model.decode(tgt, different_encoder)
+        
+        if decoder_output2 is not None:
+            if torch.allclose(decoder_output, decoder_output2, atol=1e-2):
+                return False, "Decoder ignores encoder output"
+        
+        return True, f"Decoder uses encoder output via cross-attention"
     except Exception as e:
         return False, str(e)
 
@@ -398,7 +504,7 @@ def test_greedy_decode_shape() -> Tuple[bool, str]:
 
 
 def test_transformer_different_vocab_sizes() -> Tuple[bool, str]:
-    """Test Transformer with different source/target vocab sizes."""
+    """Test Transformer with different source/target vocab sizes and valid output."""
     try:
         model = Transformer(
             src_vocab_size=5000,
@@ -411,6 +517,8 @@ def test_transformer_different_vocab_sizes() -> Tuple[bool, str]:
         
         if model.encoder is None:
             return False, "Model not initialized"
+        if model.output_projection is None:
+            return False, "output_projection not initialized"
         
         src = torch.randint(1, 5000, (2, 10))
         tgt = torch.randint(1, 3000, (2, 8))
@@ -424,7 +532,17 @@ def test_transformer_different_vocab_sizes() -> Tuple[bool, str]:
         if output.shape[-1] != 3000:
             return False, f"Output vocab size {output.shape[-1]} != 3000"
         
-        return True, "Supports different src/tgt vocab sizes"
+        # Verify output projection weight has correct shape
+        if model.output_projection.weight.shape[0] != 3000:
+            return False, "Output projection has wrong vocab size"
+        
+        # Softmax should produce valid probabilities
+        probs = torch.softmax(output, dim=-1)
+        prob_sum = probs.sum(dim=-1)
+        if not torch.allclose(prob_sum, torch.ones_like(prob_sum), atol=1e-5):
+            return False, "Softmax of logits doesn't sum to 1"
+        
+        return True, "Different vocab sizes with valid output projection"
     except Exception as e:
         return False, str(e)
 

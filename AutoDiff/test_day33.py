@@ -25,6 +25,7 @@ except ImportError as e:
 def test_bn1d_forward_shape() -> Tuple[bool, str]:
     """Test BatchNorm1d forward output shape."""
     try:
+        np.random.seed(42)
         x = np.random.randn(32, 64)
         gamma = np.ones(64)
         beta = np.zeros(64)
@@ -40,6 +41,18 @@ def test_bn1d_forward_shape() -> Tuple[bool, str]:
         
         if out.shape != x.shape:
             return False, f"shape {out.shape}, expected {x.shape}"
+        
+        # Verify output is finite
+        if not np.all(np.isfinite(out)):
+            return False, "output contains NaN or Inf"
+        
+        # Verify normalization: mean should be ~0, var should be ~1
+        out_mean = np.mean(out, axis=0)
+        out_var = np.var(out, axis=0)
+        if not np.allclose(out_mean, 0, atol=1e-5):
+            return False, f"mean not ~0: max abs mean = {np.max(np.abs(out_mean))}"
+        if not np.allclose(out_var, 1, atol=1e-4):
+            return False, f"var not ~1: max diff = {np.max(np.abs(out_var - 1))}"
         
         return True, "Output shape correct"
     except Exception as e:
@@ -138,6 +151,17 @@ def test_bn1d_backward_shape() -> Tuple[bool, str]:
         if dbeta.shape != beta.shape:
             return False, f"dbeta shape {dbeta.shape}"
         
+        # Verify gradients are finite and not all zeros
+        if not np.all(np.isfinite(dx)):
+            return False, "dx contains NaN or Inf"
+        if np.all(dx == 0):
+            return False, "dx is all zeros"
+        
+        # dbeta should equal sum of dy
+        expected_dbeta = np.sum(dy, axis=0)
+        if not np.allclose(dbeta, expected_dbeta, rtol=1e-5):
+            return False, f"dbeta mismatch: {dbeta[0]} vs {expected_dbeta[0]}"
+        
         return True, "Gradient shapes correct"
     except Exception as e:
         return False, str(e)
@@ -210,6 +234,16 @@ def test_bn1d_module_init() -> Tuple[bool, str]:
         if bn.gamma.shape != (64,):
             return False, f"gamma shape {bn.gamma.shape}"
         
+        # Verify initialization values
+        if not np.allclose(bn.gamma.data, 1.0):
+            return False, f"gamma not initialized to 1: {bn.gamma.data[0]}"
+        if not np.allclose(bn.beta.data, 0.0):
+            return False, f"beta not initialized to 0: {bn.beta.data[0]}"
+        if not np.allclose(bn.running_mean, 0.0):
+            return False, f"running_mean not 0: {bn.running_mean[0]}"
+        if not np.allclose(bn.running_var, 1.0):
+            return False, f"running_var not 1: {bn.running_var[0]}"
+        
         return True, "Initialization correct"
     except Exception as e:
         return False, str(e)
@@ -233,6 +267,14 @@ def test_bn1d_module_forward() -> Tuple[bool, str]:
         
         if y.shape != (16, 32):
             return False, f"shape {y.shape}"
+        
+        # Verify normalization
+        out_mean = np.mean(y.data, axis=0)
+        out_var = np.var(y.data, axis=0)
+        if not np.allclose(out_mean, 0, atol=1e-5):
+            return False, f"mean not ~0: {np.max(np.abs(out_mean))}"
+        if not np.allclose(out_var, 1, atol=1e-4):
+            return False, f"var not ~1: {np.max(np.abs(out_var - 1))}"
         
         return True, "Forward works"
     except Exception as e:
@@ -261,6 +303,15 @@ def test_bn1d_module_backward() -> Tuple[bool, str]:
             return False, "gamma grad is zero"
         if np.all(x.grad == 0):
             return False, "x grad is zero"
+        
+        # For sum loss, dbeta = batch_size = 8
+        expected_dbeta = 8.0
+        if not np.allclose(bn.beta.grad, expected_dbeta):
+            return False, f"beta grad {bn.beta.grad[0]}, expected {expected_dbeta}"
+        
+        # Verify gradients are finite
+        if not np.all(np.isfinite(x.grad)):
+            return False, "x grad contains NaN or Inf"
         
         return True, "Backward works"
     except Exception as e:
@@ -308,6 +359,10 @@ def test_bn1d_eval_mode() -> Tuple[bool, str]:
             x = Tensor(np.random.randn(32, 16))
             y = bn(x)
         
+        # Store running stats
+        running_mean_copy = bn.running_mean.copy()
+        running_var_copy = bn.running_var.copy()
+        
         bn.eval()
         
         x1 = Tensor(np.random.randn(1, 16))
@@ -316,11 +371,17 @@ def test_bn1d_eval_mode() -> Tuple[bool, str]:
         if y1 is None:
             return False, "eval forward returned None"
         
-        x2 = Tensor(np.random.randn(64, 16))
-        y2 = bn(x2)
+        # Verify running stats weren't updated in eval mode
+        if not np.allclose(bn.running_mean, running_mean_copy):
+            return False, "running_mean changed in eval mode"
+        if not np.allclose(bn.running_var, running_var_copy):
+            return False, "running_var changed in eval mode"
         
-        if y2 is None:
-            return False, "eval forward returned None"
+        # Verify eval output uses running stats (manually compute expected)
+        expected_y1 = (x1.data - running_mean_copy) / np.sqrt(running_var_copy + bn.eps)
+        expected_y1 = bn.gamma.data * expected_y1 + bn.beta.data
+        if not np.allclose(y1.data, expected_y1, rtol=1e-5):
+            return False, "eval output doesn't match running stats computation"
         
         return True, "Eval mode works"
     except Exception as e:
@@ -330,6 +391,7 @@ def test_bn1d_eval_mode() -> Tuple[bool, str]:
 def test_bn2d_forward_shape() -> Tuple[bool, str]:
     """Test BatchNorm2d forward output shape."""
     try:
+        np.random.seed(42)
         x = np.random.randn(8, 16, 4, 4)
         gamma = np.ones(16)
         beta = np.zeros(16)
@@ -345,6 +407,14 @@ def test_bn2d_forward_shape() -> Tuple[bool, str]:
         
         if out.shape != x.shape:
             return False, f"shape {out.shape}"
+        
+        # Verify normalization per channel
+        mean_per_channel = np.mean(out, axis=(0, 2, 3))
+        var_per_channel = np.var(out, axis=(0, 2, 3))
+        if not np.allclose(mean_per_channel, 0, atol=1e-5):
+            return False, f"channel means not ~0: max={np.max(np.abs(mean_per_channel))}"
+        if not np.allclose(var_per_channel, 1, atol=1e-4):
+            return False, f"channel vars not ~1: max diff={np.max(np.abs(var_per_channel - 1))}"
         
         return True, "Output shape correct"
     except Exception as e:
@@ -412,6 +482,15 @@ def test_bn2d_backward_shape() -> Tuple[bool, str]:
         if dbeta.shape != (8,):
             return False, f"dbeta shape {dbeta.shape}"
         
+        # dbeta should equal sum over (N, H, W)
+        expected_dbeta = np.sum(dy, axis=(0, 2, 3))
+        if not np.allclose(dbeta, expected_dbeta, rtol=1e-5):
+            return False, f"dbeta mismatch: {dbeta[0]} vs {expected_dbeta[0]}"
+        
+        # Verify gradients are finite
+        if not np.all(np.isfinite(dx)):
+            return False, "dx contains NaN or Inf"
+        
         return True, "Gradient shapes correct"
     except Exception as e:
         return False, str(e)
@@ -426,6 +505,16 @@ def test_bn2d_module_init() -> Tuple[bool, str]:
             return False, "gamma is None"
         if bn.running_mean is None:
             return False, "running_mean is None"
+        
+        # Verify initialization values
+        if not np.allclose(bn.gamma.data, 1.0):
+            return False, f"gamma not 1: {bn.gamma.data[0]}"
+        if not np.allclose(bn.beta.data, 0.0):
+            return False, f"beta not 0: {bn.beta.data[0]}"
+        if not np.allclose(bn.running_mean, 0.0):
+            return False, f"running_mean not 0: {bn.running_mean[0]}"
+        if not np.allclose(bn.running_var, 1.0):
+            return False, f"running_var not 1: {bn.running_var[0]}"
         
         return True, "Initialization correct"
     except Exception as e:
@@ -450,6 +539,14 @@ def test_bn2d_module_forward() -> Tuple[bool, str]:
         
         if y.shape != (4, 16, 8, 8):
             return False, f"shape {y.shape}"
+        
+        # Verify normalization per channel
+        mean_per_channel = np.mean(y.data, axis=(0, 2, 3))
+        var_per_channel = np.var(y.data, axis=(0, 2, 3))
+        if not np.allclose(mean_per_channel, 0, atol=1e-5):
+            return False, f"channel means not ~0"
+        if not np.allclose(var_per_channel, 1, atol=1e-4):
+            return False, f"channel vars not ~1"
         
         return True, "Forward works"
     except Exception as e:
@@ -479,6 +576,15 @@ def test_bn2d_module_backward() -> Tuple[bool, str]:
         if np.all(x.grad == 0):
             return False, "x grad is zero"
         
+        # For sum loss, dbeta = N * H * W = 2 * 4 * 4 = 32
+        expected_dbeta = 2 * 4 * 4
+        if not np.allclose(bn.beta.grad, expected_dbeta):
+            return False, f"beta grad {bn.beta.grad[0]}, expected {expected_dbeta}"
+        
+        # Verify gradients are finite
+        if not np.all(np.isfinite(x.grad)):
+            return False, "x grad contains NaN or Inf"
+        
         return True, "Backward works"
     except Exception as e:
         return False, str(e)
@@ -507,6 +613,7 @@ def test_bn_parameters() -> Tuple[bool, str]:
 def test_layernorm_forward() -> Tuple[bool, str]:
     """Test LayerNorm forward."""
     try:
+        np.random.seed(42)
         ln = LayerNorm(16)
         x = Tensor(np.random.randn(4, 16))
         y = ln(x)
@@ -517,6 +624,15 @@ def test_layernorm_forward() -> Tuple[bool, str]:
         if y.shape != (4, 16):
             return False, f"shape {y.shape}"
         
+        # Verify normalization per sample (not per feature like batchnorm)
+        for i in range(4):
+            sample_mean = np.mean(y.data[i])
+            sample_var = np.var(y.data[i])
+            if not np.isclose(sample_mean, 0, atol=1e-5):
+                return False, f"sample {i} mean not ~0: {sample_mean}"
+            if not np.isclose(sample_var, 1, atol=1e-4):
+                return False, f"sample {i} var not ~1: {sample_var}"
+        
         return True, "LayerNorm forward works"
     except Exception as e:
         return False, str(e)
@@ -525,6 +641,7 @@ def test_layernorm_forward() -> Tuple[bool, str]:
 def test_layernorm_backward() -> Tuple[bool, str]:
     """Test LayerNorm backward."""
     try:
+        np.random.seed(42)
         ln = LayerNorm(16)
         x = Tensor(np.random.randn(4, 16))
         y = ln(x)
@@ -538,6 +655,15 @@ def test_layernorm_backward() -> Tuple[bool, str]:
             return False, "x grad is zero"
         if np.all(ln.gamma.grad == 0):
             return False, "gamma grad is zero"
+        
+        # For sum loss, dbeta = num_samples = 4
+        expected_dbeta = 4.0
+        if not np.allclose(ln.beta.grad, expected_dbeta):
+            return False, f"beta grad {ln.beta.grad[0]}, expected {expected_dbeta}"
+        
+        # Verify gradients are finite
+        if not np.all(np.isfinite(x.grad)):
+            return False, "x grad contains NaN or Inf"
         
         return True, "LayerNorm backward works"
     except Exception as e:
