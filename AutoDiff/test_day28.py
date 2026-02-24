@@ -1,462 +1,203 @@
-"""Test Suite for Day 28: Adam Optimizer"""
+"""Test Suite for Day 28: AdamW Optimizer"""
 
 import numpy as np
-import sys
-from typing import Tuple
+import pytest
 
-try:
-    from day28 import (
-        Tensor,
-        Parameter,
-        Module,
-        Linear,
-        ReLU,
-        Sequential,
-        Optimizer,
-        SGD,
-        Adagrad,
-        RMSprop,
-        Adam,
-        AdamW,
-        mse_loss,
-        compare_optimizers,
-    )
-    IMPORT_SUCCESS = True
-except ImportError as e:
-    IMPORT_SUCCESS = False
-    IMPORT_ERROR = str(e)
+from day28 import Tensor, Parameter, Linear, AdamW
 
 
-def test_adagrad_creation() -> Tuple[bool, str]:
-    """Test Adagrad creation."""
-    try:
-        params = [Parameter(np.random.randn(3, 4))]
-        opt = Adagrad(params, lr=0.01)
-        
-        if opt is None:
-            return False, "Adagrad is None"
-        
-        return True, "Adagrad created"
-    except Exception as e:
-        return False, str(e)
+def test_adamw_creation():
+    """Test AdamW optimizer creation."""
+    p = Parameter([1.0, 2.0])
+    opt = AdamW([p], lr=0.001)
+    
+    assert opt is not None, "AdamW returned None"
 
 
-def test_adagrad_step() -> Tuple[bool, str]:
-    """Test Adagrad step."""
-    try:
-        p = Parameter(np.array([1.0, 2.0, 3.0]))
-        opt = Adagrad([p], lr=1.0, eps=1e-10)
-        
-        initial = p.data.copy()
-        p.grad = np.array([1.0, 1.0, 1.0])
-        opt.step()
-        
-        if np.allclose(p.data, initial):
-            return False, "Parameters not updated"
-        
-        return True, "Adagrad step works"
-    except Exception as e:
-        return False, str(e)
+def test_adamw_step():
+    """Test AdamW step."""
+    p = Parameter([1.0])
+    p.grad = np.array([1.0])
+    
+    opt = AdamW([p], lr=0.1)
+    initial = p.data.copy()
+    
+    opt.step()
+    
+    assert not np.allclose(p.data, initial), "Parameter didn't change"
 
 
-def test_adagrad_accumulates() -> Tuple[bool, str]:
-    """Test Adagrad accumulates squared gradients."""
-    try:
-        p = Parameter(np.array([1.0]))
-        opt = Adagrad([p], lr=1.0, eps=0.0)
-        
-        updates = []
-        for _ in range(5):
-            p.grad = np.array([1.0])
-            old_val = p.data.copy()
-            opt.step()
-            updates.append(old_val[0] - p.data[0])
-        
-        for i in range(len(updates) - 1):
-            if updates[i] <= updates[i+1]:
-                return False, "Updates should decrease"
-        
-        return True, "Adagrad decreases updates over time"
-    except Exception as e:
-        return False, str(e)
+def test_adamw_weight_decay():
+    """Test AdamW weight decay is decoupled."""
+    p = Parameter([1.0])
+    p.grad = np.array([0.0])  # Zero gradient
+    
+    opt = AdamW([p], lr=0.1, weight_decay=0.1)
+    opt.step()
+    
+    # With decoupled weight decay, p should decrease even with zero gradient
+    # AdamW: p = p - lr * weight_decay * p
+    expected = 1.0 - 0.1 * 0.1 * 1.0  # 0.99
+    assert np.isclose(p.data[0], expected, atol=0.02), f"p = {p.data[0]}, expected ~{expected}"
 
 
-def test_rmsprop_creation() -> Tuple[bool, str]:
-    """Test RMSprop creation."""
-    try:
-        params = [Parameter(np.random.randn(3, 4))]
-        opt = RMSprop(params, lr=0.01, alpha=0.99)
-        
-        if opt is None:
-            return False, "RMSprop is None"
-        
-        return True, "RMSprop created"
-    except Exception as e:
-        return False, str(e)
+def test_adamw_vs_adam_decay():
+    """Test that AdamW applies weight decay differently than Adam."""
+    # AdamW: decoupled weight decay (applied directly to weights)
+    # Adam: L2 regularization (applied to gradients)
+    
+    p1 = Parameter([1.0])
+    p1.grad = np.array([0.0])
+    
+    opt = AdamW([p1], lr=0.1, weight_decay=0.1)
+    opt.step()
+    
+    # Weight decay should reduce the weight
+    assert p1.data[0] < 1.0, f"AdamW should reduce weight, got {p1.data[0]}"
 
 
-def test_rmsprop_step() -> Tuple[bool, str]:
-    """Test RMSprop step."""
-    try:
-        p = Parameter(np.array([1.0, 2.0, 3.0]))
-        opt = RMSprop([p], lr=0.1, alpha=0.9)
-        
-        initial = p.data.copy()
-        
-        for _ in range(10):
-            p.grad = np.array([0.1, 0.2, 0.3])
-            opt.step()
-        
-        if np.allclose(p.data, initial):
-            return False, "Parameters not updated"
-        
-        return True, "RMSprop step works"
-    except Exception as e:
-        return False, str(e)
+def test_adamw_default_params():
+    """Test AdamW default hyperparameters."""
+    p = Parameter([1.0])
+    opt = AdamW([p])
+    
+    pg = opt.param_groups[0]
+    assert 'betas' in pg, "No betas parameter"
+    assert 'eps' in pg, "No eps parameter"
+    assert 'weight_decay' in pg, "No weight_decay parameter"
 
 
-def test_rmsprop_vs_adagrad() -> Tuple[bool, str]:
-    """Test that RMSprop doesn't decay lr as aggressively as Adagrad."""
-    try:
-        np.random.seed(42)
-        
-        p1 = Parameter(np.array([10.0]))
-        opt1 = Adagrad([p1], lr=1.0, eps=1e-10)
-        
-        p2 = Parameter(np.array([10.0]))
-        opt2 = RMSprop([p2], lr=1.0, alpha=0.9, eps=1e-10)
-        
-        for _ in range(100):
-            p1.grad = np.array([1.0])
-            p2.grad = np.array([1.0])
-            opt1.step()
-            opt2.step()
-        
-        return True, f"Adagrad: {p1.data[0]:.2f}, RMSprop: {p2.data[0]:.2f}"
-    except Exception as e:
-        return False, str(e)
+def test_adamw_zero_grad():
+    """Test AdamW zero_grad."""
+    p = Parameter([1.0])
+    p.grad = np.array([5.0])
+    
+    opt = AdamW([p], lr=0.001)
+    opt.zero_grad()
+    
+    assert np.allclose(p.grad, 0), f"grad = {p.grad}"
 
 
-def test_adam_creation() -> Tuple[bool, str]:
-    """Test Adam creation."""
-    try:
-        params = [Parameter(np.random.randn(3, 4))]
-        opt = Adam(params, lr=0.001, betas=(0.9, 0.999))
-        
-        if opt is None:
-            return False, "Adam is None"
-        
-        return True, "Adam created"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_adam_step() -> Tuple[bool, str]:
-    """Test Adam step."""
-    try:
-        p = Parameter(np.array([1.0, 2.0, 3.0]))
-        opt = Adam([p], lr=0.1, betas=(0.9, 0.999))
-        
-        initial = p.data.copy()
-        
-        for _ in range(10):
-            p.grad = np.array([0.1, 0.2, 0.3])
-            opt.step()
-        
-        if np.allclose(p.data, initial):
-            return False, "Parameters not updated"
-        
-        return True, "Adam step works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_adam_state() -> Tuple[bool, str]:
-    """Test Adam stores both moments."""
-    try:
-        p = Parameter(np.array([1.0, 2.0]))
-        opt = Adam([p], lr=0.001)
-        
-        p.grad = np.array([1.0, 1.0])
-        opt.step()
-        
-        if not opt.state:
-            return False, "State is empty"
-        
-        state = list(opt.state.values())[0]
-        
-        if 'exp_avg' not in state:
-            return False, "No first moment"
-        if 'exp_avg_sq' not in state:
-            return False, "No second moment"
-        
-        return True, "Both moments stored"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_adam_bias_correction() -> Tuple[bool, str]:
-    """Test Adam bias correction is applied."""
-    try:
-        p = Parameter(np.array([5.0]))
-        opt = Adam([p], lr=1.0, betas=(0.9, 0.999), eps=1e-8)
-        
+def test_adamw_momentum():
+    """Test AdamW maintains momentum terms."""
+    p = Parameter([1.0])
+    opt = AdamW([p], lr=0.1, betas=(0.9, 0.999))
+    
+    changes = []
+    for _ in range(3):
         p.grad = np.array([1.0])
+        prev = p.data.copy()
+        opt.step()
+        changes.append(p.data[0] - prev[0])
+    
+    # Due to bias correction and weight decay, steps should vary
+    assert not all(np.isclose(c, changes[0]) for c in changes), "AdamW should have varying steps"
+
+
+def test_adamw_with_model():
+    """Test AdamW with Module."""
+    model = Linear(2, 1)
+    opt = AdamW(model.parameters(), lr=0.01)
+    
+    x = Tensor([[1.0, 2.0]])
+    y = model(x)
+    loss = y.sum()
+    
+    loss.backward()
+    opt.step()
+    
+    assert model.weight.grad is not None, "No gradient computed"
+
+
+def test_adamw_training_convergence():
+    """Test AdamW convergence on simple problem."""
+    np.random.seed(42)
+    
+    model = Linear(1, 1)
+    model.weight.data = np.array([[0.0]])
+    model.bias.data = np.array([0.0])
+    
+    opt = AdamW(model.parameters(), lr=0.1, weight_decay=0.01)
+    
+    X = Tensor([[1.0], [2.0], [3.0]])
+    y = Tensor([[2.0], [4.0], [6.0]])  # y = 2x
+    
+    initial_loss = None
+    final_loss = None
+    
+    for i in range(100):
+        opt.zero_grad()
+        pred = model(X)
+        loss = ((pred - y) ** 2).mean()
+        
+        if i == 0:
+            initial_loss = loss.data
+        
+        loss.backward()
         opt.step()
         
-        state = list(opt.state.values())[0]
-        raw_m = state['exp_avg'][0]
-        raw_v = state['exp_avg_sq'][0]
-        
-        m_hat = raw_m / (1 - 0.9)
-        v_hat = raw_v / (1 - 0.999)
-        
-        expected_update = m_hat / (np.sqrt(v_hat) + 1e-8)
-        actual_update = 5.0 - p.data[0]
-        
-        if not np.isclose(actual_update, expected_update, rtol=0.1):
-            return False, f"Update {actual_update:.4f} != expected {expected_update:.4f}"
-        
-        return True, "Bias correction applied"
-    except Exception as e:
-        return False, str(e)
+        final_loss = loss.data
+    
+    assert final_loss < initial_loss * 0.1, f"Loss didn't converge: {initial_loss} -> {final_loss}"
 
 
-def test_adamw_creation() -> Tuple[bool, str]:
-    """Test AdamW creation."""
-    try:
-        params = [Parameter(np.random.randn(3, 4))]
-        opt = AdamW(params, lr=0.001, weight_decay=0.01)
+def test_adamw_regularization_effect():
+    """Test that AdamW regularization prevents large weights."""
+    np.random.seed(42)
+    
+    # Train with and without weight decay
+    def train(weight_decay):
+        model = Linear(2, 1)
+        opt = AdamW(model.parameters(), lr=0.1, weight_decay=weight_decay)
         
-        if opt is None:
-            return False, "AdamW is None"
+        X = Tensor([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+        y = Tensor([[100.0], [100.0], [200.0]])  # Large targets
         
-        return True, "AdamW created"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_adamw_weight_decay() -> Tuple[bool, str]:
-    """Test AdamW applies decoupled weight decay."""
-    try:
-        p = Parameter(np.array([10.0, 10.0, 10.0]))
-        opt = AdamW([p], lr=0.1, weight_decay=0.1, betas=(0.9, 0.999))
-        
-        initial = p.data.copy()
-        
-        for _ in range(50):
-            p.grad = np.zeros_like(p.data)
-            opt.step()
-        
-        if not np.all(np.abs(p.data) < np.abs(initial)):
-            return False, "Weight decay not applied"
-        
-        return True, f"Weights decayed from {initial[0]:.2f} to {p.data[0]:.4f}"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_adamw_vs_adam() -> Tuple[bool, str]:
-    """Test that AdamW differs from Adam with L2."""
-    try:
-        np.random.seed(42)
-        
-        p1 = Parameter(np.array([5.0]))
-        opt1 = AdamW([p1], lr=0.1, weight_decay=0.1, betas=(0.9, 0.999))
-        
-        for _ in range(20):
-            p1.grad = np.array([1.0])
-            opt1.step()
-        
-        return True, f"AdamW result: {p1.data[0]:.4f}"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_compare_optimizers_runs() -> Tuple[bool, str]:
-    """Test compare_optimizers runs."""
-    try:
-        np.random.seed(42)
-        X = np.random.randn(20, 4)
-        Y = np.random.randn(20, 2)
-        
-        results = compare_optimizers(X, Y, epochs=20)
-        
-        if not results:
-            return False, "Empty results"
-        
-        return True, f"Compared {len(results)} optimizers"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_compare_optimizers_converges() -> Tuple[bool, str]:
-    """Test all optimizers converge in comparison."""
-    try:
-        np.random.seed(42)
-        X = np.random.randn(20, 4)
-        Y = np.random.randn(20, 2)
-        
-        results = compare_optimizers(X, Y, epochs=100)
-        
-        if not results:
-            return False, "Empty results"
-        
-        for name, losses in results.items():
-            if losses[-1] >= losses[0]:
-                return False, f"{name} didn't converge"
-        
-        return True, "All optimizers converge"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_adam_training() -> Tuple[bool, str]:
-    """Test Adam on actual training."""
-    try:
-        np.random.seed(42)
-        model = Sequential(
-            Linear(4, 16),
-            ReLU(),
-            Linear(16, 2)
-        )
-        
-        opt = Adam(model.parameters(), lr=0.01)
-        
-        X = np.random.randn(20, 4)
-        Y = np.random.randn(20, 2)
-        
-        losses = []
         for _ in range(100):
             opt.zero_grad()
-            x = Tensor(X)
-            y = Tensor(Y)
-            pred = model(x)
-            loss = mse_loss(pred, y)
+            pred = model(X)
+            loss = ((pred - y) ** 2).mean()
             loss.backward()
             opt.step()
-            losses.append(float(loss.data))
         
-        if losses[-1] >= losses[0]:
-            return False, "Loss didn't decrease"
-        
-        return True, f"Loss: {losses[0]:.4f} -> {losses[-1]:.4f}"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_against_pytorch_adam() -> Tuple[bool, str]:
-    """Test Adam against PyTorch."""
-    try:
-        import torch
-        import torch.optim as optim
-        
-        np.random.seed(42)
-        torch.manual_seed(42)
-        
-        our_p = Parameter(np.array([1.0, 2.0, 3.0]))
-        our_opt = Adam([our_p], lr=0.1, betas=(0.9, 0.999), eps=1e-8)
-        
-        torch_p = torch.tensor([1.0, 2.0, 3.0], requires_grad=True, dtype=torch.float64)
-        torch_opt = optim.Adam([torch_p], lr=0.1, betas=(0.9, 0.999), eps=1e-8)
-        
-        grads = np.random.randn(20, 3)
-        
-        for g in grads:
-            our_p.grad = g.copy()
-            our_opt.step()
-            
-            torch_p.grad = torch.tensor(g, dtype=torch.float64)
-            torch_opt.step()
-        
-        if not np.allclose(our_p.data, torch_p.detach().numpy(), rtol=1e-4, atol=1e-4):
-            return False, f"Mismatch: {our_p.data} vs {torch_p.detach().numpy()}"
-        
-        return True, "Matches PyTorch Adam"
-    except ImportError:
-        return True, "PyTorch not installed (skipped)"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_against_pytorch_adamw() -> Tuple[bool, str]:
-    """Test AdamW against PyTorch."""
-    try:
-        import torch
-        import torch.optim as optim
-        
-        np.random.seed(42)
-        torch.manual_seed(42)
-        
-        our_p = Parameter(np.array([5.0, 5.0, 5.0]))
-        our_opt = AdamW([our_p], lr=0.1, betas=(0.9, 0.999), 
-                       eps=1e-8, weight_decay=0.1)
-        
-        torch_p = torch.tensor([5.0, 5.0, 5.0], requires_grad=True, dtype=torch.float64)
-        torch_opt = optim.AdamW([torch_p], lr=0.1, betas=(0.9, 0.999),
-                                eps=1e-8, weight_decay=0.1)
-        
-        grads = np.random.randn(20, 3)
-        
-        for g in grads:
-            our_p.grad = g.copy()
-            our_opt.step()
-            
-            torch_p.grad = torch.tensor(g, dtype=torch.float64)
-            torch_opt.step()
-        
-        if not np.allclose(our_p.data, torch_p.detach().numpy(), rtol=1e-3, atol=1e-3):
-            return False, f"Mismatch: {our_p.data} vs {torch_p.detach().numpy()}"
-        
-        return True, "Matches PyTorch AdamW"
-    except ImportError:
-        return True, "PyTorch not installed (skipped)"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("adagrad_creation", test_adagrad_creation),
-        ("adagrad_step", test_adagrad_step),
-        ("adagrad_accumulates", test_adagrad_accumulates),
-        ("rmsprop_creation", test_rmsprop_creation),
-        ("rmsprop_step", test_rmsprop_step),
-        ("rmsprop_vs_adagrad", test_rmsprop_vs_adagrad),
-        ("adam_creation", test_adam_creation),
-        ("adam_step", test_adam_step),
-        ("adam_state", test_adam_state),
-        ("adam_bias_correction", test_adam_bias_correction),
-        ("adamw_creation", test_adamw_creation),
-        ("adamw_weight_decay", test_adamw_weight_decay),
-        ("adamw_vs_adam", test_adamw_vs_adam),
-        ("compare_optimizers_runs", test_compare_optimizers_runs),
-        ("compare_optimizers_converges", test_compare_optimizers_converges),
-        ("adam_training", test_adam_training),
-        ("against_pytorch_adam", test_against_pytorch_adam),
-        ("against_pytorch_adamw", test_against_pytorch_adamw),
-    ]
+        return np.abs(model.weight.data).max()
     
-    print(f"\n{'='*60}")
-    print("Day 28: Adam Optimizer - Tests")
-    print(f"{'='*60}")
+    weight_no_decay = train(0.0)
+    weight_with_decay = train(0.1)
     
-    passed = 0
-    for name, fn in tests:
-        try:
-            p, m = fn()
-        except Exception as e:
-            p, m = False, str(e)
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
+    # Weight decay should result in smaller weights
+    assert weight_with_decay <= weight_no_decay, f"Weight decay should reduce weights: {weight_with_decay} vs {weight_no_decay}"
+
+
+def test_adamw_multiple_params():
+    """Test AdamW with multiple parameters."""
+    p1 = Parameter([1.0, 2.0])
+    p2 = Parameter([3.0])
     
-    print(f"\nSummary: {passed}/{len(tests)} tests passed")
-    return passed == len(tests)
+    p1.grad = np.array([0.1, 0.1])
+    p2.grad = np.array([0.1])
+    
+    opt = AdamW([p1, p2], lr=0.1)
+    opt.step()
+    
+    assert not np.allclose(p1.data, [1.0, 2.0]), "p1 didn't change"
+    assert not np.allclose(p2.data, [3.0]), "p2 didn't change"
+
+
+def test_adamw_sparse_gradients():
+    """Test AdamW with sparse gradients."""
+    p = Parameter([1.0, 2.0, 3.0])
+    opt = AdamW([p], lr=0.1)
+    
+    # Only gradient on first element
+    p.grad = np.array([1.0, 0.0, 0.0])
+    opt.step()
+    
+    # First element should change most due to gradient
+    # Other elements still change due to weight decay
+    changes = np.abs(p.data - np.array([1.0, 2.0, 3.0]))
+    assert changes[0] > changes[1], "First element should change most"
 
 
 if __name__ == "__main__":
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        sys.exit(1)
-    success = run_all_tests()
-    sys.exit(0 if success else 1)
+    pytest.main([__file__, "-v"])

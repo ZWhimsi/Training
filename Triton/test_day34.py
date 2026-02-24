@@ -1,9 +1,10 @@
-"""Test Suite for Day 34: Flash Attention Backward dQ"""
+"""Test Suite for Day 34: Flash Attention Backward dQ
+Run: pytest test_day34.py -v
+"""
 
+import pytest
 import torch
 import math
-import sys
-from typing import Tuple
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 
@@ -35,14 +36,53 @@ def reference_dq(Q, K, V, dO):
     return Q.grad
 
 
-def test_dq() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        batch, n_heads, seq_len, head_dim = 1, 4, 64, 32
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day34")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_dq():
+    """Test dQ computation."""
+    batch, n_heads, seq_len, head_dim = 1, 4, 64, 32
+    Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    
+    output, L, M = flash_attention_v2(Q, K, V)
+    dO = torch.randn_like(output)
+    
+    dQ = flash_attention_backward_dq(Q, K, V, output, dO, L, M)
+    ref_dQ = reference_dq(Q, K, V, dO)
+    
+    max_err = (dQ - ref_dQ).abs().max().item()
+    assert max_err <= 1e-2, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day34")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_numerical_stability():
+    """Test numerical stability with large values."""
+    batch, n_heads, seq_len, head_dim = 1, 2, 32, 16
+    Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda') * 5
+    K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda') * 5
+    V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    
+    output, L, M = flash_attention_v2(Q, K, V)
+    dO = torch.randn_like(output)
+    
+    dQ = flash_attention_backward_dq(Q, K, V, output, dO, L, M)
+    
+    assert not torch.isnan(dQ).any(), "NaN in dQ"
+    
+    ref_dQ = reference_dq(Q, K, V, dO)
+    assert torch.allclose(dQ, ref_dQ, atol=0.1, rtol=0.1), "dQ mismatch"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day34")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_various_sizes():
+    """Test various tensor sizes."""
+    for batch, heads, seq, dim in [(1, 2, 32, 16), (2, 4, 64, 32)]:
+        Q = torch.randn(batch, heads, seq, dim, device='cuda')
+        K = torch.randn(batch, heads, seq, dim, device='cuda')
+        V = torch.randn(batch, heads, seq, dim, device='cuda')
         
         output, L, M = flash_attention_v2(Q, K, V)
         dO = torch.randn_like(output)
@@ -50,85 +90,8 @@ def test_dq() -> Tuple[bool, str]:
         dQ = flash_attention_backward_dq(Q, K, V, output, dO, L, M)
         ref_dQ = reference_dq(Q, K, V, dO)
         
-        max_err = (dQ - ref_dQ).abs().max().item()
-        if max_err > 1e-2:
-            return False, f"Error: {max_err:.6f}"
-        return True, f"dQ err={max_err:.4f}"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_numerical_stability() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        batch, n_heads, seq_len, head_dim = 1, 2, 32, 16
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda') * 5
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda') * 5
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        
-        output, L, M = flash_attention_v2(Q, K, V)
-        dO = torch.randn_like(output)
-        
-        dQ = flash_attention_backward_dq(Q, K, V, output, dO, L, M)
-        
-        if torch.isnan(dQ).any():
-            return False, "NaN in dQ"
-        
-        ref_dQ = reference_dq(Q, K, V, dO)
-        
-        max_err = (dQ - ref_dQ).abs().max().item()
-        if not torch.allclose(dQ, ref_dQ, atol=0.1, rtol=0.1):
-            return False, f"dQ mismatch: {max_err:.6f}"
-        
-        return True, f"stable OK (err={max_err:.4f})"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_various_sizes() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        for batch, heads, seq, dim in [(1, 2, 32, 16), (2, 4, 64, 32)]:
-            Q = torch.randn(batch, heads, seq, dim, device='cuda')
-            K = torch.randn(batch, heads, seq, dim, device='cuda')
-            V = torch.randn(batch, heads, seq, dim, device='cuda')
-            
-            output, L, M = flash_attention_v2(Q, K, V)
-            dO = torch.randn_like(output)
-            
-            dQ = flash_attention_backward_dq(Q, K, V, output, dO, L, M)
-            ref_dQ = reference_dq(Q, K, V, dO)
-            
-            if (dQ - ref_dQ).abs().max() > 0.1:
-                return False, f"Failed at ({batch},{heads},{seq},{dim})"
-        
-        return True, "various sizes OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("dq", test_dq),
-        ("numerical_stability", test_numerical_stability),
-        ("various_sizes", test_various_sizes),
-    ]
-    
-    print(f"\n{'='*50}\nDay 34: Flash Backward dQ - Tests\n{'='*50}")
-    
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        return
-    
-    passed = 0
-    for name, fn in tests:
-        p, m = fn()
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
-    print(f"\nSummary: {passed}/{len(tests)}")
+        assert (dQ - ref_dQ).abs().max() <= 0.1, f"Failed at ({batch},{heads},{seq},{dim})"
 
 
 if __name__ == "__main__":
-    run_all_tests()
+    pytest.main([__file__, "-v"])

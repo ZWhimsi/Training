@@ -1,9 +1,10 @@
-"""Test Suite for Day 33: Flash Attention v2"""
+"""Test Suite for Day 33: Flash Attention v2
+Run: pytest test_day33.py -v
+"""
 
+import pytest
 import torch
 import math
-import sys
-from typing import Tuple
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 
@@ -31,116 +32,73 @@ def reference_attention(Q, K, V, causal=False):
     return torch.softmax(scores, dim=-1) @ V
 
 
-def test_basic() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        batch, n_heads, seq_len, head_dim = 2, 8, 128, 64
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        
-        output, L, M = flash_attention_v2(Q, K, V)
-        expected = reference_attention(Q, K, V)
-        
-        max_err = (output - expected).abs().max().item()
-        if max_err > 1e-2:
-            return False, f"Error: {max_err:.6f}"
-        return True, "basic OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_causal() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        batch, n_heads, seq_len, head_dim = 2, 8, 128, 64
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        
-        output, _, _ = flash_attention_v2(Q, K, V, causal=True)
-        expected = reference_attention(Q, K, V, causal=True)
-        
-        max_err = (output - expected).abs().max().item()
-        if max_err > 1e-2:
-            return False, f"Error: {max_err:.6f}"
-        return True, "causal OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_stats_stored() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        batch, n_heads, seq_len, head_dim = 2, 4, 64, 32
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        
-        output, L, M = flash_attention_v2(Q, K, V)
-        expected = reference_attention(Q, K, V)
-        
-        if L.shape != (batch, n_heads, seq_len):
-            return False, f"L shape: {L.shape}"
-        if M.shape != (batch, n_heads, seq_len):
-            return False, f"M shape: {M.shape}"
-        
-        if torch.isnan(L).any() or torch.isnan(M).any():
-            return False, "NaN in stats"
-        
-        if not torch.allclose(output, expected, atol=1e-2, rtol=1e-2):
-            max_err = (output - expected).abs().max().item()
-            return False, f"Output mismatch: {max_err:.4f}"
-        
-        return True, "stats and output OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_large_sequence() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        batch, n_heads, seq_len, head_dim = 1, 4, 512, 64
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        
-        output, _, _ = flash_attention_v2(Q, K, V)
-        expected = reference_attention(Q, K, V)
-        
-        max_err = (output - expected).abs().max().item()
-        if max_err > 0.05:
-            return False, f"Error: {max_err:.6f}"
-        return True, "large seq OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("basic", test_basic),
-        ("causal", test_causal),
-        ("stats_stored", test_stats_stored),
-        ("large_sequence", test_large_sequence),
-    ]
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day33")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_basic():
+    """Test basic flash attention v2."""
+    batch, n_heads, seq_len, head_dim = 2, 8, 128, 64
+    Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
     
-    print(f"\n{'='*50}\nDay 33: Flash Attention v2 - Tests\n{'='*50}")
+    output, L, M = flash_attention_v2(Q, K, V)
+    expected = reference_attention(Q, K, V)
     
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        return
+    max_err = (output - expected).abs().max().item()
+    assert max_err <= 1e-2, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day33")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_causal():
+    """Test causal flash attention v2."""
+    batch, n_heads, seq_len, head_dim = 2, 8, 128, 64
+    Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
     
-    passed = 0
-    for name, fn in tests:
-        p, m = fn()
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
-    print(f"\nSummary: {passed}/{len(tests)}")
+    output, _, _ = flash_attention_v2(Q, K, V, causal=True)
+    expected = reference_attention(Q, K, V, causal=True)
+    
+    max_err = (output - expected).abs().max().item()
+    assert max_err <= 1e-2, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day33")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_stats_stored():
+    """Test that stats are properly stored."""
+    batch, n_heads, seq_len, head_dim = 2, 4, 64, 32
+    Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    
+    output, L, M = flash_attention_v2(Q, K, V)
+    expected = reference_attention(Q, K, V)
+    
+    assert L.shape == (batch, n_heads, seq_len), f"L shape: {L.shape}"
+    assert M.shape == (batch, n_heads, seq_len), f"M shape: {M.shape}"
+    assert not torch.isnan(L).any(), "NaN in L"
+    assert not torch.isnan(M).any(), "NaN in M"
+    max_err = (output - expected).abs().max().item()
+    assert torch.allclose(output, expected, atol=1e-2, rtol=1e-2), f"Output mismatch: {max_err:.4f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day33")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_large_sequence():
+    """Test with large sequence length."""
+    batch, n_heads, seq_len, head_dim = 1, 4, 512, 64
+    Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    
+    output, _, _ = flash_attention_v2(Q, K, V)
+    expected = reference_attention(Q, K, V)
+    
+    max_err = (output - expected).abs().max().item()
+    assert max_err <= 0.05, f"Error: {max_err:.6f}"
 
 
 if __name__ == "__main__":
-    run_all_tests()
+    pytest.main([__file__, "-v"])

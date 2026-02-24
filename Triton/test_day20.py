@@ -1,8 +1,9 @@
-"""Test Suite for Day 20: Efficient Transpose"""
+"""Test Suite for Day 20: Efficient Transpose
+Run: pytest test_day20.py -v
+"""
 
+import pytest
 import torch
-import sys
-from typing import Tuple
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 
@@ -18,120 +19,69 @@ else:
     IMPORT_ERROR = "CUDA not available"
 
 
-def test_naive_transpose() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        x = torch.randn(128, 256, device='cuda')
-        result = naive_transpose(x)
-        expected = x.T
-        
-        if result.shape != expected.shape:
-            return False, f"Shape: {result.shape} != {expected.shape}"
-        
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-5:
-            return False, f"Error: {max_err:.6f}"
-        return True, "naive transpose OK"
-    except Exception as e:
-        return False, str(e)
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day20")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_naive_transpose():
+    """Test naive transpose."""
+    x = torch.randn(128, 256, device='cuda')
+    result = naive_transpose(x)
+    expected = x.T
+    
+    assert result.shape == expected.shape, f"Shape: {result.shape} != {expected.shape}"
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-5, f"Error: {max_err:.6f}"
 
 
-def test_tiled_transpose() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        x = torch.randn(256, 512, device='cuda')
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day20")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_tiled_transpose():
+    """Test tiled transpose."""
+    x = torch.randn(256, 512, device='cuda')
+    result = tiled_transpose(x)
+    expected = x.T
+    
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-5, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day20")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_batched_transpose():
+    """Test batched transpose."""
+    x = torch.randn(8, 64, 128, device='cuda')
+    result = batched_transpose(x)
+    expected = x.transpose(1, 2)
+    
+    assert result.shape == expected.shape, f"Shape: {result.shape}"
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-5, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day20")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_non_square():
+    """Test non-square matrix transpose."""
+    for shape in [(64, 128), (100, 200), (33, 77)]:
+        x = torch.randn(shape, device='cuda')
         result = tiled_transpose(x)
         expected = x.T
         
         max_err = (result - expected).abs().max().item()
-        if max_err > 1e-5:
-            return False, f"Error: {max_err:.6f}"
-        return True, "tiled transpose OK"
-    except Exception as e:
-        return False, str(e)
+        assert max_err <= 1e-4, f"Failed at {shape}"
 
 
-def test_batched_transpose() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        x = torch.randn(8, 64, 128, device='cuda')
-        result = batched_transpose(x)
-        expected = x.transpose(1, 2)
-        
-        if result.shape != expected.shape:
-            return False, f"Shape: {result.shape}"
-        
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-5:
-            return False, f"Error: {max_err:.6f}"
-        return True, "batched transpose OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_non_square() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        for shape in [(64, 128), (100, 200), (33, 77)]:
-            x = torch.randn(shape, device='cuda')
-            result = tiled_transpose(x)
-            expected = x.T
-            
-            max_err = (result - expected).abs().max().item()
-            if max_err > 1e-4:
-                return False, f"Failed at {shape}"
-        
-        return True, "non-square OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_correctness() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        x = torch.randn(128, 128, device='cuda')
-        
-        result = tiled_transpose(x)
-        
-        # Verify: result[i,j] == x[j,i]
-        for _ in range(10):
-            i = torch.randint(0, 128, (1,)).item()
-            j = torch.randint(0, 128, (1,)).item()
-            if abs(result[i, j].item() - x[j, i].item()) > 1e-5:
-                return False, f"result[{i},{j}] != x[{j},{i}]"
-        
-        return True, "correctness verified"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("naive_transpose", test_naive_transpose),
-        ("tiled_transpose", test_tiled_transpose),
-        ("batched_transpose", test_batched_transpose),
-        ("non_square", test_non_square),
-        ("correctness", test_correctness),
-    ]
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day20")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_correctness():
+    """Test transpose correctness with spot checks."""
+    x = torch.randn(128, 128, device='cuda')
+    result = tiled_transpose(x)
     
-    print(f"\n{'='*50}\nDay 20: Transpose - Tests\n{'='*50}")
-    
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        return
-    
-    passed = 0
-    for name, fn in tests:
-        p, m = fn()
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
-    print(f"\nSummary: {passed}/{len(tests)}")
+    for _ in range(10):
+        i = torch.randint(0, 128, (1,)).item()
+        j = torch.randint(0, 128, (1,)).item()
+        assert abs(result[i, j].item() - x[j, i].item()) <= 1e-5, f"result[{i},{j}] != x[{j},{i}]"
 
 
 if __name__ == "__main__":
-    run_all_tests()
+    pytest.main([__file__, "-v"])

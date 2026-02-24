@@ -1,12 +1,11 @@
 """
 Test Suite for Day 5: Block-Level Programming
 =============================================
-Run: python test_day05.py
+Run: pytest test_day05.py -v
 """
 
+import pytest
 import torch
-import sys
-from typing import Dict, Tuple
 
 try:
     from day05 import add_vectors, two_phase_sum, transpose, find_max, softmax_numerator
@@ -40,220 +39,131 @@ def reference_softmax_num(x, row_maxes):
 # Tests
 # ============================================================================
 
-def test_add_vectors_default() -> Tuple[bool, str]:
-    try:
-        a = torch.randn(10000, device='cuda')
-        b = torch.randn(10000, device='cuda')
-        result = add_vectors(a, b)
-        expected = reference_add(a, b)
-        
-        if result is None:
-            return False, "Returned None"
-        if not torch.allclose(result, expected, atol=1e-5):
-            return False, "Values mismatch"
-        return True, "Default block size works"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_add_vectors_small_block() -> Tuple[bool, str]:
-    try:
-        a = torch.randn(10000, device='cuda')
-        b = torch.randn(10000, device='cuda')
-        result = add_vectors(a, b, block_size=256)
-        expected = reference_add(a, b)
-        
-        if result is None:
-            return False, "Returned None"
-        if not torch.allclose(result, expected, atol=1e-5):
-            return False, "Values mismatch"
-        return True, "Small block (256) works"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_two_phase_sum_basic() -> Tuple[bool, str]:
-    try:
-        x = torch.arange(100, dtype=torch.float32, device='cuda')
-        result = two_phase_sum(x)
-        expected = reference_sum(x)  # 0+1+...+99 = 4950
-        
-        if result is None:
-            return False, "Returned None"
-        if not torch.allclose(result, expected, atol=1e-3):
-            return False, f"Expected {expected.item()}, got {result.item()}"
-        return True, "Sum 0-99 = 4950 correct"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_two_phase_sum_large() -> Tuple[bool, str]:
-    try:
-        x = torch.randn(100000, device='cuda')
-        result = two_phase_sum(x)
-        expected = reference_sum(x)
-        
-        if result is None:
-            return False, "Returned None"
-        if not torch.allclose(result, expected, rtol=1e-3, atol=1e-3):
-            return False, f"Large sum mismatch"
-        return True, "100K element sum correct"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_transpose_square() -> Tuple[bool, str]:
-    try:
-        x = torch.randn(64, 64, device='cuda')
-        result = transpose(x)
-        expected = reference_transpose(x)
-        
-        if result is None:
-            return False, "Returned None"
-        if result.shape != expected.shape:
-            return False, f"Shape: expected {expected.shape}, got {result.shape}"
-        if not torch.allclose(result, expected, atol=1e-5):
-            return False, "Values mismatch"
-        return True, "64x64 transpose correct"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_transpose_rect() -> Tuple[bool, str]:
-    try:
-        x = torch.randn(100, 50, device='cuda')
-        result = transpose(x)
-        expected = reference_transpose(x)
-        
-        if result is None:
-            return False, "Returned None"
-        if result.shape != expected.shape:
-            return False, f"Shape: expected {expected.shape}, got {result.shape}"
-        if not torch.allclose(result, expected, atol=1e-5):
-            return False, "Values mismatch"
-        return True, "100x50 → 50x100 transpose correct"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_find_max_basic() -> Tuple[bool, str]:
-    try:
-        x = torch.tensor([-5, -2, 3, 1, 7, 2], dtype=torch.float32, device='cuda')
-        result = find_max(x)
-        expected = reference_max(x)  # 7
-        
-        if result is None:
-            return False, "Returned None"
-        if not torch.allclose(result, expected, atol=1e-5):
-            return False, f"Expected {expected.item()}, got {result.item()}"
-        return True, "Max = 7 correct"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_find_max_large() -> Tuple[bool, str]:
-    try:
-        x = torch.randn(50000, device='cuda')
-        result = find_max(x)
-        expected = reference_max(x)
-        
-        if result is None:
-            return False, "Returned None"
-        if not torch.allclose(result, expected, atol=1e-5):
-            return False, f"Max mismatch"
-        return True, "Large tensor max correct"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_softmax_num_basic() -> Tuple[bool, str]:
-    try:
-        x = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.float32, device='cuda')
-        row_maxes = x.max(dim=1).values
-        result = softmax_numerator(x, row_maxes)
-        expected = reference_softmax_num(x, row_maxes)
-        
-        if result is None:
-            return False, "Returned None"
-        if not torch.allclose(result, expected, atol=1e-5):
-            return False, "Softmax numerator mismatch"
-        return True, "exp(x-max) computed correctly"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-def test_softmax_num_large() -> Tuple[bool, str]:
-    try:
-        x = torch.randn(32, 128, device='cuda')
-        row_maxes = x.max(dim=1).values
-        result = softmax_numerator(x, row_maxes)
-        expected = reference_softmax_num(x, row_maxes)
-        
-        if result is None:
-            return False, "Returned None"
-        if not torch.allclose(result, expected, atol=1e-5):
-            return False, "Large softmax numerator mismatch"
-        return True, "32x128 softmax numerator correct"
-    except Exception as e:
-        return False, f"Exception: {e}"
-
-
-# ============================================================================
-# Runner
-# ============================================================================
-
-def run_all_tests():
-    results = {}
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_add_vectors_default():
+    """Test add_vectors with default block size."""
+    a = torch.randn(10000, device='cuda')
+    b = torch.randn(10000, device='cuda')
+    result = add_vectors(a, b)
+    expected = reference_add(a, b)
     
-    exercises = [
-        ("Exercise 1: Configurable Add", [
-            ("add_default", test_add_vectors_default),
-            ("add_small_block", test_add_vectors_small_block),
-        ]),
-        ("Exercise 2: Two-Phase Sum", [
-            ("sum_basic", test_two_phase_sum_basic),
-            ("sum_large", test_two_phase_sum_large),
-        ]),
-        ("Exercise 3: Transpose", [
-            ("transpose_square", test_transpose_square),
-            ("transpose_rect", test_transpose_rect),
-        ]),
-        ("Exercise 4: Find Max", [
-            ("max_basic", test_find_max_basic),
-            ("max_large", test_find_max_large),
-        ]),
-        ("Exercise 5: Softmax Numerator", [
-            ("softmax_basic", test_softmax_num_basic),
-            ("softmax_large", test_softmax_num_large),
-        ]),
-    ]
-    
-    for name, tests in exercises:
-        print(f"\n{'='*60}\n{name}\n{'='*60}")
-        for test_name, test_fn in tests:
-            passed, msg = test_fn()
-            results[test_name] = (passed, msg)
-            print(f"  [{'PASS' if passed else 'FAIL'}] {test_name}: {msg}")
-    
-    return results
+    assert result is not None, "Returned None"
+    assert torch.allclose(result, expected, atol=1e-5), "Values mismatch"
 
 
-def print_summary(results):
-    passed = sum(1 for p, _ in results.values() if p)
-    total = len(results)
-    print(f"\n{'='*60}\nSUMMARY: {passed}/{total} passed\n{'='*60}")
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_add_vectors_small_block():
+    """Test add_vectors with small block size."""
+    a = torch.randn(10000, device='cuda')
+    b = torch.randn(10000, device='cuda')
+    result = add_vectors(a, b, block_size=256)
+    expected = reference_add(a, b)
+    
+    assert result is not None, "Returned None"
+    assert torch.allclose(result, expected, atol=1e-5), "Values mismatch"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_two_phase_sum_basic():
+    """Test two_phase_sum with basic input."""
+    x = torch.arange(100, dtype=torch.float32, device='cuda')
+    result = two_phase_sum(x)
+    expected = reference_sum(x)
+    
+    assert result is not None, "Returned None"
+    assert torch.allclose(result, expected, atol=1e-3), f"Expected {expected.item()}, got {result.item()}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_two_phase_sum_large():
+    """Test two_phase_sum with large tensor."""
+    x = torch.randn(100000, device='cuda')
+    result = two_phase_sum(x)
+    expected = reference_sum(x)
+    
+    assert result is not None, "Returned None"
+    assert torch.allclose(result, expected, rtol=1e-3, atol=1e-3), "Large sum mismatch"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_transpose_square():
+    """Test transpose with square matrix."""
+    x = torch.randn(64, 64, device='cuda')
+    result = transpose(x)
+    expected = reference_transpose(x)
+    
+    assert result is not None, "Returned None"
+    assert result.shape == expected.shape, f"Shape: expected {expected.shape}, got {result.shape}"
+    assert torch.allclose(result, expected, atol=1e-5), "Values mismatch"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_transpose_rect():
+    """Test transpose with rectangular matrix."""
+    x = torch.randn(100, 50, device='cuda')
+    result = transpose(x)
+    expected = reference_transpose(x)
+    
+    assert result is not None, "Returned None"
+    assert result.shape == expected.shape, f"Shape: expected {expected.shape}, got {result.shape}"
+    assert torch.allclose(result, expected, atol=1e-5), "Values mismatch"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_find_max_basic():
+    """Test find_max with basic input."""
+    x = torch.tensor([-5, -2, 3, 1, 7, 2], dtype=torch.float32, device='cuda')
+    result = find_max(x)
+    expected = reference_max(x)
+    
+    assert result is not None, "Returned None"
+    assert torch.allclose(result, expected, atol=1e-5), f"Expected {expected.item()}, got {result.item()}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_find_max_large():
+    """Test find_max with large tensor."""
+    x = torch.randn(50000, device='cuda')
+    result = find_max(x)
+    expected = reference_max(x)
+    
+    assert result is not None, "Returned None"
+    assert torch.allclose(result, expected, atol=1e-5), "Max mismatch"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_softmax_num_basic():
+    """Test softmax_numerator with basic input."""
+    x = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.float32, device='cuda')
+    row_maxes = x.max(dim=1).values
+    result = softmax_numerator(x, row_maxes)
+    expected = reference_softmax_num(x, row_maxes)
+    
+    assert result is not None, "Returned None"
+    assert torch.allclose(result, expected, atol=1e-5), "Softmax numerator mismatch"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day05")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_softmax_num_large():
+    """Test softmax_numerator with large tensor."""
+    x = torch.randn(32, 128, device='cuda')
+    row_maxes = x.max(dim=1).values
+    result = softmax_numerator(x, row_maxes)
+    expected = reference_softmax_num(x, row_maxes)
+    
+    assert result is not None, "Returned None"
+    assert torch.allclose(result, expected, atol=1e-5), "Large softmax numerator mismatch"
 
 
 if __name__ == "__main__":
-    print("Day 5: Block-Level Programming - Tests")
-    
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        sys.exit(1)
-    
-    if not torch.cuda.is_available():
-        print("CUDA not available")
-        sys.exit(1)
-    
-    results = run_all_tests()
-    print_summary(results)
+    pytest.main([__file__, "-v"])

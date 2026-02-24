@@ -1,9 +1,10 @@
-"""Test Suite for Day 31: Flash Attention Backward dV, dK"""
+"""Test Suite for Day 31: Flash Attention Backward dV, dK
+Run: pytest test_day31.py -v
+"""
 
+import pytest
 import torch
 import math
-import sys
-from typing import Tuple
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 
@@ -35,110 +36,69 @@ def reference_backward(Q, K, V, dO):
     return Q.grad, K.grad, V.grad
 
 
-def test_dv_dk() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        batch, n_heads, seq_len, head_dim = 1, 4, 64, 32
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day31")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_dv_dk():
+    """Test dV and dK computation."""
+    batch, n_heads, seq_len, head_dim = 1, 4, 64, 32
+    Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    
+    output, L = flash_attention_forward(Q, K, V)
+    dO = torch.randn_like(output)
+    
+    dK, dV = flash_attention_backward_dv_dk(Q, K, V, output, dO, L)
+    _, ref_dK, ref_dV = reference_backward(Q, K, V, dO)
+    
+    dk_err = (dK - ref_dK).abs().max().item()
+    dv_err = (dV - ref_dV).abs().max().item()
+    
+    assert dk_err <= 1e-2, f"dK error: {dk_err:.6f}"
+    assert dv_err <= 1e-2, f"dV error: {dv_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day31")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_numerical_stability():
+    """Test numerical stability with large values."""
+    batch, n_heads, seq_len, head_dim = 1, 2, 32, 16
+    Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda') * 5
+    K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda') * 5
+    V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
+    
+    output, L = flash_attention_forward(Q, K, V)
+    dO = torch.randn_like(output)
+    
+    dK, dV = flash_attention_backward_dv_dk(Q, K, V, output, dO, L)
+    
+    assert not torch.isnan(dK).any(), "NaN in dK"
+    assert not torch.isnan(dV).any(), "NaN in dV"
+    
+    _, ref_dK, ref_dV = reference_backward(Q, K, V, dO)
+    
+    assert torch.allclose(dK, ref_dK, atol=0.1, rtol=0.1), "dK mismatch"
+    assert torch.allclose(dV, ref_dV, atol=0.1, rtol=0.1), "dV mismatch"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day31")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_various_sizes():
+    """Test various tensor sizes."""
+    for batch, heads, seq, dim in [(1, 2, 32, 16), (2, 4, 64, 32)]:
+        Q = torch.randn(batch, heads, seq, dim, device='cuda')
+        K = torch.randn(batch, heads, seq, dim, device='cuda')
+        V = torch.randn(batch, heads, seq, dim, device='cuda')
         
         output, L = flash_attention_forward(Q, K, V)
         dO = torch.randn_like(output)
         
         dK, dV = flash_attention_backward_dv_dk(Q, K, V, output, dO, L)
-        
         _, ref_dK, ref_dV = reference_backward(Q, K, V, dO)
         
-        dk_err = (dK - ref_dK).abs().max().item()
-        dv_err = (dV - ref_dV).abs().max().item()
-        
-        if dk_err > 1e-2:
-            return False, f"dK error: {dk_err:.6f}"
-        if dv_err > 1e-2:
-            return False, f"dV error: {dv_err:.6f}"
-        
-        return True, f"dK err={dk_err:.4f}, dV err={dv_err:.4f}"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_numerical_stability() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        batch, n_heads, seq_len, head_dim = 1, 2, 32, 16
-        Q = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda') * 5
-        K = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda') * 5
-        V = torch.randn(batch, n_heads, seq_len, head_dim, device='cuda')
-        
-        output, L = flash_attention_forward(Q, K, V)
-        dO = torch.randn_like(output)
-        
-        dK, dV = flash_attention_backward_dv_dk(Q, K, V, output, dO, L)
-        
-        if torch.isnan(dK).any() or torch.isnan(dV).any():
-            return False, "NaN in gradients"
-        
-        _, ref_dK, ref_dV = reference_backward(Q, K, V, dO)
-        
-        dk_err = (dK - ref_dK).abs().max().item()
-        dv_err = (dV - ref_dV).abs().max().item()
-        
-        if not torch.allclose(dK, ref_dK, atol=0.1, rtol=0.1):
-            return False, f"dK mismatch: {dk_err:.6f}"
-        if not torch.allclose(dV, ref_dV, atol=0.1, rtol=0.1):
-            return False, f"dV mismatch: {dv_err:.6f}"
-        
-        return True, f"stable OK (dK={dk_err:.4f}, dV={dv_err:.4f})"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_various_sizes() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        for batch, heads, seq, dim in [(1, 2, 32, 16), (2, 4, 64, 32)]:
-            Q = torch.randn(batch, heads, seq, dim, device='cuda')
-            K = torch.randn(batch, heads, seq, dim, device='cuda')
-            V = torch.randn(batch, heads, seq, dim, device='cuda')
-            
-            output, L = flash_attention_forward(Q, K, V)
-            dO = torch.randn_like(output)
-            
-            dK, dV = flash_attention_backward_dv_dk(Q, K, V, output, dO, L)
-            _, ref_dK, ref_dV = reference_backward(Q, K, V, dO)
-            
-            if (dK - ref_dK).abs().max() > 0.1 or (dV - ref_dV).abs().max() > 0.1:
-                return False, f"Failed at ({batch},{heads},{seq},{dim})"
-        
-        return True, "various sizes OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("dv_dk", test_dv_dk),
-        ("numerical_stability", test_numerical_stability),
-        ("various_sizes", test_various_sizes),
-    ]
-    
-    print(f"\n{'='*50}\nDay 31: Flash Backward dV,dK - Tests\n{'='*50}")
-    
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        return
-    
-    passed = 0
-    for name, fn in tests:
-        p, m = fn()
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
-    print(f"\nSummary: {passed}/{len(tests)}")
+        assert (dK - ref_dK).abs().max() <= 0.1, f"Failed at ({batch},{heads},{seq},{dim})"
+        assert (dV - ref_dV).abs().max() <= 0.1, f"Failed at ({batch},{heads},{seq},{dim})"
 
 
 if __name__ == "__main__":
-    run_all_tests()
+    pytest.main([__file__, "-v"])

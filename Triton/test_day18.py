@@ -1,8 +1,9 @@
-"""Test Suite for Day 18: Strided Memory Access"""
+"""Test Suite for Day 18: Strided Memory Access
+Run: pytest test_day18.py -v
+"""
 
+import pytest
 import torch
-import sys
-from typing import Tuple
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 
@@ -18,122 +19,78 @@ else:
     IMPORT_ERROR = "CUDA not available"
 
 
-def test_strided_load() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        x = torch.arange(100, device='cuda', dtype=torch.float32)
-        stride = 3
-        size = 30
-        
-        result = strided_load(x, stride, size)
-        expected = x[::stride][:size]
-        
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-5:
-            return False, f"Error: {max_err:.6f}"
-        return True, "strided load OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_strided_2d_copy() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        x = torch.randn(64, 128, device='cuda')
-        
-        result = strided_2d_copy(x)
-        expected = x.clone()
-        
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-5:
-            return False, f"Error: {max_err:.6f}"
-        return True, "2D copy OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_gather() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        src = torch.randn(1000, device='cuda')
-        idx = torch.randint(0, 1000, (500,), device='cuda')
-        
-        result = gather(src, idx)
-        expected = src[idx]
-        
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-5:
-            return False, f"Error: {max_err:.6f}"
-        return True, "gather OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_scatter_add() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        values = torch.ones(100, device='cuda')
-        indices = torch.randint(0, 50, (100,), device='cuda')
-        
-        result = scatter_add(values, indices, 50)
-        
-        # Manual reference
-        expected = torch.zeros(50, device='cuda')
-        for i in range(100):
-            expected[indices[i]] += values[i]
-        
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-4:
-            return False, f"Error: {max_err:.6f}"
-        return True, "scatter_add OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_transposed_tensor() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        x = torch.randn(64, 128, device='cuda')
-        x_t = x.T.contiguous()  # Make contiguous after transpose
-        
-        result = strided_2d_copy(x_t)
-        expected = x_t.clone()
-        
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-5:
-            return False, f"Error: {max_err:.6f}"
-        return True, "transposed OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("strided_load", test_strided_load),
-        ("strided_2d_copy", test_strided_2d_copy),
-        ("gather", test_gather),
-        ("scatter_add", test_scatter_add),
-        ("transposed_tensor", test_transposed_tensor),
-    ]
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day18")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_strided_load():
+    """Test strided load."""
+    x = torch.arange(100, device='cuda', dtype=torch.float32)
+    stride = 3
+    size = 30
     
-    print(f"\n{'='*50}\nDay 18: Strided Access - Tests\n{'='*50}")
+    result = strided_load(x, stride, size)
+    expected = x[::stride][:size]
     
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        return
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-5, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day18")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_strided_2d_copy():
+    """Test 2D strided copy."""
+    x = torch.randn(64, 128, device='cuda')
     
-    passed = 0
-    for name, fn in tests:
-        p, m = fn()
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
-    print(f"\nSummary: {passed}/{len(tests)}")
+    result = strided_2d_copy(x)
+    expected = x.clone()
+    
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-5, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day18")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_gather():
+    """Test gather operation."""
+    src = torch.randn(1000, device='cuda')
+    idx = torch.randint(0, 1000, (500,), device='cuda')
+    
+    result = gather(src, idx)
+    expected = src[idx]
+    
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-5, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day18")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_scatter_add():
+    """Test scatter add operation."""
+    values = torch.ones(100, device='cuda')
+    indices = torch.randint(0, 50, (100,), device='cuda')
+    
+    result = scatter_add(values, indices, 50)
+    
+    expected = torch.zeros(50, device='cuda')
+    for i in range(100):
+        expected[indices[i]] += values[i]
+    
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-4, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day18")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_transposed_tensor():
+    """Test strided copy on transposed tensor."""
+    x = torch.randn(64, 128, device='cuda')
+    x_t = x.T.contiguous()
+    
+    result = strided_2d_copy(x_t)
+    expected = x_t.clone()
+    
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-5, f"Error: {max_err:.6f}"
 
 
 if __name__ == "__main__":
-    run_all_tests()
+    pytest.main([__file__, "-v"])

@@ -1,8 +1,7 @@
 """Test Suite for Day 35: Complete Autodiff Library"""
 
 import numpy as np
-import sys
-from typing import Tuple
+import pytest
 
 try:
     from day35 import (
@@ -35,853 +34,527 @@ except ImportError as e:
     IMPORT_SUCCESS = False
     IMPORT_ERROR = str(e)
 
-
 # ============================================================================
 # Tensor Tests
 # ============================================================================
 
-def test_tensor_creation() -> Tuple[bool, str]:
+def test_tensor_creation():
     """Test tensor creation."""
-    try:
-        t = Tensor([1, 2, 3])
-        if t.shape != (3,):
-            return False, f"shape {t.shape}"
+    t = Tensor([1, 2, 3])
+    assert not (t.shape != (3,)), f"shape {t.shape}"
         
-        # Verify values are stored correctly
-        if not np.allclose(t.data, [1, 2, 3]):
-            return False, f"values {t.data}"
+    # Verify values are stored correctly
+    assert np.allclose(t.data, [1, 2, 3]), f"values {t.data}"
         
-        return True, "Tensor creation works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_tensor_add() -> Tuple[bool, str]:
+def test_tensor_add():
     """Test tensor addition."""
-    try:
-        a = Tensor([1, 2, 3])
-        b = Tensor([4, 5, 6])
-        c = a + b
+    a = Tensor([1, 2, 3])
+    b = Tensor([4, 5, 6])
+    c = a + b
         
-        if not np.allclose(c.data, [5, 7, 9]):
-            return False, f"values {c.data}"
+    assert np.allclose(c.data, [5, 7, 9]), f"values {c.data}"
         
-        c.sum().backward()
-        if not np.allclose(a.grad, [1, 1, 1]):
-            return False, f"grad {a.grad}"
+    c.sum().backward()
+    assert np.allclose(a.grad, [1, 1, 1]), f"grad {a.grad}"
         
-        return True, "Addition works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_tensor_mul() -> Tuple[bool, str]:
+def test_tensor_mul():
     """Test tensor multiplication."""
-    try:
-        a = Tensor([2, 3, 4])
-        b = Tensor([1, 2, 3])
-        c = a * b
+    a = Tensor([2, 3, 4])
+    b = Tensor([1, 2, 3])
+    c = a * b
         
-        if not np.allclose(c.data, [2, 6, 12]):
-            return False, f"values {c.data}"
+    assert np.allclose(c.data, [2, 6, 12]), f"values {c.data}"
         
-        c.sum().backward()
-        if not np.allclose(a.grad, [1, 2, 3]):
-            return False, f"grad {a.grad}"
+    c.sum().backward()
+    assert np.allclose(a.grad, [1, 2, 3]), f"grad {a.grad}"
         
-        return True, "Multiplication works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_tensor_matmul() -> Tuple[bool, str]:
+def test_tensor_matmul():
     """Test matrix multiplication."""
-    try:
-        np.random.seed(42)
-        a = Tensor(np.random.randn(3, 4))
-        b = Tensor(np.random.randn(4, 5))
-        c = a @ b
+    np.random.seed(42)
+    a = Tensor(np.random.randn(3, 4))
+    b = Tensor(np.random.randn(4, 5))
+    c = a @ b
         
-        if c.shape != (3, 5):
-            return False, f"shape {c.shape}"
+    assert not (c.shape != (3, 5)), f"shape {c.shape}"
         
-        # Verify actual matmul values
-        expected = a.data @ b.data
-        if not np.allclose(c.data, expected):
-            return False, "matmul values incorrect"
+    # Verify actual matmul values
+    expected = a.data @ b.data
+    assert np.allclose(c.data, expected), "matmul values incorrect"
         
-        c.sum().backward()
-        if a.grad.shape != a.shape:
-            return False, "grad shape mismatch"
+    c.sum().backward()
+    assert not (a.grad.shape != a.shape), "grad shape mismatch"
         
-        # For sum loss, grad_a = ones @ b.T
-        expected_grad_a = np.ones((3, 5)) @ b.data.T
-        if not np.allclose(a.grad, expected_grad_a, rtol=1e-5):
-            return False, "grad values incorrect"
+    # For sum loss, grad_a = ones @ b.T
+    expected_grad_a = np.ones((3, 5)) @ b.data.T
+    assert np.allclose(a.grad, expected_grad_a, rtol=1e-5), "grad values incorrect"
         
-        return True, "Matmul works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_tensor_sum() -> Tuple[bool, str]:
+def test_tensor_sum():
     """Test tensor sum."""
-    try:
-        a = Tensor([[1, 2], [3, 4]])
-        s = a.sum()
+    a = Tensor([[1, 2], [3, 4]])
+    s = a.sum()
         
-        if s.data != 10:
-            return False, f"value {s.data}"
+    assert not (s.data != 10), f"value {s.data}"
         
-        s.backward()
-        if not np.allclose(a.grad, [[1, 1], [1, 1]]):
-            return False, f"grad {a.grad}"
+    s.backward()
+    assert np.allclose(a.grad, [[1, 1], [1, 1]]), f"grad {a.grad}"
         
-        return True, "Sum works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_tensor_mean() -> Tuple[bool, str]:
+def test_tensor_mean():
     """Test tensor mean."""
-    try:
-        a = Tensor([[2, 4], [6, 8]])
-        m = a.mean()
+    a = Tensor([[2, 4], [6, 8]])
+    m = a.mean()
         
-        if m.data != 5:
-            return False, f"value {m.data}"
+    assert not (m.data != 5), f"value {m.data}"
         
-        m.backward()
-        if not np.allclose(a.grad, [[0.25, 0.25], [0.25, 0.25]]):
-            return False, f"grad {a.grad}"
+    m.backward()
+    assert np.allclose(a.grad, [[0.25, 0.25], [0.25, 0.25]]), f"grad {a.grad}"
         
-        return True, "Mean works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_tensor_relu() -> Tuple[bool, str]:
+def test_tensor_relu():
     """Test ReLU activation."""
-    try:
-        a = Tensor([-2, -1, 0, 1, 2])
-        r = a.relu()
+    a = Tensor([-2, -1, 0, 1, 2])
+    r = a.relu()
         
-        if not np.allclose(r.data, [0, 0, 0, 1, 2]):
-            return False, f"values {r.data}"
+    assert np.allclose(r.data, [0, 0, 0, 1, 2]), f"values {r.data}"
         
-        r.sum().backward()
-        if not np.allclose(a.grad, [0, 0, 0, 1, 1]):
-            return False, f"grad {a.grad}"
+    r.sum().backward()
+    assert np.allclose(a.grad, [0, 0, 0, 1, 1]), f"grad {a.grad}"
         
-        return True, "ReLU works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_tensor_reshape() -> Tuple[bool, str]:
+def test_tensor_reshape():
     """Test tensor reshape."""
-    try:
-        a = Tensor(np.arange(12))
-        b = a.reshape(3, 4)
+    a = Tensor(np.arange(12))
+    b = a.reshape(3, 4)
         
-        if b.shape != (3, 4):
-            return False, f"shape {b.shape}"
+    assert not (b.shape != (3, 4)), f"shape {b.shape}"
         
-        # Verify values are preserved
-        if not np.allclose(b.data.flatten(), a.data):
-            return False, "values not preserved"
+    # Verify values are preserved
+    assert np.allclose(b.data.flatten(), a.data), "values not preserved"
         
-        b.sum().backward()
-        if a.grad.shape != (12,):
-            return False, "grad shape mismatch"
+    b.sum().backward()
+    assert not (a.grad.shape != (12,)), "grad shape mismatch"
         
-        # For sum, gradient should be all ones
-        if not np.allclose(a.grad, 1.0):
-            return False, f"grad {a.grad[0]}, expected 1.0"
+    # For sum, gradient should be all ones
+    assert np.allclose(a.grad, 1.0), f"grad {a.grad[0]}, expected 1.0"
         
-        return True, "Reshape works"
-    except Exception as e:
-        return False, str(e)
-
-
 # ============================================================================
 # Module Tests
 # ============================================================================
 
-def test_parameter() -> Tuple[bool, str]:
+def test_parameter():
     """Test Parameter class."""
-    try:
-        np.random.seed(42)
-        data = np.random.randn(3, 4)
-        p = Parameter(data)
+    np.random.seed(42)
+    data = np.random.randn(3, 4)
+    p = Parameter(data)
         
-        if not isinstance(p, Tensor):
-            return False, "not a Tensor"
-        if p.shape != (3, 4):
-            return False, f"shape {p.shape}"
+    assert isinstance(p, Tensor), "not a Tensor"
+    assert not (p.shape != (3, 4)), f"shape {p.shape}"
         
-        # Verify values are stored correctly
-        if not np.allclose(p.data, data):
-            return False, "values not stored correctly"
+    # Verify values are stored correctly
+    assert np.allclose(p.data, data), "values not stored correctly"
         
-        return True, "Parameter works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_linear_layer() -> Tuple[bool, str]:
+def test_linear_layer():
     """Test Linear layer."""
-    try:
-        np.random.seed(42)
-        layer = Linear(10, 5)
+    np.random.seed(42)
+    layer = Linear(10, 5)
         
-        x = Tensor(np.random.randn(4, 10))
-        y = layer(x)
+    x = Tensor(np.random.randn(4, 10))
+    y = layer(x)
         
-        if y.shape != (4, 5):
-            return False, f"shape {y.shape}"
+    assert not (y.shape != (4, 5)), f"shape {y.shape}"
         
-        # Verify linear computation: y = x @ W^T + b
-        expected = x.data @ layer.weight.data.T + layer.bias.data
-        if not np.allclose(y.data, expected, rtol=1e-5):
-            return False, "output values incorrect"
+    # Verify linear computation: y = x @ W^T + b
+    expected = x.data @ layer.weight.data.T + layer.bias.data
+    assert np.allclose(y.data, expected, rtol=1e-5), "output values incorrect"
         
-        y.sum().backward()
-        if np.all(layer.weight.grad == 0):
-            return False, "no gradient"
+    y.sum().backward()
+    assert not (np.all(layer.weight.grad == 0)), "no gradient"
         
-        # Bias gradient = batch_size = 4
-        if not np.allclose(layer.bias.grad, 4.0):
-            return False, f"bias grad {layer.bias.grad[0]}, expected 4.0"
+    # Bias gradient = batch_size = 4
+    assert np.allclose(layer.bias.grad, 4.0), f"bias grad {layer.bias.grad[0]}, expected 4.0"
         
-        return True, "Linear layer works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_sequential() -> Tuple[bool, str]:
+def test_sequential():
     """Test Sequential container."""
-    try:
-        np.random.seed(42)
-        model = Sequential(
-            Linear(10, 20),
-            ReLU(),
-            Linear(20, 5)
-        )
+    np.random.seed(42)
+    model = Sequential(
+        Linear(10, 20),
+        ReLU(),
+        Linear(20, 5)
+    )
         
-        x = Tensor(np.random.randn(4, 10))
-        y = model(x)
+    x = Tensor(np.random.randn(4, 10))
+    y = model(x)
         
-        if y.shape != (4, 5):
-            return False, f"shape {y.shape}"
+    assert not (y.shape != (4, 5)), f"shape {y.shape}"
         
-        params = list(model.parameters())
-        if len(params) != 4:
-            return False, f"param count {len(params)}"
+    params = list(model.parameters())
+    assert not (len(params) != 4), f"param count {len(params)}"
         
-        # Verify output is finite
-        if not np.all(np.isfinite(y.data)):
-            return False, "output contains NaN or Inf"
+    # Verify output is finite
+    assert np.all(np.isfinite(y.data)), "output contains NaN or Inf"
         
-        # Verify backward works
-        y.sum().backward()
-        for p in params:
-            if not np.all(np.isfinite(p.grad)):
-                return False, "gradient contains NaN or Inf"
+    # Verify backward works
+    y.sum().backward()
+    for p in params:
+        assert np.all(np.isfinite(p.grad)), "gradient contains NaN or Inf"
         
-        return True, "Sequential works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_conv2d() -> Tuple[bool, str]:
+def test_conv2d():
     """Test Conv2d layer."""
-    try:
-        np.random.seed(42)
-        conv = Conv2d(3, 16, kernel_size=3, padding=1)
+    np.random.seed(42)
+    conv = Conv2d(3, 16, kernel_size=3, padding=1)
         
-        x = Tensor(np.random.randn(2, 3, 8, 8))
-        y = conv(x)
+    x = Tensor(np.random.randn(2, 3, 8, 8))
+    y = conv(x)
         
-        if y.shape != (2, 16, 8, 8):
-            return False, f"shape {y.shape}"
+    assert not (y.shape != (2, 16, 8, 8)), f"shape {y.shape}"
         
-        # Verify output is finite and not all zeros
-        if not np.all(np.isfinite(y.data)):
-            return False, "output contains NaN or Inf"
-        if np.all(y.data == 0):
-            return False, "output is all zeros"
+    # Verify output is finite and not all zeros
+    assert np.all(np.isfinite(y.data)), "output contains NaN or Inf"
+    assert not (np.all(y.data == 0)), "output is all zeros"
         
-        y.sum().backward()
-        if np.all(conv.weight.grad == 0):
-            return False, "no gradient"
+    y.sum().backward()
+    assert not (np.all(conv.weight.grad == 0)), "no gradient"
         
-        # Verify gradients are finite
-        if not np.all(np.isfinite(conv.weight.grad)):
-            return False, "weight grad contains NaN or Inf"
+    # Verify gradients are finite
+    assert np.all(np.isfinite(conv.weight.grad)), "weight grad contains NaN or Inf"
         
-        return True, "Conv2d works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_maxpool2d() -> Tuple[bool, str]:
+def test_maxpool2d():
     """Test MaxPool2d layer."""
-    try:
-        np.random.seed(42)
-        pool = MaxPool2d(kernel_size=2)
+    np.random.seed(42)
+    pool = MaxPool2d(kernel_size=2)
         
-        x = Tensor(np.random.randn(2, 3, 8, 8))
-        y = pool(x)
+    x = Tensor(np.random.randn(2, 3, 8, 8))
+    y = pool(x)
         
-        if y.shape != (2, 3, 4, 4):
-            return False, f"shape {y.shape}"
+    assert not (y.shape != (2, 3, 4, 4)), f"shape {y.shape}"
         
-        # Verify pooling is actually taking max
-        expected_val = np.max(x.data[0, 0, 0:2, 0:2])
-        if not np.isclose(y.data[0, 0, 0, 0], expected_val):
-            return False, f"pooled value {y.data[0,0,0,0]} vs expected {expected_val}"
+    # Verify pooling is actually taking max
+    expected_val = np.max(x.data[0, 0, 0:2, 0:2])
+    assert np.isclose(y.data[0, 0, 0, 0], expected_val), f"pooled value {y.data[0,0,0,0]} vs expected {expected_val}"
         
-        y.sum().backward()
-        if x.grad.shape != x.shape:
-            return False, "grad shape mismatch"
+    y.sum().backward()
+    assert not (x.grad.shape != x.shape), "grad shape mismatch"
         
-        # Gradient should be sparse (only max positions get gradient)
-        non_zero_count = np.sum(x.grad != 0)
-        if non_zero_count != y.data.size:
-            return False, f"gradient sparsity: {non_zero_count} vs {y.data.size}"
+    # Gradient should be sparse (only max positions get gradient)
+    non_zero_count = np.sum(x.grad != 0)
+    assert not (non_zero_count != y.data.size), f"gradient sparsity: {non_zero_count} vs {y.data.size}"
         
-        return True, "MaxPool2d works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_batchnorm2d() -> Tuple[bool, str]:
+def test_batchnorm2d():
     """Test BatchNorm2d layer."""
-    try:
-        np.random.seed(42)
-        bn = BatchNorm2d(16)
-        bn._training = True
+    np.random.seed(42)
+    bn = BatchNorm2d(16)
+    bn._training = True
         
-        x = Tensor(np.random.randn(4, 16, 8, 8))
-        y = bn(x)
+    x = Tensor(np.random.randn(4, 16, 8, 8))
+    y = bn(x)
         
-        if y.shape != (4, 16, 8, 8):
-            return False, f"shape {y.shape}"
+    assert not (y.shape != (4, 16, 8, 8)), f"shape {y.shape}"
         
-        mean = np.mean(y.data, axis=(0, 2, 3))
-        if not np.allclose(mean, 0, atol=1e-5):
-            return False, "mean not normalized to 0"
+    mean = np.mean(y.data, axis=(0, 2, 3))
+    assert np.allclose(mean, 0, atol=1e-5), "mean not normalized to 0"
         
-        # Verify variance is approximately 1
-        var = np.var(y.data, axis=(0, 2, 3))
-        if not np.allclose(var, 1, atol=0.1):
-            return False, f"variance not normalized to 1: {var[0]}"
+    # Verify variance is approximately 1
+    var = np.var(y.data, axis=(0, 2, 3))
+    assert np.allclose(var, 1, atol=0.1), f"variance not normalized to 1: {var[0]}"
         
-        return True, "BatchNorm2d works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_dropout() -> Tuple[bool, str]:
+def test_dropout():
     """Test Dropout layer."""
-    try:
-        np.random.seed(42)
-        dropout = Dropout(p=0.5)
-        dropout._training = True
+    np.random.seed(42)
+    dropout = Dropout(p=0.5)
+    dropout._training = True
         
-        x = Tensor(np.ones((100, 100)))
-        y = dropout(x)
+    x = Tensor(np.ones((100, 100)))
+    y = dropout(x)
         
-        zero_ratio = np.mean(y.data == 0)
-        if not (0.3 < zero_ratio < 0.7):
-            return False, f"drop ratio {zero_ratio}"
+    zero_ratio = np.mean(y.data == 0)
+    assert (0.3 < zero_ratio < 0.7), f"drop ratio {zero_ratio}"
         
-        # Non-zero values should be scaled by 1/(1-p) = 2
-        non_zero_vals = y.data[y.data != 0]
-        if not np.allclose(non_zero_vals, 2.0, rtol=1e-5):
-            return False, f"scaling incorrect: {non_zero_vals[0]} vs 2.0"
+    # Non-zero values should be scaled by 1/(1-p) = 2
+    non_zero_vals = y.data[y.data != 0]
+    assert np.allclose(non_zero_vals, 2.0, rtol=1e-5), f"scaling incorrect: {non_zero_vals[0]} vs 2.0"
         
-        dropout._training = False
-        y2 = dropout(x)
-        if not np.allclose(y2.data, x.data):
-            return False, "eval not identity"
+    dropout._training = False
+    y2 = dropout(x)
+    assert np.allclose(y2.data, x.data), "eval not identity"
         
-        return True, "Dropout works"
-    except Exception as e:
-        return False, str(e)
-
-
 # ============================================================================
 # Loss Function Tests
 # ============================================================================
 
-def test_cross_entropy() -> Tuple[bool, str]:
+def test_cross_entropy():
     """Test CrossEntropyLoss."""
-    try:
-        loss_fn = CrossEntropyLoss()
+    loss_fn = CrossEntropyLoss()
         
-        logits = Tensor(np.array([[2.0, 1.0, 0.1], [0.1, 2.0, 0.1]]))
-        targets = np.array([0, 1])
+    logits = Tensor(np.array([[2.0, 1.0, 0.1], [0.1, 2.0, 0.1]]))
+    targets = np.array([0, 1])
         
-        loss = loss_fn(logits, targets)
+    loss = loss_fn(logits, targets)
         
-        if loss.data.shape != ():
-            return False, "not scalar"
-        if loss.data < 0:
-            return False, "negative loss"
+    assert not (loss.data.shape != ()), "not scalar"
+    assert not (loss.data < 0), "negative loss"
         
-        # Verify actual loss value
-        probs = softmax(logits.data)
-        expected_loss = -np.mean(np.log(probs[np.arange(2), targets]))
-        if not np.isclose(loss.data, expected_loss, rtol=1e-5):
-            return False, f"loss {loss.data} vs expected {expected_loss}"
+    # Verify actual loss value
+    probs = softmax(logits.data)
+    expected_loss = -np.mean(np.log(probs[np.arange(2), targets]))
+    assert np.isclose(loss.data, expected_loss, rtol=1e-5), f"loss {loss.data} vs expected {expected_loss}"
         
-        loss.backward()
-        if np.all(logits.grad == 0):
-            return False, "no gradient"
+    loss.backward()
+    assert not (np.all(logits.grad == 0)), "no gradient"
         
-        # Gradient rows should sum to approximately 0
-        if not np.allclose(logits.grad.sum(axis=1), 0, atol=1e-6):
-            return False, "grad rows should sum to ~0"
+    # Gradient rows should sum to approximately 0
+    assert np.allclose(logits.grad.sum(axis=1), 0, atol=1e-6), "grad rows should sum to ~0"
         
-        return True, "CrossEntropyLoss works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_mse_loss() -> Tuple[bool, str]:
+def test_mse_loss():
     """Test MSELoss."""
-    try:
-        loss_fn = MSELoss()
+    loss_fn = MSELoss()
         
-        pred = Tensor([[1.0, 2.0], [3.0, 4.0]])
-        target = Tensor([[1.5, 2.5], [3.5, 4.5]])
+    pred = Tensor([[1.0, 2.0], [3.0, 4.0]])
+    target = Tensor([[1.5, 2.5], [3.5, 4.5]])
         
-        loss = loss_fn(pred, target)
+    loss = loss_fn(pred, target)
         
-        if loss.data.shape != ():
-            return False, "not scalar"
+    assert not (loss.data.shape != ()), "not scalar"
         
-        expected = 0.25
-        if not np.allclose(loss.data, expected):
-            return False, f"value {loss.data}"
+    expected = 0.25
+    assert np.allclose(loss.data, expected), f"value {loss.data}"
         
-        return True, "MSELoss works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_softmax() -> Tuple[bool, str]:
+def test_softmax():
     """Test softmax function."""
-    try:
-        x = np.array([[1, 2, 3], [1, 2, 3]])
-        probs = softmax(x)
+    x = np.array([[1, 2, 3], [1, 2, 3]])
+    probs = softmax(x)
         
-        if not np.allclose(probs.sum(axis=1), 1):
-            return False, "doesn't sum to 1"
+    assert np.allclose(probs.sum(axis=1), 1), "doesn't sum to 1"
         
-        # Verify actual softmax values
-        exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
-        expected = exp_x / exp_x.sum(axis=1, keepdims=True)
-        if not np.allclose(probs, expected):
-            return False, "values incorrect"
+    # Verify actual softmax values
+    exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+    expected = exp_x / exp_x.sum(axis=1, keepdims=True)
+    assert np.allclose(probs, expected), "values incorrect"
         
-        # Verify ordering (larger inputs -> larger probs)
-        if not (probs[0, 2] > probs[0, 1] > probs[0, 0]):
-            return False, "ordering incorrect"
+    # Verify ordering (larger inputs -> larger probs)
+    assert (probs[0, 2] > probs[0, 1] > probs[0, 0]), "ordering incorrect"
         
-        x_large = np.array([[1000, 1001, 1002]])
-        probs_large = softmax(x_large)
-        if not np.all(np.isfinite(probs_large)):
-            return False, "not numerically stable"
+    x_large = np.array([[1000, 1001, 1002]])
+    probs_large = softmax(x_large)
+    assert np.all(np.isfinite(probs_large)), "not numerically stable"
         
-        return True, "Softmax works"
-    except Exception as e:
-        return False, str(e)
-
-
 # ============================================================================
 # Optimizer Tests
 # ============================================================================
 
-def test_sgd() -> Tuple[bool, str]:
+def test_sgd():
     """Test SGD optimizer."""
-    try:
-        w = Tensor(np.array([1.0, 2.0, 3.0]))
-        optimizer = SGD([w], lr=0.1)
+    w = Tensor(np.array([1.0, 2.0, 3.0]))
+    optimizer = SGD([w], lr=0.1)
         
+    w.grad = np.array([1.0, 1.0, 1.0])
+    optimizer.step()
+        
+    assert np.allclose(w.data, [0.9, 1.9, 2.9]), f"values {w.data}"
+        
+    optimizer.zero_grad()
+    assert np.allclose(w.grad, 0), "grad not zeroed"
+        
+def test_adam():
+    """Test Adam optimizer."""
+    w = Tensor(np.array([1.0, 2.0, 3.0]))
+    original = w.data.copy()
+    optimizer = Adam([w], lr=0.1)
+        
+    for _ in range(5):
         w.grad = np.array([1.0, 1.0, 1.0])
         optimizer.step()
         
-        if not np.allclose(w.data, [0.9, 1.9, 2.9]):
-            return False, f"values {w.data}"
+    assert not (np.allclose(w.data, [1, 2, 3])), "no update"
         
-        optimizer.zero_grad()
-        if not np.allclose(w.grad, 0):
-            return False, "grad not zeroed"
+    # Weights should have decreased (positive gradient = decrease)
+    assert np.all(w.data < original), "weights should decrease with positive gradient"
         
-        return True, "SGD works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_adam() -> Tuple[bool, str]:
-    """Test Adam optimizer."""
-    try:
-        w = Tensor(np.array([1.0, 2.0, 3.0]))
-        original = w.data.copy()
-        optimizer = Adam([w], lr=0.1)
+    # Values should be finite
+    assert np.all(np.isfinite(w.data)), "weights contain NaN or Inf"
         
-        for _ in range(5):
-            w.grad = np.array([1.0, 1.0, 1.0])
-            optimizer.step()
-        
-        if np.allclose(w.data, [1, 2, 3]):
-            return False, "no update"
-        
-        # Weights should have decreased (positive gradient = decrease)
-        if not np.all(w.data < original):
-            return False, "weights should decrease with positive gradient"
-        
-        # Values should be finite
-        if not np.all(np.isfinite(w.data)):
-            return False, "weights contain NaN or Inf"
-        
-        return True, "Adam works"
-    except Exception as e:
-        return False, str(e)
-
-
 # ============================================================================
 # Data Loading Tests
 # ============================================================================
 
-def test_synthetic_data() -> Tuple[bool, str]:
+def test_synthetic_data():
     """Test synthetic MNIST generation."""
-    try:
-        np.random.seed(42)
-        data = generate_synthetic_mnist(n_samples=100, n_classes=10)
+    np.random.seed(42)
+    data = generate_synthetic_mnist(n_samples=100, n_classes=10)
         
-        if data is None:
-            return False, "not implemented"
+    assert not (data is None), "not implemented"
         
-        X, y = data
+    X, y = data
         
-        if X.shape != (100, 1, 28, 28):
-            return False, f"X shape {X.shape}"
-        if y.shape != (100,):
-            return False, f"y shape {y.shape}"
+    assert not (X.shape != (100, 1, 28, 28)), f"X shape {X.shape}"
+    assert not (y.shape != (100,)), f"y shape {y.shape}"
         
-        if not np.all((y >= 0) & (y < 10)):
-            return False, "invalid labels"
+    assert np.all((y >= 0) & (y < 10)), "invalid labels"
         
-        # Verify data is finite
-        if not np.all(np.isfinite(X)):
-            return False, "X contains NaN or Inf"
+    # Verify data is finite
+    assert np.all(np.isfinite(X)), "X contains NaN or Inf"
         
-        return True, "Synthetic data works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_data_loader() -> Tuple[bool, str]:
+def test_data_loader():
     """Test DataLoader."""
-    try:
-        np.random.seed(42)
-        X = np.arange(1000).reshape(100, 10).astype(float)
-        y = np.arange(100)
+    np.random.seed(42)
+    X = np.arange(1000).reshape(100, 10).astype(float)
+    y = np.arange(100)
         
-        # Test without shuffle first
-        loader_no_shuffle = DataLoader(X, y, batch_size=32, shuffle=False)
-        batches_ns = list(loader_no_shuffle)
+    # Test without shuffle first
+    loader_no_shuffle = DataLoader(X, y, batch_size=32, shuffle=False)
+    batches_ns = list(loader_no_shuffle)
         
-        # Verify first batch values
-        if not np.allclose(batches_ns[0][0], X[:32]):
-            return False, "batch values incorrect"
-        if not np.allclose(batches_ns[0][1], y[:32]):
-            return False, "batch labels incorrect"
+    # Verify first batch values
+    assert np.allclose(batches_ns[0][0], X[:32]), "batch values incorrect"
+    assert np.allclose(batches_ns[0][1], y[:32]), "batch labels incorrect"
         
-        loader = DataLoader(X, y, batch_size=32, shuffle=True)
+    loader = DataLoader(X, y, batch_size=32, shuffle=True)
         
-        batches = list(loader)
-        if len(batches) != 4:
-            return False, f"batch count {len(batches)}"
+    batches = list(loader)
+    assert not (len(batches) != 4), f"batch count {len(batches)}"
         
-        total_samples = sum(len(batch[1]) for batch in batches)
-        if total_samples != 100:
-            return False, f"sample count {total_samples}"
+    total_samples = sum(len(batch[1]) for batch in batches)
+    assert not (total_samples != 100), f"sample count {total_samples}"
         
-        return True, "DataLoader works"
-    except Exception as e:
-        return False, str(e)
-
-
 # ============================================================================
 # Complete Model Tests
 # ============================================================================
 
-def test_simple_cnn() -> Tuple[bool, str]:
+def test_simple_cnn():
     """Test SimpleCNN model."""
-    try:
-        np.random.seed(42)
-        model = SimpleCNN(in_channels=1, num_classes=10)
+    np.random.seed(42)
+    model = SimpleCNN(in_channels=1, num_classes=10)
         
-        if model.conv1 is None:
-            return False, "not implemented"
+    assert not (model.conv1 is None), "not implemented"
         
-        x = Tensor(np.random.randn(2, 1, 28, 28))
-        y = model(x)
+    x = Tensor(np.random.randn(2, 1, 28, 28))
+    y = model(x)
         
-        if y is None:
-            return False, "forward returned None"
-        if y.shape != (2, 10):
-            return False, f"shape {y.shape}"
+    assert not (y is None), "forward returned None"
+    assert not (y.shape != (2, 10)), f"shape {y.shape}"
         
-        # Verify output is finite
-        if not np.all(np.isfinite(y.data)):
-            return False, "output contains NaN or Inf"
+    # Verify output is finite
+    assert np.all(np.isfinite(y.data)), "output contains NaN or Inf"
         
-        # Different inputs should give different outputs
-        x2 = Tensor(np.random.randn(2, 1, 28, 28))
-        y2 = model(x2)
-        if np.allclose(y.data, y2.data):
-            return False, "same output for different inputs"
+    # Different inputs should give different outputs
+    x2 = Tensor(np.random.randn(2, 1, 28, 28))
+    y2 = model(x2)
+    assert not (np.allclose(y.data, y2.data)), "same output for different inputs"
         
-        return True, "SimpleCNN forward works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_simple_cnn_backward() -> Tuple[bool, str]:
+def test_simple_cnn_backward():
     """Test SimpleCNN backward pass."""
-    try:
-        np.random.seed(42)
-        model = SimpleCNN(in_channels=1, num_classes=10)
+    np.random.seed(42)
+    model = SimpleCNN(in_channels=1, num_classes=10)
         
-        if model.conv1 is None:
-            return False, "not implemented"
+    assert not (model.conv1 is None), "not implemented"
         
-        x = Tensor(np.random.randn(2, 1, 28, 28))
-        y = model(x)
+    x = Tensor(np.random.randn(2, 1, 28, 28))
+    y = model(x)
         
-        if y is None:
-            return False, "forward returned None"
+    assert not (y is None), "forward returned None"
         
-        loss_fn = CrossEntropyLoss()
-        targets = np.array([0, 1])
-        loss = loss_fn(y, targets)
+    loss_fn = CrossEntropyLoss()
+    targets = np.array([0, 1])
+    loss = loss_fn(y, targets)
         
-        if loss is None:
-            return False, "loss is None"
+    assert not (loss is None), "loss is None"
         
-        loss.backward()
+    loss.backward()
         
-        has_grad = any(np.any(p.grad != 0) for p in model.parameters())
-        if not has_grad:
-            return False, "no gradients"
+    has_grad = any(np.any(p.grad != 0) for p in model.parameters())
+    assert has_grad, "no gradients"
         
-        # Verify all gradients are finite
-        for p in model.parameters():
-            if not np.all(np.isfinite(p.grad)):
-                return False, "gradient contains NaN or Inf"
+    # Verify all gradients are finite
+    for p in model.parameters():
+        assert np.all(np.isfinite(p.grad)), "gradient contains NaN or Inf"
         
-        return True, "SimpleCNN backward works"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_training_step() -> Tuple[bool, str]:
+def test_training_step():
     """Test a complete training step."""
-    try:
-        np.random.seed(42)
+    np.random.seed(42)
         
-        model = Sequential(
-            Linear(10, 32),
-            ReLU(),
-            Linear(32, 5)
-        )
+    model = Sequential(
+        Linear(10, 32),
+        ReLU(),
+        Linear(32, 5)
+    )
         
-        loss_fn = CrossEntropyLoss()
-        optimizer = SGD(model.parameters(), lr=0.1)
+    loss_fn = CrossEntropyLoss()
+    optimizer = SGD(model.parameters(), lr=0.1)
         
-        x = Tensor(np.random.randn(8, 10))
-        targets = np.random.randint(0, 5, 8)
+    x = Tensor(np.random.randn(8, 10))
+    targets = np.random.randint(0, 5, 8)
         
+    logits = model(x)
+    initial_loss = loss_fn(logits, targets)
+    initial_loss_value = initial_loss.data
+        
+    for _ in range(10):
+        optimizer.zero_grad()
         logits = model(x)
-        initial_loss = loss_fn(logits, targets)
-        initial_loss_value = initial_loss.data
+        loss = loss_fn(logits, targets)
+        loss.backward()
+        optimizer.step()
         
-        for _ in range(10):
-            optimizer.zero_grad()
-            logits = model(x)
-            loss = loss_fn(logits, targets)
-            loss.backward()
-            optimizer.step()
+    assert not (loss.data >= initial_loss_value), f"loss didn't decrease: {initial_loss_value:.4f} -> {loss.data:.4f}"
         
-        if loss.data >= initial_loss_value:
-            return False, f"loss didn't decrease: {initial_loss_value:.4f} -> {loss.data:.4f}"
-        
-        return True, f"Loss: {initial_loss_value:.4f} -> {loss.data:.4f}"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_full_training() -> Tuple[bool, str]:
+def test_full_training():
     """Test full training loop."""
-    try:
-        np.random.seed(42)
+    np.random.seed(42)
         
-        data = generate_synthetic_mnist(n_samples=200, n_classes=10)
-        if data is None:
-            return False, "synthetic data not implemented"
+    data = generate_synthetic_mnist(n_samples=200, n_classes=10)
+    assert not (data is None), "synthetic data not implemented"
         
-        X, y = data
+    X, y = data
         
-        train_loader = DataLoader(X[:160], y[:160], batch_size=32)
-        val_loader = DataLoader(X[160:], y[160:], batch_size=32)
+    train_loader = DataLoader(X[:160], y[:160], batch_size=32)
+    val_loader = DataLoader(X[160:], y[160:], batch_size=32)
         
-        model = SimpleCNN(in_channels=1, num_classes=10)
-        if model.conv1 is None:
-            return False, "SimpleCNN not implemented"
+    model = SimpleCNN(in_channels=1, num_classes=10)
+    assert not (model.conv1 is None), "SimpleCNN not implemented"
         
-        loss_fn = CrossEntropyLoss()
-        optimizer = Adam(model.parameters(), lr=0.001)
+    loss_fn = CrossEntropyLoss()
+    optimizer = Adam(model.parameters(), lr=0.001)
         
-        initial_loss, _ = evaluate(model, val_loader, loss_fn)
+    initial_loss, _ = evaluate(model, val_loader, loss_fn)
         
-        for _ in range(3):
-            train_epoch(model, train_loader, loss_fn, optimizer)
+    for _ in range(3):
+        train_epoch(model, train_loader, loss_fn, optimizer)
         
-        final_loss, accuracy = evaluate(model, val_loader, loss_fn)
+    final_loss, accuracy = evaluate(model, val_loader, loss_fn)
         
-        if final_loss >= initial_loss:
-            return False, "loss didn't decrease"
+    assert not (final_loss >= initial_loss), "loss didn't decrease"
         
-        return True, f"Accuracy: {accuracy:.2%}"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_im2col_col2im() -> Tuple[bool, str]:
+def test_im2col_col2im():
     """Test im2col and col2im functions."""
-    try:
-        np.random.seed(42)
-        x = np.random.randn(2, 3, 8, 8)
+    np.random.seed(42)
+    x = np.random.randn(2, 3, 8, 8)
         
-        col = im2col(x, 3, 3, stride=1, padding=1)
+    col = im2col(x, 3, 3, stride=1, padding=1)
         
-        if col.shape[0] != 2 * 8 * 8:
-            return False, f"col shape {col.shape}"
+    assert not (col.shape[0] != 2 * 8 * 8), f"col shape {col.shape}"
         
-        # Verify col contains finite values
-        if not np.all(np.isfinite(col)):
-            return False, "im2col output contains NaN or Inf"
+    # Verify col contains finite values
+    assert np.all(np.isfinite(col)), "im2col output contains NaN or Inf"
         
-        x_reconstructed = col2im(col, x.shape, 3, 3, stride=1, padding=1)
+    x_reconstructed = col2im(col, x.shape, 3, 3, stride=1, padding=1)
         
-        if x_reconstructed.shape != x.shape:
-            return False, "reconstruction shape mismatch"
+    assert not (x_reconstructed.shape != x.shape), "reconstruction shape mismatch"
         
-        # Verify reconstruction is finite
-        if not np.all(np.isfinite(x_reconstructed)):
-            return False, "col2im output contains NaN or Inf"
+    # Verify reconstruction is finite
+    assert np.all(np.isfinite(x_reconstructed)), "col2im output contains NaN or Inf"
         
-        return True, "im2col/col2im work"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_model_train_eval_mode() -> Tuple[bool, str]:
+def test_model_train_eval_mode():
     """Test train/eval mode switching."""
-    try:
-        model = Sequential(
-            Linear(10, 20),
-            ReLU(),
-            Dropout(0.5),
-            Linear(20, 5)
-        )
+    model = Sequential(
+        Linear(10, 20),
+        ReLU(),
+        Dropout(0.5),
+        Linear(20, 5)
+    )
         
-        model.train()
-        for m in model._modules.values():
-            if hasattr(m, '_training') and not m._training:
-                return False, "not in train mode"
+    model.train()
+    for m in model._modules.values():
+        assert not (hasattr(m, '_training') and not m._training), "not in train mode"
         
-        model.eval()
-        for m in model._modules.values():
-            if hasattr(m, '_training') and m._training:
-                return False, "not in eval mode"
+    model.eval()
+    for m in model._modules.values():
+        assert not (hasattr(m, '_training') and m._training), "not in eval mode"
         
-        return True, "Train/eval mode works"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("tensor_creation", test_tensor_creation),
-        ("tensor_add", test_tensor_add),
-        ("tensor_mul", test_tensor_mul),
-        ("tensor_matmul", test_tensor_matmul),
-        ("tensor_sum", test_tensor_sum),
-        ("tensor_mean", test_tensor_mean),
-        ("tensor_relu", test_tensor_relu),
-        ("tensor_reshape", test_tensor_reshape),
-        ("parameter", test_parameter),
-        ("linear_layer", test_linear_layer),
-        ("sequential", test_sequential),
-        ("conv2d", test_conv2d),
-        ("maxpool2d", test_maxpool2d),
-        ("batchnorm2d", test_batchnorm2d),
-        ("dropout", test_dropout),
-        ("cross_entropy", test_cross_entropy),
-        ("mse_loss", test_mse_loss),
-        ("softmax", test_softmax),
-        ("sgd", test_sgd),
-        ("adam", test_adam),
-        ("synthetic_data", test_synthetic_data),
-        ("data_loader", test_data_loader),
-        ("simple_cnn", test_simple_cnn),
-        ("simple_cnn_backward", test_simple_cnn_backward),
-        ("training_step", test_training_step),
-        ("full_training", test_full_training),
-        ("im2col_col2im", test_im2col_col2im),
-        ("model_train_eval_mode", test_model_train_eval_mode),
-    ]
-    
-    print(f"\n{'='*70}")
-    print("Day 35: Complete Autodiff Library - Final Test Suite")
-    print(f"{'='*70}")
-    
-    passed = 0
-    for name, fn in tests:
-        try:
-            p, m = fn()
-        except Exception as e:
-            p, m = False, str(e)
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
-    
-    print(f"\n{'='*70}")
-    print(f"Summary: {passed}/{len(tests)} tests passed")
-    print(f"{'='*70}")
-    
-    if passed == len(tests):
-        print("\nCongratulations! All tests passed!")
-        print("You have successfully built a complete autodiff library from scratch!")
-    elif passed >= len(tests) * 0.8:
-        print("\nGreat progress! Most tests passing.")
-        print("Complete the remaining TODOs to finish the project.")
-    else:
-        print("\nKeep working on the implementations.")
-        print("Review the TODO sections in day35.py")
-    
-    return passed == len(tests)
-
-
 if __name__ == "__main__":
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        sys.exit(1)
-    success = run_all_tests()
-    sys.exit(0 if success else 1)
+    pytest.main([__file__, "-v"])

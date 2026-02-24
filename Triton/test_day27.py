@@ -1,9 +1,10 @@
-"""Test Suite for Day 27: Memory-Efficient Attention"""
+"""Test Suite for Day 27: Memory-Efficient Attention
+Run: pytest test_day27.py -v
+"""
 
+import pytest
 import torch
 import math
-import sys
-from typing import Tuple
 
 CUDA_AVAILABLE = torch.cuda.is_available()
 
@@ -27,34 +28,65 @@ def reference_attention(Q, K, V):
     return weights @ V
 
 
-def test_single_query() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        seq_len, head_dim = 64, 32
-        Q = torch.randn(seq_len, head_dim, device='cuda')
-        K = torch.randn(seq_len, head_dim, device='cuda')
-        V = torch.randn(seq_len, head_dim, device='cuda')
-        
-        query_idx = 5
-        result = single_query_attention(Q, K, V, query_idx)
-        
-        expected_full = reference_attention(Q, K, V)
-        expected = expected_full[query_idx]
-        
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-3:
-            return False, f"Error: {max_err:.6f}"
-        return True, "single query OK"
-    except Exception as e:
-        return False, str(e)
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day27")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_single_query():
+    """Test single query attention."""
+    seq_len, head_dim = 64, 32
+    Q = torch.randn(seq_len, head_dim, device='cuda')
+    K = torch.randn(seq_len, head_dim, device='cuda')
+    V = torch.randn(seq_len, head_dim, device='cuda')
+    
+    query_idx = 5
+    result = single_query_attention(Q, K, V, query_idx)
+    
+    expected_full = reference_attention(Q, K, V)
+    expected = expected_full[query_idx]
+    
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-3, f"Error: {max_err:.6f}"
 
 
-def test_memory_efficient() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        seq_len, head_dim = 64, 32
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day27")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_memory_efficient():
+    """Test memory efficient attention."""
+    seq_len, head_dim = 64, 32
+    Q = torch.randn(seq_len, head_dim, device='cuda')
+    K = torch.randn(seq_len, head_dim, device='cuda')
+    V = torch.randn(seq_len, head_dim, device='cuda')
+    
+    result = memory_efficient_attention(Q, K, V)
+    expected = reference_attention(Q, K, V)
+    
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-3, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day27")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_numerical_stability():
+    """Test numerical stability with large values."""
+    seq_len, head_dim = 64, 32
+    Q = torch.randn(seq_len, head_dim, device='cuda') * 10
+    K = torch.randn(seq_len, head_dim, device='cuda') * 10
+    V = torch.randn(seq_len, head_dim, device='cuda')
+    
+    result = memory_efficient_attention(Q, K, V)
+    
+    assert not torch.isnan(result).any(), "NaN in output"
+    assert not torch.isinf(result).any(), "Inf in output"
+    
+    expected = reference_attention(Q, K, V)
+    max_err = (result - expected).abs().max().item()
+    assert max_err <= 1e-2, f"Error: {max_err:.6f}"
+
+
+@pytest.mark.skipif(not IMPORT_SUCCESS, reason="Could not import from day27")
+@pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA not available")
+def test_various_sizes():
+    """Test various tensor sizes."""
+    for seq_len, head_dim in [(32, 32), (64, 64), (128, 32)]:
         Q = torch.randn(seq_len, head_dim, device='cuda')
         K = torch.randn(seq_len, head_dim, device='cuda')
         V = torch.randn(seq_len, head_dim, device='cuda')
@@ -63,81 +95,8 @@ def test_memory_efficient() -> Tuple[bool, str]:
         expected = reference_attention(Q, K, V)
         
         max_err = (result - expected).abs().max().item()
-        if max_err > 1e-3:
-            return False, f"Error: {max_err:.6f}"
-        return True, "memory efficient OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_numerical_stability() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        seq_len, head_dim = 64, 32
-        Q = torch.randn(seq_len, head_dim, device='cuda') * 10
-        K = torch.randn(seq_len, head_dim, device='cuda') * 10
-        V = torch.randn(seq_len, head_dim, device='cuda')
-        
-        result = memory_efficient_attention(Q, K, V)
-        
-        if torch.isnan(result).any():
-            return False, "NaN in output"
-        if torch.isinf(result).any():
-            return False, "Inf in output"
-        
-        expected = reference_attention(Q, K, V)
-        max_err = (result - expected).abs().max().item()
-        if max_err > 1e-2:
-            return False, f"Error: {max_err:.6f}"
-        
-        return True, "stable OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def test_various_sizes() -> Tuple[bool, str]:
-    if not CUDA_AVAILABLE:
-        return False, "CUDA required"
-    try:
-        for seq_len, head_dim in [(32, 32), (64, 64), (128, 32)]:
-            Q = torch.randn(seq_len, head_dim, device='cuda')
-            K = torch.randn(seq_len, head_dim, device='cuda')
-            V = torch.randn(seq_len, head_dim, device='cuda')
-            
-            result = memory_efficient_attention(Q, K, V)
-            expected = reference_attention(Q, K, V)
-            
-            max_err = (result - expected).abs().max().item()
-            if max_err > 1e-2:
-                return False, f"Failed at {seq_len}x{head_dim}"
-        
-        return True, "various sizes OK"
-    except Exception as e:
-        return False, str(e)
-
-
-def run_all_tests():
-    tests = [
-        ("single_query", test_single_query),
-        ("memory_efficient", test_memory_efficient),
-        ("numerical_stability", test_numerical_stability),
-        ("various_sizes", test_various_sizes),
-    ]
-    
-    print(f"\n{'='*50}\nDay 27: Memory-Efficient Attention - Tests\n{'='*50}")
-    
-    if not IMPORT_SUCCESS:
-        print(f"Import error: {IMPORT_ERROR}")
-        return
-    
-    passed = 0
-    for name, fn in tests:
-        p, m = fn()
-        passed += p
-        print(f"  [{'PASS' if p else 'FAIL'}] {name}: {m}")
-    print(f"\nSummary: {passed}/{len(tests)}")
+        assert max_err <= 1e-2, f"Failed at {seq_len}x{head_dim}"
 
 
 if __name__ == "__main__":
-    run_all_tests()
+    pytest.main([__file__, "-v"])
